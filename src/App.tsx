@@ -14,9 +14,10 @@ import { CharacterDatabase } from './components/encyclopedia/CharacterDatabase';
 import { BattleSandbox } from './components/sandbox/BattleSandbox';
 import { EquipmentShop } from './components/shop/EquipmentShop';
 import { GradeVotingModal } from './components/auction/GradeVotingModal';
+import { MarvelCinematicIntro } from './components/common/MarvelCinematicIntro';
 import { GamePhase } from './types/game';
 import { soundManager } from './audio/soundManager';
-import { Sparkles, Swords } from 'lucide-react';
+import { Sparkles, Swords, Film } from 'lucide-react';
 
 export function App() {
   const {
@@ -40,6 +41,7 @@ export function App() {
     proceedFromShopToBattles,
   } = useGameState();
 
+  const [showBootIntro, setShowBootIntro] = useState(true);
   const [showHowToPlay, setShowHowToPlay] = useState(false);
   const [previousPhaseBeforeBrowse, setPreviousPhaseBeforeBrowse] = useState<GamePhase>('HOME');
 
@@ -65,6 +67,11 @@ export function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-marvel-darker text-slate-100 relative selection:bg-marvel-red selection:text-white">
+      {/* Marvel Cinematic Intro on Website Boot */}
+      {showBootIntro && (
+        <MarvelCinematicIntro onComplete={() => setShowBootIntro(false)} />
+      )}
+
       {/* Scanline Comic Overlay */}
       <div className="fixed inset-0 scanlines pointer-events-none z-30" />
 
@@ -109,6 +116,7 @@ export function App() {
               setPreviousPhaseBeforeBrowse('HOME');
               setPhase('EQUIPMENT_SHOP');
             }}
+            onPlayIntro={() => setShowBootIntro(true)}
           />
         )}
 
@@ -223,22 +231,13 @@ export function App() {
           />
         )}
 
-        {/* 9. BATTLE TRANSITION */}
+        {/* 9. BATTLE TRANSITION MARVEL INTRO */}
         {state.phase === 'BATTLE_TRANSITION' && (
-          <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center space-y-4 animate-shake">
-            <div className="p-4 bg-purple-950/80 rounded-full border border-purple-500 shadow-glow-cosmic">
-              <Swords className="w-12 h-12 text-marvel-gold animate-pulse" />
-            </div>
-            <span className="text-xs font-black uppercase tracking-widest text-emerald-400 bg-emerald-950/80 px-4 py-1 rounded-full border border-emerald-500">
-              HEROES EQUIPPED & READY
-            </span>
-            <h1 className="text-4xl sm:text-7xl font-heading font-black text-marvel-gradient uppercase tracking-widest">
-              THE BATTLES BEGIN
-            </h1>
-            <p className="text-sm text-slate-300 max-w-md mx-auto">
-              Preparing tier-matched combat pairings and dynamic tournament bracket...
-            </p>
-          </div>
+          <MarvelCinematicIntro
+            title="MARVEL"
+            subtitle="THE TOURNAMENT BATTLES COMMENCE"
+            onComplete={() => setPhase('TOURNAMENT_TREE')}
+          />
         )}
 
         {/* 10. TOURNAMENT BRACKET */}

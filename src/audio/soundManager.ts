@@ -479,6 +479,90 @@ class SoundManager {
       osc.stop(startTime + 0.4);
     });
   }
+
+  // 11. Iconic Marvel Studios Intro Fanfare & Sub-Bass Swell
+  public playMarvelIntroFanfare() {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+
+    // Sub-Bass Cinematic Boom (Page Flip Rumble)
+    const subOsc = this.ctx.createOscillator();
+    const subGain = this.ctx.createGain();
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(85, now);
+    subOsc.frequency.exponentialRampToValueAtTime(28, now + 2.5);
+    subGain.gain.setValueAtTime(0.4, now);
+    subGain.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
+    subOsc.connect(subGain);
+    subGain.connect(this.ctx.destination);
+    subOsc.start(now);
+    subOsc.stop(now + 2.5);
+
+    // Comic Page Flutter Noise
+    const bufferSize = this.ctx.sampleRate * 1.5;
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.4));
+    }
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buffer;
+    const noiseFilter = this.ctx.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.setValueAtTime(1200, now);
+    noiseFilter.frequency.linearRampToValueAtTime(300, now + 1.2);
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.18, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(this.ctx.destination);
+    noise.start(now);
+
+    // Orchestral Brass Fanfare Swell (Building into Grand Marvel Chord)
+    const fanfareNotes = [
+      // Fast ascending motif
+      { f: 196.00, t: 0.2, d: 0.4, type: 'sawtooth' as OscillatorType, vol: 0.15 }, // G3
+      { f: 261.63, t: 0.45, d: 0.4, type: 'sawtooth' as OscillatorType, vol: 0.18 }, // C4
+      { f: 293.66, t: 0.7, d: 0.4, type: 'sawtooth' as OscillatorType, vol: 0.20 }, // D4
+      { f: 392.00, t: 0.95, d: 0.6, type: 'sawtooth' as OscillatorType, vol: 0.22 }, // G4
+
+      // Grand Climax Marvel Brass Chord at t = 1.3s
+      { f: 130.81, t: 1.3, d: 2.2, type: 'sawtooth' as OscillatorType, vol: 0.25 }, // C3 Bass
+      { f: 261.63, t: 1.3, d: 2.2, type: 'sawtooth' as OscillatorType, vol: 0.28 }, // C4
+      { f: 329.63, t: 1.3, d: 2.2, type: 'sawtooth' as OscillatorType, vol: 0.26 }, // E4
+      { f: 392.00, t: 1.3, d: 2.2, type: 'sawtooth' as OscillatorType, vol: 0.28 }, // G4
+      { f: 523.25, t: 1.3, d: 2.4, type: 'sawtooth' as OscillatorType, vol: 0.32 }, // C5 High Trumpet
+      { f: 659.25, t: 1.3, d: 2.4, type: 'sawtooth' as OscillatorType, vol: 0.28 }, // E5
+      { f: 783.99, t: 1.3, d: 2.4, type: 'sawtooth' as OscillatorType, vol: 0.30 }, // G5
+    ];
+
+    fanfareNotes.forEach(({ f, t, d, type, vol }) => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+      const filter = this.ctx!.createBiquadFilter();
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(2500, now + t);
+
+      osc.type = type;
+      osc.frequency.setValueAtTime(f, now + t);
+
+      gain.gain.setValueAtTime(0.001, now + t);
+      gain.gain.linearRampToValueAtTime(vol, now + t + 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + t + d);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx!.destination);
+
+      osc.start(now + t);
+      osc.stop(now + t + d);
+    });
+  }
 }
 
 export const soundManager = new SoundManager();

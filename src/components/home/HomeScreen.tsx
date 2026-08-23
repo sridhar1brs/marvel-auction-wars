@@ -10,6 +10,7 @@ interface Props {
   onOpenHowToPlay: () => void;
   onOpenSandbox: () => void;
   onOpenRelicShop: () => void;
+  onPlayIntro?: () => void;
 }
 
 export function HomeScreen({
@@ -20,6 +21,7 @@ export function HomeScreen({
   onOpenHowToPlay,
   onOpenSandbox,
   onOpenRelicShop,
+  onPlayIntro,
 }: Props) {
   const handleAction = (cb: () => void) => {
     soundManager.playClick();
@@ -131,8 +133,17 @@ export function HomeScreen({
         </button>
       </div>
 
-      {/* Secondary Quick Links (Sandbox, Relics, Characters, Rules) */}
-      <div className="relative z-10 flex flex-wrap items-center justify-center gap-3 max-w-3xl w-full mb-12">
+      {/* Secondary Quick Links (Sandbox, Relics, Characters, Rules, Marvel Intro) */}
+      <div className="relative z-10 flex flex-wrap items-center justify-center gap-3 max-w-4xl w-full mb-12">
+        {onPlayIntro && (
+          <button
+            onClick={() => handleAction(onPlayIntro)}
+            className="flex items-center gap-2 bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 border border-red-400 shadow-glow-red px-4 py-2.5 rounded-xl text-xs font-black text-white uppercase tracking-wider transition-all transform hover:scale-105"
+          >
+            <span>🎬 MARVEL INTRO</span>
+          </button>
+        )}
+
         <button
           onClick={() => handleAction(onOpenSandbox)}
           className="flex items-center gap-2 bg-gradient-to-r from-purple-900/80 to-red-900/80 hover:from-purple-800 hover:to-red-800 border border-purple-500/50 shadow-glow-cosmic px-4 py-2.5 rounded-xl text-xs font-bold text-purple-200 transition-all"

@@ -80,34 +80,9 @@ class VoiceManager {
     };
   }
 
-  public playCharacterVoiceline(character: Character) {
-    if (soundManager.getMuted()) return;
-    const { quote, sfx, pitch, rate } = this.getQuoteForCharacter(character);
-
-    // 1. Play signature sound effect
-    this.playMarvelSFX(sfx);
-
-    // 2. Play spoken voice quote using SpeechSynthesis
-    if (this.synth && this.isVoiceEnabled) {
-      try {
-        this.synth.cancel(); // Stop prior speech
-        const utterance = new SpeechSynthesisUtterance(quote);
-        utterance.pitch = pitch;
-        utterance.rate = rate;
-        utterance.volume = 0.85;
-
-        // Try selecting an English voice
-        const voices = this.synth.getVoices();
-        const enVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
-        if (enVoice) {
-          utterance.voice = enVoice;
-        }
-
-        this.synth.speak(utterance);
-      } catch (err) {
-        console.warn('SpeechSynthesis error:', err);
-      }
-    }
+  public playCharacterVoiceline(_character: Character) {
+    // Character quotes sound disabled as requested by user
+    return;
   }
 
   public playMarvelSFX(sfx: MarvelQuote['sfx']) {
