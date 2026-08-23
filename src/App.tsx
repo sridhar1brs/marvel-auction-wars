@@ -33,6 +33,7 @@ export function App() {
     placeBid,
     voteSkip,
     instantSkipCurrentAuction,
+    concedeCurrentAuction,
     submitGradeVotes,
     executeBattleRoundAction,
     playMatch,
@@ -194,6 +195,7 @@ export function App() {
             onPlaceBid={placeBid}
             onVoteSkip={voteSkip}
             onInstantSkip={instantSkipCurrentAuction}
+            onConcede={concedeCurrentAuction}
             onOpenRelicShop={() => {
               setPreviousPhaseBeforeBrowse(state.phase);
               setPhase('EQUIPMENT_SHOP');

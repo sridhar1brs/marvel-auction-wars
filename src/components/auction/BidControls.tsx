@@ -10,6 +10,7 @@ interface Props {
   settings: GameSettings;
   onPlaceBid: (playerId: string, amount: number) => void;
   onVoteSkip: (playerId: string) => void;
+  onConcede?: () => void;
   isLocalMode?: boolean;
   eligiblePlayersCount: number;
 }
@@ -20,6 +21,7 @@ export function BidControls({
   settings,
   onPlaceBid,
   onVoteSkip,
+  onConcede,
   isLocalMode,
   eligiblePlayersCount,
 }: Props) {
@@ -110,8 +112,22 @@ export function BidControls({
           👑 YOU CURRENTLY LEAD THIS AUCTION {isBlindBidding ? '(Sealed Bid Placed)' : `($${auction.currentBid})`}
         </div>
       ) : !canAffordMin ? (
-        <div className="p-3 bg-red-950/80 border border-red-500/50 rounded-xl text-center text-xs font-bold text-red-200">
-          ⚠️ Insufficient funds. Next minimum bid is ${minNextBid}, but you have ${activePlayer.money}.
+        <div className="space-y-3">
+          <div className="p-3 bg-red-950/80 border border-red-500/50 rounded-xl text-center text-xs font-bold text-red-200">
+            ⚠️ Insufficient funds. Next minimum bid is ${minNextBid}, but you have ${activePlayer.money}.
+          </div>
+          {auction.highestBidderId && onConcede && (
+            <button
+              type="button"
+              onClick={() => {
+                soundManager.playClick();
+                onConcede();
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-900/80 to-red-950/80 hover:from-amber-800 hover:to-red-900 border border-amber-500/50 text-amber-200 font-heading font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all"
+            >
+              <span>🏳️ GIVE UP / CONCEDE CARD</span>
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">

@@ -14,6 +14,7 @@ interface Props {
   onPlaceBid: (playerId: string, amount: number) => void;
   onVoteSkip: (playerId: string) => void;
   onInstantSkip?: () => void;
+  onConcede?: () => void;
   onOpenRelicShop?: () => void;
   isLocalMode?: boolean;
 }
@@ -24,6 +25,7 @@ export function AuctionArena({
   onPlaceBid,
   onVoteSkip,
   onInstantSkip,
+  onConcede,
   onOpenRelicShop,
   isLocalMode = true,
 }: Props) {
@@ -68,17 +70,30 @@ export function AuctionArena({
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-black/40 p-3 rounded-2xl border border-white/10">
         <div className="flex items-center gap-2">
           {isBlindBidding && (
-            <span className="flex items-center gap-1 bg-purple-950/90 text-purple-200 border border-purple-500/60 px-3 py-1 rounded-xl text-xs font-black">
-              <Lock className="w-3.5 h-3.5 text-amber-400" />
-              <span>BLIND SEALED BIDDING</span>
-            </span>
+            <div className="px-3 py-1 bg-purple-950/80 border border-purple-500 rounded-full flex items-center gap-1 text-[11px] font-bold text-purple-200">
+              <Lock className="w-3 h-3 text-amber-400" />
+              <span>Blind Bidding</span>
+            </div>
           )}
-          <span className="text-xs font-bold text-slate-300">
-            Round: {state.purchasedCharacters.length + state.skippedCharacters.length + 1}
+          <span className="text-xs font-bold text-slate-400">
+            Card <strong className="text-white">{state.purchasedCharacters.length + state.skippedCharacters.length + 1}</strong>
           </span>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* Instant Give Up / Concede to Highest Bidder Button */}
+          {state.auction.highestBidderId && state.auction.currentBid > 0 && onConcede && (
+            <button
+              onClick={() => {
+                soundManager.playClick();
+                onConcede();
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white border border-amber-400/50 shadow-sm transition-all transform hover:scale-105 active:scale-95 uppercase tracking-wider"
+            >
+              <span>🏳️ GIVE UP / SELL TO {state.auction.highestBidderName}</span>
+            </button>
+          )}
+
           {/* Instant Skip Button for All Players */}
           <button
             onClick={() => {
@@ -194,6 +209,7 @@ export function AuctionArena({
                     settings={state.settings}
                     onPlaceBid={onPlaceBid}
                     onVoteSkip={onVoteSkip}
+                    onConcede={onConcede}
                     isLocalMode={false}
                     eligiblePlayersCount={eligiblePlayers.length}
                   />
@@ -218,36 +234,35 @@ export function AuctionArena({
                 </div>
 
                 {state.auction.highestBidderName && (
-                  <div className="flex items-center gap-1.5 bg-emerald-950/90 text-emerald-300 border border-emerald-500/40 px-2.5 py-0.5 rounded-full text-[11px] font-black">
-                    <Crown className="w-3 h-3 text-amber-400" />
-                    <span>
-                      {state.auction.highestBidderName}{' '}
-                      {isBlindBidding && state.auction.isActive ? '(Sealed)' : `($${state.auction.currentBid})`}
-                    </span>
+                  <div className="flex items-center gap-1.5 text-emerald-300 font-black">
+                    <Crown className="w-4 h-4 text-marvel-gold animate-bounce" />
+                    <span>Top: {state.auction.highestBidderName}</span>
                   </div>
                 )}
               </div>
 
-              {/* In Blind Bidding, character card IS revealed as requested, and amounts are sealed! */}
-              {char ? (
-                <CharacterCard 
-                  character={char} 
-                  size="lg" 
-                  isSpotlight={true} 
-                  startingMoney={state.settings.startingMoney} 
-                />
-              ) : (
-                <div className="glass-panel p-12 rounded-2xl border border-white/10 text-center text-slate-400">
-                  Waiting for next character reveal...
-                </div>
+              {/* Character Card / Mystery Crate Display */}
+              {char && (
+                state.auction.isMysteryCrate ? (
+                  <MysteryCrateCard
+                    isRevealing={!state.auction.isActive && !!state.auction.unboxedCharacter}
+                  />
+                ) : (
+                  <CharacterCard
+                    character={char}
+                    size="lg"
+                    isSpotlight={true}
+                    startingMoney={state.settings.startingMoney}
+                  />
+                )
               )}
             </div>
           </div>
 
           {/* Right Stage: Timer, Bidding Controls & Live Feed (5 cols) */}
-          <div className="lg:col-span-5 space-y-4">
+          <div className="lg:col-span-5 space-y-4 w-full">
             {/* Auction Countdown Timer */}
-            <div className="glass-panel p-4 rounded-2xl border border-white/10">
+            <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-white/10">
               <AuctionTimer
                 timeRemaining={state.auction.timeRemaining}
                 totalTime={state.settings.auctionTimerSeconds}
@@ -256,12 +271,12 @@ export function AuctionArena({
             </div>
 
             {/* Local Mode Pass-Device Quick Switcher */}
-            {isLocalMode && eligiblePlayers.filter(p => !p.isBot).length > 1 && (
-              <div className="flex items-center justify-between p-3 bg-red-950/40 border border-red-500/40 rounded-xl">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">{controllingPlayer.avatar}</span>
-                  <div className="text-xs">
-                    <span className="text-slate-400 block text-[10px] font-bold uppercase">Pass Device to:</span>
+            {isLocalMode && (
+              <div className="glass-panel px-4 py-2.5 rounded-xl border border-white/10 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-slate-400 font-bold uppercase">Pass device to:</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base">{controllingPlayer.avatar}</span>
                     <strong className="text-white font-black">{controllingPlayer.name}</strong>
                   </div>
                 </div>
@@ -282,6 +297,7 @@ export function AuctionArena({
               settings={state.settings}
               onPlaceBid={onPlaceBid}
               onVoteSkip={onVoteSkip}
+              onConcede={onConcede}
               isLocalMode={isLocalMode}
               eligiblePlayersCount={eligiblePlayers.length}
             />

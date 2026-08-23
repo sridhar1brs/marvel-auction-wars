@@ -220,25 +220,35 @@ export function simulateRoundDuel(
     }
   }
 
-  // 7. Calculate Health Bar (HP) Depletion
+  // 7. Calculate Health Bar (HP) Depletion & Knockouts
   const powerDiff = Math.abs(finalP1 - finalP2);
-  let damageToLoser = Math.max(25, Math.round(powerDiff * 4.5 + 20));
+  let damageToLoser = Math.max(18, Math.min(42, Math.round(powerDiff * 2.6 + 20)));
 
   if (winnerId === player1.id) {
-    if (action2 === 'DEFEND') damageToLoser = Math.round(damageToLoser * 0.5);
+    if (action1 === 'SPECIAL') damageToLoser += 8;
+    if (action2 === 'DEFEND') damageToLoser = Math.max(10, Math.round(damageToLoser * 0.5));
     p2Hp = Math.max(0, p2Hp - damageToLoser);
     char2.currentHp = p2Hp;
     char2.isFainted = p2Hp <= 0;
-    log.push(`🩸 ${char1.name} deals ${damageToLoser} damage to ${char2.name}! (${p2Hp}/${p2MaxHp} HP remaining)`);
+    log.push(`🩸 ${char1.name} strikes for ${damageToLoser} damage! ${char2.name} is at ${p2Hp}/${p2MaxHp} HP.`);
+
+    if (p2Hp <= 0) {
+      log.push(`💀 KNOCKOUT! ${char2.name} has been defeated!`);
+    }
   } else {
-    if (action1 === 'DEFEND') damageToLoser = Math.round(damageToLoser * 0.5);
+    if (action2 === 'SPECIAL') damageToLoser += 8;
+    if (action1 === 'DEFEND') damageToLoser = Math.max(10, Math.round(damageToLoser * 0.5));
     p1Hp = Math.max(0, p1Hp - damageToLoser);
     char1.currentHp = p1Hp;
     char1.isFainted = p1Hp <= 0;
-    log.push(`🩸 ${char2.name} deals ${damageToLoser} damage to ${char1.name}! (${p1Hp}/${p1MaxHp} HP remaining)`);
+    log.push(`🩸 ${char2.name} strikes for ${damageToLoser} damage! ${char1.name} is at ${p1Hp}/${p1MaxHp} HP.`);
+
+    if (p1Hp <= 0) {
+      log.push(`💀 KNOCKOUT! ${char1.name} has been defeated!`);
+    }
   }
 
-  log.push(`🏆 Round Winner: ${winningChar} (${Math.max(finalP1, finalP2)} vs ${Math.min(finalP1, finalP2)})`);
+  log.push(`🏆 Round Result: ${winningChar} leads clash (${Math.max(finalP1, finalP2)} vs ${Math.min(finalP1, finalP2)})`);
 
   return {
     roundNumber,

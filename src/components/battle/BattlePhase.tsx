@@ -128,27 +128,41 @@ export function BattlePhase({ state, onReturnToTree, onExecuteAction }: Props) {
 
               {/* Roster Strip */}
               <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                {match.player1.collection.map((c, i) => (
-                  <button
-                    key={c.id}
-                    onClick={() => {
-                      soundManager.playClick();
-                      setP1HeroIdx(i);
-                    }}
-                    className={`shrink-0 p-1.5 rounded-xl border flex flex-col items-center gap-1 transition-all ${
-                      p1HeroIdx === i
-                        ? 'border-red-400 bg-red-900/60 ring-2 ring-red-400/50 scale-105'
-                        : 'border-white/10 bg-black/40 opacity-70 hover:opacity-100'
-                    }`}
-                  >
-                    <CharacterPortrait character={c} size="sm" showBadge={false} />
-                    <span className="text-[10px] font-bold text-white max-w-[60px] truncate">{c.name}</span>
-                    <span className="text-[9px] text-emerald-400 font-extrabold flex items-center gap-0.5">
-                      <Heart className="w-2.5 h-2.5 fill-current text-red-400" />
-                      {c.currentHp !== undefined ? c.currentHp : 100}
-                    </span>
-                  </button>
-                ))}
+                {p1.collection.map((c, i) => {
+                  const hp = c.currentHp !== undefined ? c.currentHp : 100;
+                  const isDead = hp <= 0;
+
+                  return (
+                    <button
+                      key={c.id}
+                      disabled={isDead}
+                      onClick={() => {
+                        soundManager.playClick();
+                        setP1HeroIdx(i);
+                      }}
+                      className={`shrink-0 p-1.5 rounded-xl border flex flex-col items-center gap-1 transition-all ${
+                        isDead
+                          ? 'border-red-950 bg-red-950/40 opacity-40 grayscale cursor-not-allowed'
+                          : p1HeroIdx === i
+                          ? 'border-red-400 bg-red-900/60 ring-2 ring-red-400/50 scale-105'
+                          : 'border-white/10 bg-black/40 opacity-80 hover:opacity-100'
+                      }`}
+                    >
+                      <CharacterPortrait character={c} size="sm" showBadge={false} />
+                      <span className="text-[10px] font-bold text-white max-w-[60px] truncate">{c.name}</span>
+                      <span className={`text-[9px] font-extrabold flex items-center gap-0.5 ${isDead ? 'text-red-500' : 'text-emerald-400'}`}>
+                        {isDead ? (
+                          <span>💀 KO</span>
+                        ) : (
+                          <>
+                            <Heart className="w-2.5 h-2.5 fill-current text-red-400" />
+                            <span>{hp} HP</span>
+                          </>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Tactical Actions */}
@@ -191,29 +205,43 @@ export function BattlePhase({ state, onReturnToTree, onExecuteAction }: Props) {
 
               {/* Roster Strip */}
               <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                {p2.collection.map((c, i) => (
-                  <button
-                    key={c.id}
-                    onClick={() => {
-                      if (!p2.isBot) {
-                        soundManager.playClick();
-                        setP2HeroIdx(i);
-                      }
-                    }}
-                    className={`shrink-0 p-1.5 rounded-xl border flex flex-col items-center gap-1 transition-all ${
-                      p2HeroIdx === i
-                        ? 'border-blue-400 bg-blue-900/60 ring-2 ring-blue-400/50 scale-105'
-                        : 'border-white/10 bg-black/40 opacity-70 hover:opacity-100'
-                    }`}
-                  >
-                    <CharacterPortrait character={c} size="sm" showBadge={false} />
-                    <span className="text-[10px] font-bold text-white max-w-[60px] truncate">{c.name}</span>
-                    <span className="text-[9px] text-emerald-400 font-extrabold flex items-center gap-0.5">
-                      <Heart className="w-2.5 h-2.5 fill-current text-red-400" />
-                      {c.currentHp !== undefined ? c.currentHp : 100}
-                    </span>
-                  </button>
-                ))}
+                {p2.collection.map((c, i) => {
+                  const hp = c.currentHp !== undefined ? c.currentHp : 100;
+                  const isDead = hp <= 0;
+
+                  return (
+                    <button
+                      key={c.id}
+                      disabled={isDead || p2.isBot}
+                      onClick={() => {
+                        if (!p2.isBot && !isDead) {
+                          soundManager.playClick();
+                          setP2HeroIdx(i);
+                        }
+                      }}
+                      className={`shrink-0 p-1.5 rounded-xl border flex flex-col items-center gap-1 transition-all ${
+                        isDead
+                          ? 'border-red-950 bg-red-950/40 opacity-40 grayscale cursor-not-allowed'
+                          : p2HeroIdx === i
+                          ? 'border-blue-400 bg-blue-900/60 ring-2 ring-blue-400/50 scale-105'
+                          : 'border-white/10 bg-black/40 opacity-80 hover:opacity-100'
+                      }`}
+                    >
+                      <CharacterPortrait character={c} size="sm" showBadge={false} />
+                      <span className="text-[10px] font-bold text-white max-w-[60px] truncate">{c.name}</span>
+                      <span className={`text-[9px] font-extrabold flex items-center gap-0.5 ${isDead ? 'text-red-500' : 'text-emerald-400'}`}>
+                        {isDead ? (
+                          <span>💀 KO</span>
+                        ) : (
+                          <>
+                            <Heart className="w-2.5 h-2.5 fill-current text-red-400" />
+                            <span>{hp} HP</span>
+                          </>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Tactical Actions */}

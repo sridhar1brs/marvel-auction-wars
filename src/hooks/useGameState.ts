@@ -167,13 +167,14 @@ export function useGameState() {
 
     setLocalState(prev => {
       // 1. Check if all players completed roster limit OR all active players are broke (cannot afford any bids)
+      // 1. Check if all players completed roster limit OR all active players are broke
       const activePlayers = prev.players.filter(
         p => p.collection.length < prev.settings.characterLimit
       );
 
-      const canAnyPlayerAfford = activePlayers.some(p => p.money >= 1);
+      const maxPlayerFunds = Math.max(0, ...activePlayers.map(p => p.money));
 
-      if (activePlayers.length === 0 || !canAnyPlayerAfford) {
+      if (activePlayers.length === 0 || maxPlayerFunds <= 0) {
         setTimeout(finishLocalAuctionPhase, 500);
         return prev;
       }
@@ -196,10 +197,20 @@ export function useGameState() {
         skipped = [];
       }
 
-      // If a grade was queued from player voting, prioritize finding a character of that tier!
+      // If a grade was queued from player voting, prioritize finding an affordable character of that tier!
       let nextCharIndex = -1;
       if (prev.queuedGrade && prev.queuedGrade !== 'MYSTERY') {
-        nextCharIndex = available.findIndex(c => c.grade === prev.queuedGrade);
+        nextCharIndex = available.findIndex(
+          c => c.grade === prev.queuedGrade && c.startingPrice <= maxPlayerFunds
+        );
+        if (nextCharIndex === -1) {
+          nextCharIndex = available.findIndex(c => c.grade === prev.queuedGrade);
+        }
+      }
+
+      // If no queued grade or not found, find a character that active drafting players can afford!
+      if (nextCharIndex === -1) {
+        nextCharIndex = available.findIndex(c => c.startingPrice <= maxPlayerFunds);
       }
 
       let nextChar: Character | null = null;
@@ -214,6 +225,16 @@ export function useGameState() {
         return prev;
       }
 
+      // Dynamic Affordability Guarantee:
+      // If character's base starting price is higher than active players' funds,
+      // cap startingPrice so players can ALWAYS afford to bid and buy them!
+      if (nextChar.startingPrice > maxPlayerFunds) {
+        nextChar = {
+          ...nextChar,
+          startingPrice: Math.max(1, maxPlayerFunds),
+        };
+      }
+
       const isMythic = nextChar.grade === 'MYTHIC';
       const isBlindMode = prev.settings.gameMode === 'blind_bidding' || prev.queuedGrade === 'MYSTERY';
       // In blind bidding mode, 100% of crates are mystery. In classic, 20% if not mythic.
@@ -225,7 +246,7 @@ export function useGameState() {
         soundManager.playAbilityTrigger();
       }
 
-      // Clear queued grade if satisfied
+      // Clear queued grade after 3 rounds
       const nextQueuedGrade = (completedRounds % 3 === 2) ? null : prev.queuedGrade;
 
       return {
@@ -646,16 +667,25 @@ export function useGameState() {
       soundManager.playAbilityTrigger();
     }
 
-    match.rounds.push(result);
-    if (result.winnerPlayerId === match.player1.id) {
-      match.player1Score += 1;
-    } else {
-      match.player2Score += 1;
-    }
+    // Update live HP on heroes
+    p1Char.currentHp = result.player1Character.currentHp;
+    p1Char.isFainted = (p1Char.currentHp ?? 100) <= 0;
 
-    // Check match completion
-    if (match.player1Score >= match.targetWins || match.player2Score >= match.targetWins) {
-      const winner = match.player1Score >= match.player2Score ? match.player1 : match.player2;
+    p2Char.currentHp = result.player2Character.currentHp;
+    p2Char.isFainted = (p2Char.currentHp ?? 100) <= 0;
+
+    // Track knockout scoreboard (total enemy heroes defeated)
+    const p1Knockouts = match.player2.collection.filter(c => (c.currentHp ?? 100) <= 0).length;
+    const p2Knockouts = match.player1.collection.filter(c => (c.currentHp ?? 100) <= 0).length;
+    match.player1Score = p1Knockouts;
+    match.player2Score = p2Knockouts;
+
+    // True Team Knockout Elimination: Battle continues until all heroes on one team are KO'd (0 HP)
+    const p1LivingCount = match.player1.collection.filter(c => (c.currentHp ?? 100) > 0).length;
+    const p2LivingCount = match.player2.collection.filter(c => (c.currentHp ?? 100) > 0).length;
+
+    if (p1LivingCount === 0 || p2LivingCount === 0) {
+      const winner = p1LivingCount > 0 ? match.player1 : match.player2;
       match.winner = winner;
       match.status = 'COMPLETED';
       winner.stats.battlesWon += 1;
@@ -675,6 +705,12 @@ export function useGameState() {
     }
 
     setLocalState(prev => ({ ...prev }));
+  };
+
+  const concedeCurrentAuction = () => {
+    // Instantly triggers auction expiration to award to highest bidder with zero delay
+    soundManager.playClick();
+    handleLocalTimeExpired();
   };
 
   const playMatch = (matchId: string) => {
@@ -739,6 +775,7 @@ export function useGameState() {
     placeBid,
     voteSkip,
     instantSkipCurrentAuction,
+    concedeCurrentAuction,
     submitGradeVotes,
     executeBattleRoundAction,
     playMatch,
