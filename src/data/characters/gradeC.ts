@@ -409,276 +409,484 @@ export const GRADE_C_CHARACTERS: Character[] = [
     ],
     overallPower: 74
   },
-  {
-    id: 'char-c-025',
-    name: 'Razor Fist',
-    alias: 'Mattias',
-    grade: 'C',
-    alignment: 'Villain',
-    startingPrice: 3,
-    powers: 'Machete blade prosthesis on right arm, Ten Rings martial training, swordplay.',
-    description: 'Ten Rings assassin with a razor-sharp steel machete blade permanently replacing his forearm.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/5/5a/Douglas_Scott_%28Earth-616%29_from_Deadpool_Assassin_Vol_1_2_001.jpg/revision/latest?cb=20180717230618',
-    color: '#DC2626',
-    stats: { strength: 72, speed: 76, durability: 72, intelligence: 70, energy: 25, combat: 88 },
-    specialAbilities: [
-      { name: 'Machete Arm Slash', description: 'Delivers a high-speed horizontal slice with his steel blade arm.', bonusPower: 3, triggerRate: 0.55, type: 'attack' }
+    {
+    "id": "char-c-025",
+    "name": "Spider-Punk",
+    "alias": "Hobie Brown",
+    "grade": "C",
+    "alignment": "Hero",
+    "startingPrice": 5,
+    "powers": "Radioactive spider physiology, anarchic electric guitar sonic riffs, wall-crawling, spider-sense.",
+    "description": "Rockstar spider-anarchist from Earth-138 wielding an electric guitar that unleashes 15,000-volt sonic feedback chords.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/620-spider-man.jpg",
+    "color": "#DC2626",
+    "stats": {
+      "strength": 78,
+      "speed": 88,
+      "durability": 76,
+      "intelligence": 82,
+      "energy": 75,
+      "combat": 88
+    },
+    "specialAbilities": [
+      {
+        "name": "Punk-Rock Sonic Solos",
+        "description": "Blasts a 15,000-watt electric guitar power chord that shatters enemy defenses.",
+        "bonusPower": 4,
+        "triggerRate": 0.55,
+        "type": "attack"
+      }
     ],
-    overallPower: 75
+    "overallPower": 80
   },
   {
-    id: 'char-c-026',
-    name: 'Death Dealer',
-    alias: 'Li Ching-Lin',
-    grade: 'C',
-    alignment: 'Villain',
-    startingPrice: 3,
-    powers: 'Dual curved daggers, mask concealment, Ten Rings master assassin gymnastics.',
-    description: 'Masked master trainer of the Ten Rings executing acrobatic assassination techniques.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/3/34/Li_Ching-Lin_%28Earth-616%29_from_Master_of_Kung_Fu_Vol_1_115_cover_001.jpg/revision/latest?cb=20210901180633',
-    color: '#0F172A',
-    stats: { strength: 66, speed: 82, durability: 68, intelligence: 78, energy: 30, combat: 92 },
-    specialAbilities: [
-      { name: 'Shadow Dagger Flurry', description: 'Dances through the shadows delivering lightning dagger cuts.', bonusPower: 3, triggerRate: 0.55, type: 'attack' }
+    "id": "char-c-026",
+    "name": "Spider-Man Noir",
+    "alias": "Peter Parker (1930s)",
+    "grade": "C",
+    "alignment": "Hero",
+    "startingPrice": 4,
+    "powers": "Noir spider abilities, trenchcoat dual revolvers, shadowy stealth, organic webbing.",
+    "description": "Gritty 1930s Great Depression private eye wielding twin pistols and fighting mob syndicates in shadows.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/620-spider-man.jpg",
+    "color": "#0F172A",
+    "stats": {
+      "strength": 76,
+      "speed": 84,
+      "durability": 74,
+      "intelligence": 86,
+      "energy": 40,
+      "combat": 89
+    },
+    "specialAbilities": [
+      {
+        "name": "Noir Shadow Ambush",
+        "description": "Emerges from pitch-black fog with a disorienting close-range double-tap.",
+        "bonusPower": 3,
+        "triggerRate": 0.55,
+        "type": "tactical"
+      }
     ],
-    overallPower: 76
+    "overallPower": 79
   },
   {
-    id: 'char-c-027',
-    name: 'Kraglin Obfonteri',
-    alias: 'Ravager First Mate',
-    grade: 'C',
-    alignment: 'Hero',
-    startingPrice: 3,
-    powers: 'Cybernetic Yaka fin, whistling arrow guidance, Ravager starship pilot.',
-    description: 'Loyal Ravager inheritor of Yondu cybernetic fin learning the lethal art of the Yaka arrow.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/4/41/Kraglin_Obfonteri_%28Earth-199999%29_from_Guardians_of_the_Galaxy_Vol._3_%28film%29_Promo_001.jpg/revision/latest?cb=20230425131440',
-    color: '#0284C7',
-    stats: { strength: 62, speed: 72, durability: 68, intelligence: 78, energy: 65, combat: 78 },
-    specialAbilities: [
-      { name: 'Rookie Arrow Whistle', description: 'Whistles a chaotic Yaka arrow flight that unexpectedly strikes home.', bonusPower: 3, triggerRate: 0.5, type: 'attack' }
+    "id": "char-c-027",
+    "name": "Peni Parker & SP//dr",
+    "alias": "SP//dr Mech Pilot",
+    "grade": "C",
+    "alignment": "Hero",
+    "startingPrice": 4,
+    "powers": "High-tech biomechanical SP//dr spider-mech, radioactive spider co-pilot, cyber-web cannons.",
+    "description": "Genius teen pilot bonded psychic-link to the high-tech SP//dr armor mech with rapid web thrusters.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/620-spider-man.jpg",
+    "color": "#EF4444",
+    "stats": {
+      "strength": 82,
+      "speed": 80,
+      "durability": 82,
+      "intelligence": 92,
+      "energy": 78,
+      "combat": 80
+    },
+    "specialAbilities": [
+      {
+        "name": "SP//dr Plasma Web Cannon",
+        "description": "Overcharges mech power cores to fire high-density electrified web cables.",
+        "bonusPower": 4,
+        "triggerRate": 0.5,
+        "type": "attack"
+      }
     ],
-    overallPower: 73
+    "overallPower": 81
   },
   {
-    id: 'char-c-028',
-    name: 'Melina Vostokoff',
-    alias: 'Iron Maiden / Black Widow Chemist',
-    grade: 'C',
-    alignment: 'Hero',
-    startingPrice: 3,
-    powers: 'Red Room scientist, mind-control antidote gas, armored pig farm tech, martial arts.',
-    description: 'Seasoned Black Widow chemist who formulated the gas antidote to break mental conditioning.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/9/92/Melina_Vostokoff_%28Earth-616%29_from_Agents_of_S.H.I.E.L.D._Vol_1_2_001.jpg/revision/latest?cb=20250610172249',
-    color: '#047857',
-    stats: { strength: 62, speed: 74, durability: 68, intelligence: 92, energy: 40, combat: 86 },
-    specialAbilities: [
-      { name: 'Chemical Dispersal Smoke', description: 'Throws a chemical flask creating thick disorienting neutralizing mist.', bonusPower: 3, triggerRate: 0.5, type: 'tactical' }
+    "id": "char-c-028",
+    "name": "Spider-Ham",
+    "alias": "Peter Porker",
+    "grade": "C",
+    "alignment": "Hero",
+    "startingPrice": 4,
+    "powers": "Cartoon physics distortion, giant wooden mallet from pocket dimension, anvil dropping, spider-sense.",
+    "description": "Spectacular porcine web-slinger from Earth-8311 who bends reality through cartoon comedy physics.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/620-spider-man.jpg",
+    "color": "#BE123C",
+    "stats": {
+      "strength": 75,
+      "speed": 85,
+      "durability": 88,
+      "intelligence": 80,
+      "energy": 70,
+      "combat": 82
+    },
+    "specialAbilities": [
+      {
+        "name": "Giant Pocket Mallet",
+        "description": "Pulls a massive 10-ton wooden cartoon mallet from behind his back.",
+        "bonusPower": 4,
+        "triggerRate": 0.55,
+        "type": "attack"
+      }
     ],
-    overallPower: 75
+    "overallPower": 80
   },
   {
-    id: 'char-c-029',
-    name: 'Ursa Major',
-    alias: 'Mikhail Ursus',
-    grade: 'C',
-    alignment: 'Hero',
-    startingPrice: 3,
-    powers: 'Giant brown bear mutant transformation, bone-crushing jaws, thick fur armor.',
-    description: 'Russian mutant able to transform into a towering 9-foot brown bear with savage claws.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/3/32/Mikhail_Ursus_%28Earth-987%29_from_What_If...%3F_Vol_1_110_0001.jpg/revision/latest?cb=20181015184025',
-    color: '#78350F',
-    stats: { strength: 82, speed: 64, durability: 82, intelligence: 62, energy: 20, combat: 78 },
-    specialAbilities: [
-      { name: 'Bear Maul Swipe', description: 'Rears up and delivers a heavy claw swipe that hurls the target.', bonusPower: 3, triggerRate: 0.5, type: 'attack' }
+    "id": "char-c-029",
+    "name": "Captain Carter",
+    "alias": "Peggy Carter (Super Soldier)",
+    "grade": "C",
+    "alignment": "Hero",
+    "startingPrice": 5,
+    "powers": "Super Soldier Serum, Union Jack Vibranium Shield mastery, superhuman athleticism, military leadership.",
+    "description": "First Avenger of Earth-82111 infused with the Super Soldier Serum wielding the Union Jack Vibranium Shield.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/156-captain-america.jpg",
+    "color": "#1E3A8A",
+    "stats": {
+      "strength": 80,
+      "speed": 82,
+      "durability": 80,
+      "intelligence": 88,
+      "energy": 35,
+      "combat": 94
+    },
+    "specialAbilities": [
+      {
+        "name": "Vibranium Shield Ricochet",
+        "description": "Hurls the Union Jack shield bouncing across three tactical pressure points.",
+        "bonusPower": 4,
+        "triggerRate": 0.55,
+        "type": "attack"
+      }
     ],
-    overallPower: 75
+    "overallPower": 82
   },
   {
-    id: 'char-c-030',
-    name: 'Jimmy Woo',
-    alias: 'FBI Special Agent',
-    grade: 'C',
-    alignment: 'Hero',
-    startingPrice: 2,
-    powers: 'Close-up sleight of hand card magic, FBI investigative tactics, firearm training.',
-    description: 'Dedicated FBI investigator with a knack for close-up card tricks and keen deduction.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/0/08/Agents_of_Atlas_Vol_3_3_Textless.jpg/revision/latest?cb=20190905090852',
-    color: '#2563EB',
-    stats: { strength: 56, speed: 64, durability: 62, intelligence: 86, energy: 25, combat: 74 },
-    specialAbilities: [
-      { name: 'Sleight-of-Hand Distraction', description: 'Flicks a playing card distraction before drawing his FBI service weapon.', bonusPower: 2, triggerRate: 0.5, type: 'tactical' }
+    "id": "char-c-030",
+    "name": "Iron Spider",
+    "alias": "Peter Parker (Nano-Tech Armor)",
+    "grade": "C",
+    "alignment": "Hero",
+    "startingPrice": 5,
+    "powers": "Stark nanotech armor, 4 golden mechanical waldoes, repulsor gliding, HUD tactical AI.",
+    "description": "Peter Parker equipped with Tony Stark legendary nano-tech suit featuring 4 deadly golden spider legs.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/620-spider-man.jpg",
+    "color": "#B91C1C",
+    "stats": {
+      "strength": 82,
+      "speed": 88,
+      "durability": 84,
+      "intelligence": 92,
+      "energy": 80,
+      "combat": 90
+    },
+    "specialAbilities": [
+      {
+        "name": "Golden Waldo Impale",
+        "description": "Deploys 4 razor-sharp golden mechanical arms in a lethal multi-strike.",
+        "bonusPower": 4,
+        "triggerRate": 0.55,
+        "type": "attack"
+      }
     ],
-    overallPower: 71
+    "overallPower": 84
   },
   {
-    id: 'char-c-031',
-    name: 'Darcy Lewis',
-    alias: 'Dr. Darcy Lewis (Astrophysicist)',
-    grade: 'C',
-    alignment: 'Hero',
-    startingPrice: 2,
-    powers: 'Taser defense, broadcast hacker tech, astrophysical sensor analysis, witty resourcefulness.',
-    description: 'Sharp astrophysicist who discovered the Hex frequency with a handy taser in self-defense.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/e/eb/Darcy_Lewis_%28Earth-199999%29_from_WandaVision_Season_1_4_001.png/revision/latest?cb=20210129132505',
-    color: '#9333EA',
-    stats: { strength: 50, speed: 60, durability: 58, intelligence: 92, energy: 30, combat: 65 },
-    specialAbilities: [
-      { name: 'High-Voltage Taser Zap', description: 'Discharges a 50,000-volt stun taser into close attackers.', bonusPower: 2, triggerRate: 0.5, type: 'defense' }
+    "id": "char-c-031",
+    "name": "Hulkbuster Iron Man",
+    "alias": "Tony Stark (Mark XLIV Heavy Armor)",
+    "grade": "C",
+    "alignment": "Hero",
+    "startingPrice": 5,
+    "powers": "Titanium-alloy heavy exo-frame, hydraulic jackhammer fists, arc-reactor overdrive, satellite drop repair.",
+    "description": "Massive heavy combat exosuit engineered specifically to go toe-to-toe with the Incredible Hulk.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/346-iron-man.jpg",
+    "color": "#991B1B",
+    "stats": {
+      "strength": 90,
+      "speed": 68,
+      "durability": 92,
+      "intelligence": 96,
+      "energy": 88,
+      "combat": 85
+    },
+    "specialAbilities": [
+      {
+        "name": "Hydraulic Jackhammer Slam",
+        "description": "Powers up pneumatic fists at 200 RPM delivering consecutive armor-cracking hits.",
+        "bonusPower": 4,
+        "triggerRate": 0.55,
+        "type": "attack"
+      }
     ],
-    overallPower: 70
+    "overallPower": 85
   },
   {
-    id: 'char-c-032',
-    name: 'Trevor Slattery',
-    alias: 'The Fake Mandarin',
-    grade: 'C',
-    alignment: 'Neutral',
-    startingPrice: 2,
-    powers: 'Morris companion empathy, theatrical Shakespearean acting, baffling unpredictability.',
-    description: 'Thespian actor whose complete lack of fear and friendship with Morris confounds enemies.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/2/2a/Trevor_Slattery_%28Earth-199999%29_from_Wonder_Man_%28TV_series%29_promotional_material_001.jpg/revision/latest/scale-to-width-down/337?cb=20260225034536',
-    color: '#D97706',
-    stats: { strength: 48, speed: 58, durability: 60, intelligence: 75, energy: 20, combat: 62 },
-    specialAbilities: [
-      { name: 'Thespian Dramatic Feign', description: 'Plays dead so convincingly that the enemy momentarily halts their attack.', bonusPower: 2, triggerRate: 0.5, type: 'tactical' }
+    "id": "char-c-032",
+    "name": "Venompool",
+    "alias": "Wade Wilson (Venom Symbiote)",
+    "grade": "C",
+    "alignment": "Anti-Hero",
+    "startingPrice": 5,
+    "powers": "Deadpool healing factor + Venom symbiote tendrils, dual katanas, unhinged fourth-wall chaos.",
+    "description": "Lethal combination of the Venom alien symbiote and the Merc with a Mouth with tendril-wielded katanas.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/213-deadpool.jpg",
+    "color": "#831843",
+    "stats": {
+      "strength": 85,
+      "speed": 82,
+      "durability": 90,
+      "intelligence": 78,
+      "energy": 65,
+      "combat": 90
+    },
+    "specialAbilities": [
+      {
+        "name": "Symbiote Katana Cyclone",
+        "description": "Spins in a berserk tornado of black tendrils and slashing carbonadium katanas.",
+        "bonusPower": 4,
+        "triggerRate": 0.55,
+        "type": "attack"
+      }
     ],
-    overallPower: 68
+    "overallPower": 84
   },
   {
-    id: 'char-c-033',
-    name: 'Foggy Nelson',
-    alias: 'Franklin P. Nelson (Attorney at Law)',
-    grade: 'C',
-    alignment: 'Hero',
-    startingPrice: 2,
-    powers: 'Legal genius, indomitable loyalty, brass knuckles street defense, courtroom tactics.',
-    description: 'Partner of Nelson & Murdock using legal brilliance and unwavering loyalty in Hell Kitchen.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/3/35/Franklin_Nelson_%28Earth-616%29_from_Daredevil_Vol_5_605_001.jpg/revision/latest?cb=20180712171255',
-    color: '#2563EB',
-    stats: { strength: 52, speed: 56, durability: 62, intelligence: 90, energy: 20, combat: 66 },
-    specialAbilities: [
-      { name: 'Legal Injunction Flurry', description: 'Applies overwhelming procedural pressure to throw foes off balance.', bonusPower: 2, triggerRate: 0.45, type: 'tactical' }
+    "id": "char-c-033",
+    "name": "Gwenpool",
+    "alias": "Gwendolyn Poole",
+    "grade": "C",
+    "alignment": "Hero",
+    "startingPrice": 4,
+    "powers": "Gutterspace reality manipulation, fourth-wall breaking, comic lore knowledge, dual rocket launchers.",
+    "description": "Real-world comic reader transported into the Marvel Universe who steps out of comic panels to alter reality.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/303-gwenpool.jpg",
+    "color": "#F472B6",
+    "stats": {
+      "strength": 68,
+      "speed": 78,
+      "durability": 74,
+      "intelligence": 92,
+      "energy": 82,
+      "combat": 84
+    },
+    "specialAbilities": [
+      {
+        "name": "Gutterspace Panel Hop",
+        "description": "Steps completely outside the duel panel to drop an anvil directly on the opponent.",
+        "bonusPower": 4,
+        "triggerRate": 0.55,
+        "type": "tactical"
+      }
     ],
-    overallPower: 69
+    "overallPower": 81
   },
   {
-    id: 'char-c-034',
-    name: 'Happy Hogan',
-    alias: 'Head of Stark Security',
-    grade: 'C',
-    alignment: 'Hero',
-    startingPrice: 2,
-    powers: 'Former Golden Gloves heavyweight boxer, Stark asset requisition, armored limo ramming.',
-    description: 'Loyal head of Stark Industries security with heavy boxer hands and rapid drone support.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/9/97/Avengers_Endgame_poster_018_textless.jpg/revision/latest?cb=20190721084911',
-    color: '#334155',
-    stats: { strength: 66, speed: 60, durability: 70, intelligence: 80, energy: 30, combat: 78 },
-    specialAbilities: [
-      { name: 'Golden Gloves Right Cross', description: 'Lands a clean, heavy boxer right cross to the chin.', bonusPower: 2, triggerRate: 0.5, type: 'attack' }
+    "id": "char-c-034",
+    "name": "Superior Spider-Man",
+    "alias": "Otto Octavius (in Spider-Man body)",
+    "grade": "C",
+    "alignment": "Anti-Hero",
+    "startingPrice": 5,
+    "powers": "Spider-Man powers enhanced by Doc Ock intellect, 4 carbon-steel nano-spider arms, spider-bots network.",
+    "description": "Doctor Octopus mind in Peter Parker body, fighting crime with ruthlessness and four mechanical legs.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/620-spider-man.jpg",
+    "color": "#991B1B",
+    "stats": {
+      "strength": 82,
+      "speed": 86,
+      "durability": 80,
+      "intelligence": 98,
+      "energy": 72,
+      "combat": 92
+    },
+    "specialAbilities": [
+      {
+        "name": "Superior Nano-Leg Protocol",
+        "description": "Deploys 4 deadly carbon-steel legs executing cold, calculated vital strikes.",
+        "bonusPower": 4,
+        "triggerRate": 0.55,
+        "type": "attack"
+      }
     ],
-    overallPower: 72
+    "overallPower": 84
   },
   {
-    id: 'char-c-035',
-    name: 'Luis',
-    alias: 'X-Con Security Lead',
-    grade: 'C',
-    alignment: 'Hero',
-    startingPrice: 2,
-    powers: 'One-punch knockout hook, rapid storytelling disorientation, van getaway driving.',
-    description: 'Scott Lang loyal best friend famous for his lightning one-punch KO and elaborate stories.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/7/72/Luis_%28Earth-616%29_from_Astonishing_Ant-Man_Vol_1_3_001.jpg/revision/latest?cb=20200207224413',
-    color: '#EA580C',
-    stats: { strength: 64, speed: 65, durability: 64, intelligence: 78, energy: 20, combat: 76 },
-    specialAbilities: [
-      { name: 'The One-Punch Knockout', description: 'Catches the enemy by surprise with an unexpected one-hit knockout punch.', bonusPower: 3, triggerRate: 0.45, type: 'attack' }
+    "id": "char-c-035",
+    "name": "Ghost Rider (Robbie Reyes)",
+    "alias": "Robbie Reyes (The All-Rider)",
+    "grade": "C",
+    "alignment": "Anti-Hero",
+    "startingPrice": 5,
+    "powers": "Hellcharger 1969 Dodge Charger, Hellfire chains, Spirit of Eli Morrow possession, penance burn.",
+    "description": "East LA mechanic bonded with the Spirit of Vengeance driving the flaming supercharged Hellcharger.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/280-ghost-rider.jpg",
+    "color": "#EA580C",
+    "stats": {
+      "strength": 84,
+      "speed": 88,
+      "durability": 86,
+      "intelligence": 76,
+      "energy": 90,
+      "combat": 85
+    },
+    "specialAbilities": [
+      {
+        "name": "Hellcharger Nitro Ram",
+        "description": "Floors the Hellcharger accelerator engulfing the battlefield in screaming hellfire.",
+        "bonusPower": 4,
+        "triggerRate": 0.55,
+        "type": "attack"
+      }
     ],
-    overallPower: 71
+    "overallPower": 84
   },
   {
-    id: 'char-c-036',
-    name: 'Justin Hammer',
-    alias: 'Hammer Industries CEO',
-    grade: 'C',
-    alignment: 'Villain',
-    startingPrice: 3,
-    powers: 'Hammer drone remote control, Ex-Wife mini-missile, corporate sabotage.',
-    description: 'Smug rival arms industrialist deploying military weapon prototypes and automated battle drones.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/0/0d/Justin_Hammer_%28Earth-616%29_from_Venom_Lethal_Protector_Vol_2_5_001.jpg/revision/latest?cb=20230406222346',
-    color: '#64748B',
-    stats: { strength: 52, speed: 58, durability: 62, intelligence: 88, energy: 65, combat: 66 },
-    specialAbilities: [
-      { name: 'Hammer Drone Missile Salvo', description: 'Orders an automated drone strike from offsite servers.', bonusPower: 3, triggerRate: 0.5, type: 'attack' }
+    "id": "char-c-036",
+    "name": "Anti-Venom",
+    "alias": "Eddie Brock (White Symbiote)",
+    "grade": "C",
+    "alignment": "Anti-Hero",
+    "startingPrice": 5,
+    "powers": "Cleansing white symbiote, power neutralization, regenerative antibodies, immune to fire/sound.",
+    "description": "Mutated white symbiote capable of cleansing impurities, neutralizing powers, and immune to symbiote weaknesses.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/34-anti-venom.jpg",
+    "color": "#E2E8F0",
+    "stats": {
+      "strength": 86,
+      "speed": 82,
+      "durability": 90,
+      "intelligence": 76,
+      "energy": 80,
+      "combat": 86
+    },
+    "specialAbilities": [
+      {
+        "name": "Antibody Power Cleansing",
+        "description": "Envelops the target in burning white antibodies that neutralize power bonuses.",
+        "bonusPower": 4,
+        "triggerRate": 0.55,
+        "type": "tactical"
+      }
     ],
-    overallPower: 72
+    "overallPower": 84
   },
   {
-    id: 'char-c-037',
-    name: 'Arnim Zola (Screen Form)',
-    alias: 'HYDRA Bio-Algorithm',
-    grade: 'C',
-    alignment: 'Villain',
-    startingPrice: 3,
-    powers: 'Digital consciousness in magnetic tape computers, cyber-warfare, algorithmic prediction.',
-    description: 'HYDRA scientist whose mind was digitized into thousands of feet of magnetic computer tape.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/1/18/Arnim_Zola_%28Earth-616%29_from_Captain_America_Vol_5_24_0001.jpg/revision/latest?cb=20191129054452',
-    color: '#15803D',
-    stats: { strength: 40, speed: 50, durability: 70, intelligence: 98, energy: 65, combat: 60 },
-    specialAbilities: [
-      { name: 'System Cyber-Overload', description: 'Overloads surrounding circuitry causing localized electrical explosions.', bonusPower: 3, triggerRate: 0.5, type: 'tactical' }
+    "id": "char-c-037",
+    "name": "Agent Venom",
+    "alias": "Flash Thompson",
+    "grade": "C",
+    "alignment": "Hero",
+    "startingPrice": 5,
+    "powers": "Symbiote-bonded soldier, multi-gun tactical mastery, military stealth, symbiote tendril weapons.",
+    "description": "Decorated war hero Flash Thompson bonded with the Venom symbiote for covert military spec-ops missions.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/11-agent-venom.jpg",
+    "color": "#1E293B",
+    "stats": {
+      "strength": 82,
+      "speed": 84,
+      "durability": 84,
+      "intelligence": 82,
+      "energy": 65,
+      "combat": 92
+    },
+    "specialAbilities": [
+      {
+        "name": "Symbiote Quad-Weapon Fire",
+        "description": "Extends 4 tendrils each firing military assault rifles in a relentless barrage.",
+        "bonusPower": 4,
+        "triggerRate": 0.55,
+        "type": "attack"
+      }
     ],
-    overallPower: 71
+    "overallPower": 83
   },
   {
-    id: 'char-c-038',
-    name: 'Jack Duquesne',
-    alias: 'The Swordsman',
-    grade: 'C',
-    alignment: 'Hero',
-    startingPrice: 3,
-    powers: 'Master Olympic fencing, rapiers & longswords, acrobatic parrying, theatrical flair.',
-    description: 'Aristocratic swordsman proficient in dueling with rapier blades and fencing counters.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/8/82/Jacques_DuQuesne_%28Earth-616%29_from_Official_Handbook_of_the_Marvel_Universe_Book_of_the_Dead_2004_Vol_1_1_001.jpg/revision/latest?cb=20200429031921',
-    color: '#7C3AED',
-    stats: { strength: 64, speed: 76, durability: 68, intelligence: 80, energy: 25, combat: 90 },
-    specialAbilities: [
-      { name: 'Fencing Master Riposte', description: 'Parries incoming physical strike and executes an elegant thrust.', bonusPower: 3, triggerRate: 0.55, type: 'defense' }
+    "id": "char-c-038",
+    "name": "Scarlet Spider",
+    "alias": "Ben Reilly",
+    "grade": "C",
+    "alignment": "Hero",
+    "startingPrice": 4,
+    "powers": "Spider-Man clone powers, impact webbing capsules, stingers, acrobatic combat mastery.",
+    "description": "Beloved Peter Parker clone rocking the iconic blue sleeveless hoodie and impact web shooters.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/574-scarlet-spider.jpg",
+    "color": "#DC2626",
+    "stats": {
+      "strength": 80,
+      "speed": 88,
+      "durability": 78,
+      "intelligence": 88,
+      "energy": 45,
+      "combat": 90
+    },
+    "specialAbilities": [
+      {
+        "name": "Impact Webbing Burst",
+        "description": "Fires high-pressure impact pellets that encase the opponent upon contact.",
+        "bonusPower": 3,
+        "triggerRate": 0.55,
+        "type": "attack"
+      }
     ],
-    overallPower: 75
+    "overallPower": 82
   },
   {
-    id: 'char-c-039',
-    name: 'Taserface',
-    alias: 'Ravager Mutineer',
-    grade: 'C',
-    alignment: 'Villain',
-    startingPrice: 2,
-    powers: 'Heavy blaster cannon, cybernetic face taser, brute Ravager intimidation.',
-    description: 'Mutinous Ravager equipped with a heavy cyber-blaster and a delightfully ridiculous moniker.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/6/6a/Taserface_%28Earth-199999%29_from_Guardians_of_the_Galaxy_Vol._2_%28film%29_002.png/revision/latest?cb=20190120205936',
-    color: '#B91C1C',
-    stats: { strength: 74, speed: 62, durability: 72, intelligence: 60, energy: 45, combat: 76 },
-    specialAbilities: [
-      { name: 'Taserface Heavy Shot', description: 'Fires an overpowered burst from his heavy plasma rifle.', bonusPower: 2, triggerRate: 0.5, type: 'attack' }
+    "id": "char-c-039",
+    "name": "Kaine Parker",
+    "alias": "Scarlet Spider II",
+    "grade": "C",
+    "alignment": "Anti-Hero",
+    "startingPrice": 4,
+    "powers": "The Other spider avatar, retractable wrist stingers, organic webbing, stealth camouflage suit.",
+    "description": "Brutal Spider-Man clone who embraces his raw power with lethal wrist stingers and zero hesitation.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/575-scarlet-spider-ii.jpg",
+    "color": "#991B1B",
+    "stats": {
+      "strength": 84,
+      "speed": 86,
+      "durability": 82,
+      "intelligence": 80,
+      "energy": 50,
+      "combat": 92
+    },
+    "specialAbilities": [
+      {
+        "name": "Retractable Stinger Strike",
+        "description": "Deploys solid bone stingers from his wrists for a lethal close-range impale.",
+        "bonusPower": 4,
+        "triggerRate": 0.55,
+        "type": "attack"
+      }
     ],
-    overallPower: 71
+    "overallPower": 83
   },
   {
-    id: 'char-c-040',
-    name: 'Volstagg the Voluminous',
-    alias: 'Warriors Three',
-    grade: 'C',
-    alignment: 'Hero',
-    startingPrice: 4,
-    powers: 'Asgardian warrior strength, heavy battleaxe, immense girth and charging mass.',
-    description: 'Jovial and formidable warrior of Asgard charging into battle with his mighty war axe.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/6/6a/Volstagg_%28Earth-616%29_from_Thor_Vol_3_607_001.jpg/revision/latest?cb=20210801222702',
-    color: '#D97706',
-    stats: { strength: 80, speed: 60, durability: 80, intelligence: 70, energy: 40, combat: 84 },
-    specialAbilities: [
-      { name: 'Asgardian Axe Cleave', description: 'Swings his double-headed battleaxe with joyful thunderous force.', bonusPower: 3, triggerRate: 0.55, type: 'attack' }
+    "id": "char-c-040",
+    "name": "Spider-Carnage",
+    "alias": "Ben Reilly (Carnage Symbiote)",
+    "grade": "C",
+    "alignment": "Villain",
+    "startingPrice": 5,
+    "powers": "Carnage symbiote + Spider-Man clone powers, blood-red tendril blades, berserk fury.",
+    "description": "Ben Reilly possessed by the psychotic Carnage symbiote, creating a lethal red-and-black menace.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/162-carnage.jpg",
+    "color": "#991B1B",
+    "stats": {
+      "strength": 86,
+      "speed": 90,
+      "durability": 84,
+      "intelligence": 82,
+      "energy": 75,
+      "combat": 90
+    },
+    "specialAbilities": [
+      {
+        "name": "Carnage Web Scythe",
+        "description": "Morphs webbing and tendrils into flying razor-sharp blood-red scythes.",
+        "bonusPower": 4,
+        "triggerRate": 0.55,
+        "type": "attack"
+      }
     ],
-    overallPower: 76
+    "overallPower": 85
   }
 ];
