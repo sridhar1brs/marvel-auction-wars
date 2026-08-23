@@ -191,6 +191,13 @@ export function HomeScreen({
           desc="2 to 8 Player Tournaments" 
         />
       </div>
+
+      {/* Non-Commercial Fan Project Legal Disclaimer */}
+      <div className="text-center pt-3 border-t border-white/5 space-y-1">
+        <p className="text-[10px] text-slate-400 max-w-2xl mx-auto leading-relaxed">
+          ⚡ <strong className="text-slate-300">Unofficial Fan Project:</strong> MARVEL: AUCTION WARS is a free, non-commercial game for educational & entertainment purposes. All characters, names, media, and trademarks belong to Marvel Characters, Inc., The Walt Disney Company, and Sony Pictures.
+        </p>
+      </div>
     </div>
   );
 }
