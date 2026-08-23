@@ -6,6 +6,7 @@ import { soundManager } from '../../audio/soundManager';
 interface Props {
   state: GameState;
   socketId?: string;
+  isConnected?: boolean;
   onSetReady: (isReady: boolean) => void;
   onAddBot: (personality: BotPersonality) => void;
   onUpdateSettings: (settings: { startingMoney?: number; characterLimit?: number; auctionTimerSeconds?: number }) => void;
@@ -20,6 +21,7 @@ interface Props {
 export function OnlineLobby({
   state,
   socketId,
+  isConnected = true,
   onSetReady,
   onAddBot,
   onUpdateSettings,
@@ -51,8 +53,8 @@ export function OnlineLobby({
       <div className="max-w-md mx-auto px-4 py-12">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-950/80 border border-blue-500/40 text-blue-300 text-xs font-bold uppercase mb-2">
-            <Globe className="w-3.5 h-3.5" />
-            <span>REAL-TIME MULTIPLAYER</span>
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-ping'}`} />
+            <span>{isConnected ? 'LIVE MULTIPLAYER CONNECTED' : 'CONNECTING TO SERVER...'}</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-heading font-black text-white uppercase tracking-wider">
             ONLINE LOBBY

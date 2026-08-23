@@ -139,6 +139,7 @@ export function App() {
           <OnlineLobby
             state={state}
             socketId={socketHook.socket?.id}
+            isConnected={socketHook.isConnected}
             onSetReady={socketHook.setReady}
             onAddBot={socketHook.addBot}
             onUpdateSettings={socketHook.updateSettings}
