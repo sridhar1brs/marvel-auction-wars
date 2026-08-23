@@ -446,38 +446,9 @@ class SoundManager {
     osc.stop(now + 0.35);
   }
 
-  // 10. Victory Fanfare
+  // 10. Victory Fanfare (Web Letter Days - Spider-Man: Brand New Day)
   public playVictory() {
-    if (this.isMuted) return;
-    this.initContext();
-    if (!this.ctx) return;
-
-    const now = this.ctx.currentTime;
-    const notes = [
-      { f: 523.25, t: 0.0 },
-      { f: 659.25, t: 0.15 },
-      { f: 783.99, t: 0.3 },
-      { f: 1046.5, t: 0.5 },
-      { f: 1318.51, t: 0.75 },
-    ];
-
-    notes.forEach(({ f, t }) => {
-      const osc = this.ctx!.createOscillator();
-      const gain = this.ctx!.createGain();
-      const startTime = now + t;
-
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(f, startTime);
-
-      gain.gain.setValueAtTime(0.3, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
-
-      osc.connect(gain);
-      gain.connect(this.ctx!.destination);
-
-      osc.start(startTime);
-      osc.stop(startTime + 0.4);
-    });
+    this.playWebLetterDays();
   }
 
   // 11. "Web Letter Days" - Spider-Man: Brand New Day Soundtrack (Michael Giacchino)

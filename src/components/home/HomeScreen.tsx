@@ -140,7 +140,7 @@ export function HomeScreen({
             onClick={() => handleAction(onPlayIntro)}
             className="flex items-center gap-2 bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 border border-red-400 shadow-glow-red px-4 py-2.5 rounded-xl text-xs font-black text-white uppercase tracking-wider transition-all transform hover:scale-105"
           >
-            <span>🎬 MARVEL INTRO</span>
+            <span>🕷️ WEB LETTER DAYS OST</span>
           </button>
         )}
 
