@@ -118,7 +118,7 @@ export function MarvelCinematicIntro({
 
         {/* Cinematic Subtitle Under Banner */}
         <div
-          className={`mt-4 sm:mt-6 transition-all duration-700 transform ${
+          className={`mt-4 sm:mt-6 flex flex-col items-center gap-2 transition-all duration-700 transform ${
             stage === 'subtitle' || stage === 'reveal'
               ? 'opacity-100 translate-y-0'
               : 'opacity-0 translate-y-4'
@@ -130,6 +130,11 @@ export function MarvelCinematicIntro({
               {subtitle}
             </span>
             <Sparkles className="w-3.5 h-3.5 text-marvel-gold animate-spin" />
+          </div>
+
+          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-black/70 border border-cyan-500/40 text-[10px] font-bold text-cyan-300">
+            <Volume2 className="w-3 h-3 text-cyan-400" />
+            <span>OST: Web Letter Days • Spider-Man: Brand New Day</span>
           </div>
         </div>
       </div>

@@ -480,73 +480,99 @@ class SoundManager {
     });
   }
 
-  // 11. Iconic Marvel Studios Intro Fanfare & Sub-Bass Swell
+  // 11. "Web Letter Days" - Spider-Man: Brand New Day Soundtrack (Michael Giacchino)
   public playMarvelIntroFanfare() {
+    this.playWebLetterDays();
+  }
+
+  public playWebLetterDays() {
     if (this.isMuted) return;
     this.initContext();
     if (!this.ctx) return;
 
+    // Check if an external audio file exists in public/audio/web_letter_days.mp3
+    try {
+      const audio = new Audio('/audio/web_letter_days.mp3');
+      audio.volume = 0.65;
+      audio.play().catch(() => {
+        // If file not found or blocked, fall back seamlessly to procedural synthesizer
+        this.synthesizeWebLetterDays();
+      });
+      return;
+    } catch {
+      this.synthesizeWebLetterDays();
+    }
+  }
+
+  private synthesizeWebLetterDays() {
+    if (!this.ctx) return;
     const now = this.ctx.currentTime;
 
-    // Sub-Bass Cinematic Boom (Page Flip Rumble)
+    // 1. Cinematic Web-Thwip & Sub-Bass Drop
     const subOsc = this.ctx.createOscillator();
     const subGain = this.ctx.createGain();
     subOsc.type = 'sine';
-    subOsc.frequency.setValueAtTime(85, now);
-    subOsc.frequency.exponentialRampToValueAtTime(28, now + 2.5);
-    subGain.gain.setValueAtTime(0.4, now);
-    subGain.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
+    subOsc.frequency.setValueAtTime(95, now);
+    subOsc.frequency.exponentialRampToValueAtTime(32, now + 2.8);
+    subGain.gain.setValueAtTime(0.45, now);
+    subGain.gain.exponentialRampToValueAtTime(0.001, now + 2.8);
     subOsc.connect(subGain);
     subGain.connect(this.ctx.destination);
     subOsc.start(now);
-    subOsc.stop(now + 2.5);
+    subOsc.stop(now + 2.8);
 
-    // Comic Page Flutter Noise
-    const bufferSize = this.ctx.sampleRate * 1.5;
+    // 2. High Frequency Web-Shooter Flutter Swoosh
+    const bufferSize = this.ctx.sampleRate * 1.8;
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.4));
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.35));
     }
     const noise = this.ctx.createBufferSource();
     noise.buffer = buffer;
     const noiseFilter = this.ctx.createBiquadFilter();
     noiseFilter.type = 'bandpass';
-    noiseFilter.frequency.setValueAtTime(1200, now);
-    noiseFilter.frequency.linearRampToValueAtTime(300, now + 1.2);
+    noiseFilter.frequency.setValueAtTime(1400, now);
+    noiseFilter.frequency.linearRampToValueAtTime(450, now + 1.4);
     const noiseGain = this.ctx.createGain();
-    noiseGain.gain.setValueAtTime(0.18, now);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+    noiseGain.gain.setValueAtTime(0.2, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 1.4);
     noise.connect(noiseFilter);
     noiseFilter.connect(noiseGain);
     noiseGain.connect(this.ctx.destination);
     noise.start(now);
 
-    // Orchestral Brass Fanfare Swell (Building into Grand Marvel Chord)
-    const fanfareNotes = [
-      // Fast ascending motif
-      { f: 196.00, t: 0.2, d: 0.4, type: 'sawtooth' as OscillatorType, vol: 0.15 }, // G3
-      { f: 261.63, t: 0.45, d: 0.4, type: 'sawtooth' as OscillatorType, vol: 0.18 }, // C4
-      { f: 293.66, t: 0.7, d: 0.4, type: 'sawtooth' as OscillatorType, vol: 0.20 }, // D4
-      { f: 392.00, t: 0.95, d: 0.6, type: 'sawtooth' as OscillatorType, vol: 0.22 }, // G4
+    // 3. Michael Giacchino "Spider-Man: Brand New Day" Main Theme Motif (Web Letter Days)
+    // Notes: [A3] -> [C4] -> [D4] -> [E4] -> [G4] -> [E4] -> [D4] -> [C4] -> [E4] -> [A4]
+    const spiderManMotif = [
+      // Opening ostinato rhythm
+      { f: 220.00, t: 0.10, d: 0.22, type: 'sawtooth' as OscillatorType, vol: 0.16 }, // A3
+      { f: 261.63, t: 0.32, d: 0.22, type: 'sawtooth' as OscillatorType, vol: 0.18 }, // C4
+      { f: 293.66, t: 0.54, d: 0.25, type: 'sawtooth' as OscillatorType, vol: 0.20 }, // D4
+      { f: 329.63, t: 0.80, d: 0.45, type: 'sawtooth' as OscillatorType, vol: 0.26 }, // E4 (Accent)
 
-      // Grand Climax Marvel Brass Chord at t = 1.3s
-      { f: 130.81, t: 1.3, d: 2.2, type: 'sawtooth' as OscillatorType, vol: 0.25 }, // C3 Bass
-      { f: 261.63, t: 1.3, d: 2.2, type: 'sawtooth' as OscillatorType, vol: 0.28 }, // C4
-      { f: 329.63, t: 1.3, d: 2.2, type: 'sawtooth' as OscillatorType, vol: 0.26 }, // E4
-      { f: 392.00, t: 1.3, d: 2.2, type: 'sawtooth' as OscillatorType, vol: 0.28 }, // G4
-      { f: 523.25, t: 1.3, d: 2.4, type: 'sawtooth' as OscillatorType, vol: 0.32 }, // C5 High Trumpet
-      { f: 659.25, t: 1.3, d: 2.4, type: 'sawtooth' as OscillatorType, vol: 0.28 }, // E5
-      { f: 783.99, t: 1.3, d: 2.4, type: 'sawtooth' as OscillatorType, vol: 0.30 }, // G5
+      // Brand New Day Emotional Lift
+      { f: 392.00, t: 1.15, d: 0.35, type: 'sawtooth' as OscillatorType, vol: 0.28 }, // G4
+      { f: 329.63, t: 1.45, d: 0.35, type: 'sawtooth' as OscillatorType, vol: 0.26 }, // E4
+      { f: 293.66, t: 1.75, d: 0.35, type: 'sawtooth' as OscillatorType, vol: 0.24 }, // D4
+      { f: 261.63, t: 2.05, d: 0.35, type: 'sawtooth' as OscillatorType, vol: 0.24 }, // C4
+
+      // Triumphant Giacchino French Horn Climax at t = 2.35s
+      { f: 110.00, t: 2.35, d: 2.5, type: 'sawtooth' as OscillatorType, vol: 0.28 }, // A2 (Bass Foundation)
+      { f: 220.00, t: 2.35, d: 2.5, type: 'sawtooth' as OscillatorType, vol: 0.30 }, // A3
+      { f: 329.63, t: 2.35, d: 2.5, type: 'sawtooth' as OscillatorType, vol: 0.32 }, // E4
+      { f: 440.00, t: 2.35, d: 2.7, type: 'sawtooth' as OscillatorType, vol: 0.36 }, // A4 (High Heroic Trumpet)
+      { f: 523.25, t: 2.35, d: 2.7, type: 'sawtooth' as OscillatorType, vol: 0.34 }, // C5
+      { f: 659.25, t: 2.35, d: 2.7, type: 'sawtooth' as OscillatorType, vol: 0.32 }, // E5
     ];
 
-    fanfareNotes.forEach(({ f, t, d, type, vol }) => {
+    spiderManMotif.forEach(({ f, t, d, type, vol }) => {
       const osc = this.ctx!.createOscillator();
       const gain = this.ctx!.createGain();
       const filter = this.ctx!.createBiquadFilter();
 
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(2500, now + t);
+      filter.frequency.setValueAtTime(2600, now + t);
 
       osc.type = type;
       osc.frequency.setValueAtTime(f, now + t);
