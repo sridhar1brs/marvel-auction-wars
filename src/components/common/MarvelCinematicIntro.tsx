@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { soundManager } from '../../audio/soundManager';
-import { Sparkles, Swords, Volume2 } from 'lucide-react';
+import { Swords, Sparkles, Volume2, VolumeX } from 'lucide-react';
 
 interface Props {
   onComplete: () => void;
@@ -13,133 +13,104 @@ export function MarvelCinematicIntro({
   title = 'MARVEL',
   subtitle = 'AUCTION WARS • MULTIVERSE TOURNAMENT',
 }: Props) {
-  const [stage, setStage] = useState<'flipping' | 'reveal' | 'subtitle' | 'exit'>('flipping');
-  const [comicFrame, setComicFrame] = useState(0);
-
-  const comicCovers = [
-    'https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/620-spider-man.jpg',
-    'https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/346-iron-man.jpg',
-    'https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/659-thor.jpg',
-    'https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/156-captain-america.jpg',
-    'https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/717-wolverine.jpg',
-    'https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/332-hulk.jpg',
-    'https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/687-venom.jpg',
-    'https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/226-doctor-strange.jpg',
-    'https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/213-deadpool.jpg',
-    'https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/655-thanos.jpg',
-  ];
+  const [videoError, setVideoError] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
-    // Play the Marvel intro fanfare immediately
-    soundManager.playMarvelIntroFanfare();
+    // Space key handler to skip
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' || e.code === 'Escape') {
+        e.preventDefault();
+        handleSkip();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
 
-    // Fast comic page flip animation
-    const flipInterval = setInterval(() => {
-      setComicFrame(prev => (prev + 1) % comicCovers.length);
-    }, 90);
-
-    // Stage 1: Comic Flip -> Stage 2: MARVEL Zoom
-    const timer1 = setTimeout(() => {
-      setStage('reveal');
-    }, 1200);
-
-    // Stage 3: Subtitle slide in
-    const timer2 = setTimeout(() => {
-      setStage('subtitle');
-    }, 2000);
-
-    // Stage 4: Fade out exit
-    const timer3 = setTimeout(() => {
-      setStage('exit');
-    }, 3600);
-
-    // Final complete callback
-    const timer4 = setTimeout(() => {
-      onComplete();
-    }, 4000);
+    // Try playing video with audio
+    if (videoRef.current) {
+      videoRef.current.volume = 0.9;
+      videoRef.current.play().catch(() => {
+        // If autoplay blocked by browser policy, retry muted so visuals start immediately
+        if (videoRef.current) {
+          videoRef.current.muted = true;
+          setIsMuted(true);
+          videoRef.current.play().catch(() => setVideoError(true));
+        }
+      });
+    }
 
     return () => {
-      clearInterval(flipInterval);
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-      clearTimeout(timer4);
+      window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [onComplete]);
+  }, []);
 
   const handleSkip = () => {
     soundManager.playClick();
     onComplete();
   };
 
+  const toggleSound = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (videoRef.current) {
+      const nextMuted = !videoRef.current.muted;
+      videoRef.current.muted = nextMuted;
+      setIsMuted(nextMuted);
+    }
+  };
+
   return (
     <div
       onClick={handleSkip}
-      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black cursor-pointer select-none transition-opacity duration-700 ${
-        stage === 'exit' ? 'opacity-0 scale-105 pointer-events-none' : 'opacity-100 scale-100'
-      }`}
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black cursor-pointer select-none overflow-hidden animate-fadeIn"
     >
-      {/* Background Comic Flipping Panels & Vignette */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
-        <img
-          src={comicCovers[comicFrame]}
-          alt="Marvel Comic Reel"
-          className="w-full h-full object-cover filter grayscale contrast-200 transition-all duration-75"
+      {/* 1080p Marvel Cinematic Video Player */}
+      {!videoError ? (
+        <video
+          ref={videoRef}
+          src="/videos/marvel_intro.mp4"
+          autoPlay
+          playsInline
+          onEnded={onComplete}
+          onError={() => setVideoError(true)}
+          className="w-full h-full object-contain sm:object-cover pointer-events-none"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-black" />
-      </div>
-
-      {/* Central Marvel Red Block & Typography */}
-      <div className="relative z-10 flex flex-col items-center text-center px-4 animate-fadeIn">
-        {/* Red Box with 3D White Marvel Lettering */}
-        <div
-          className={`relative px-8 py-3.5 sm:px-14 sm:py-5 bg-gradient-to-r from-red-700 via-red-600 to-red-700 border-2 sm:border-4 border-white shadow-glow-red transition-all duration-1000 transform ${
-            stage === 'flipping'
-              ? 'scale-125 brightness-150'
-              : stage === 'reveal'
-              ? 'scale-105 brightness-125'
-              : 'scale-100 brightness-100'
-          }`}
-        >
-          {/* Inside letter masked flipbook effect */}
-          <div className="absolute inset-0 opacity-20 overflow-hidden mix-blend-screen pointer-events-none">
-            <img
-              src={comicCovers[(comicFrame + 2) % comicCovers.length]}
-              alt="Comic Mask"
-              className="w-full h-full object-cover"
-            />
+      ) : (
+        /* Fallback Cosmic Intro Graphic if video is unavailable */
+        <div className="relative z-10 flex flex-col items-center text-center px-4 animate-fadeIn space-y-4">
+          <div className="px-10 py-5 bg-gradient-to-r from-red-700 via-red-600 to-red-700 border-4 border-white shadow-glow-red">
+            <h1 className="font-heading font-black text-6xl sm:text-9xl text-white tracking-tighter uppercase drop-shadow-[0_8px_16px_rgba(0,0,0,0.9)]">
+              {title}
+            </h1>
           </div>
-
-          <h1 className="font-heading font-black text-5xl sm:text-8xl md:text-9xl text-white tracking-tighter uppercase relative z-10 drop-shadow-[0_8px_16px_rgba(0,0,0,0.9)]">
-            {title}
-          </h1>
-        </div>
-
-        {/* Cinematic Subtitle Under Banner */}
-        <div
-          className={`mt-4 sm:mt-6 transition-all duration-700 transform ${
-            stage === 'subtitle' || stage === 'reveal'
-              ? 'opacity-100 translate-y-0'
-              : 'opacity-0 translate-y-4'
-          }`}
-        >
           <div className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full bg-red-950/80 border border-red-500/50 shadow-glow-red">
-            <Swords className="w-3.5 h-3.5 text-marvel-red animate-pulse" />
-            <span className="font-heading font-extrabold text-xs sm:text-sm text-red-200 tracking-widest uppercase">
+            <Swords className="w-4 h-4 text-marvel-red animate-pulse" />
+            <span className="font-heading font-extrabold text-sm text-red-200 tracking-widest uppercase">
               {subtitle}
             </span>
-            <Sparkles className="w-3.5 h-3.5 text-marvel-gold animate-spin" />
+            <Sparkles className="w-4 h-4 text-marvel-gold animate-spin" />
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Skip Button Indicator */}
-      <div className="absolute bottom-8 z-20 text-center">
-        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest bg-black/60 px-4 py-1.5 rounded-full border border-white/10 hover:text-white transition-colors">
-          Click anywhere or Press SPACE to Skip
+      {/* Top Sound Toggle if browser started muted */}
+      {isMuted && !videoError && (
+        <button
+          onClick={toggleSound}
+          className="absolute top-6 right-6 z-20 flex items-center gap-2 bg-red-600/90 hover:bg-red-500 text-white px-4 py-2 rounded-full font-black text-xs uppercase tracking-wider shadow-glow-red transition-all animate-bounce"
+        >
+          <VolumeX className="w-4 h-4" />
+          <span>TAP TO UNMUTE SOUND</span>
+        </button>
+      )}
+
+      {/* Bottom Skip Indicator */}
+      <div className="absolute bottom-6 z-20 text-center">
+        <span className="text-xs font-black text-slate-300 uppercase tracking-widest bg-black/75 px-5 py-2 rounded-full border border-white/20 hover:text-white hover:border-red-500 transition-all shadow-lg">
+          Click anywhere or Press SPACE to Skip ⚡
         </span>
       </div>
     </div>
   );
 }
+
