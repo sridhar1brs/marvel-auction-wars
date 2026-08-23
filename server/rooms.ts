@@ -678,13 +678,17 @@ export class GameRoom {
     match.player1Action = undefined;
     match.player2Action = undefined;
 
-    // Check if entire team is KO'd (Health reaches 0 on all fighters)
+    // Track knockout scoreboard (total enemy heroes defeated)
+    match.player1Score = p2.collection.filter(c => (c.currentHp ?? 100) <= 0).length;
+    match.player2Score = p1.collection.filter(c => (c.currentHp ?? 100) <= 0).length;
+
+    // Check if entire team is KO'd (Health reaches 0 on all fighters of a team)
     const p1AllDead = p1.collection.every(c => (c.currentHp ?? 100) <= 0);
     const p2AllDead = p2.collection.every(c => (c.currentHp ?? 100) <= 0);
-    const isMatchOver = p1AllDead || p2AllDead || match.rounds.length >= 6;
+    const isMatchOver = p1AllDead || p2AllDead;
 
     if (isMatchOver) {
-      const winner = p2AllDead || match.player1Score > match.player2Score ? p1 : p2;
+      const winner = p2AllDead ? p1 : p2;
       match.winner = winner;
       match.status = 'COMPLETED';
       winner.stats.battlesWon += 1;

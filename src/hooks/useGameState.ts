@@ -584,9 +584,12 @@ export function useGameState() {
     return { success: true, isSkipped: true };
   };
 
-  const instantSkipCurrentAuction = () => {
+  const instantSkipCurrentAuction = async () => {
     soundManager.playClick();
     soundManager.playSkip();
+    if (isOnlineMode) {
+      return await socketHook.voteSkip();
+    }
     stopLocalTimer();
 
     setLocalState(prev => ({
@@ -601,7 +604,7 @@ export function useGameState() {
       },
     }));
 
-    setTimeout(startNextLocalAuction, 600);
+    setTimeout(startNextLocalAuction, 400);
   };
 
   const submitGradeVotes = async (votes: Record<string, GradeVoteOption>) => {
@@ -672,16 +675,18 @@ export function useGameState() {
       action2
     );
 
+    match.rounds.push(result);
+
     soundManager.playAttackHit();
     if (result.player1AbilityTriggered || result.player2AbilityTriggered) {
       soundManager.playAbilityTrigger();
     }
 
     // Update live HP on heroes
-    p1Char.currentHp = result.player1Character.currentHp;
+    p1Char.currentHp = result.player1HpRemaining;
     p1Char.isFainted = (p1Char.currentHp ?? 100) <= 0;
 
-    p2Char.currentHp = result.player2Character.currentHp;
+    p2Char.currentHp = result.player2HpRemaining;
     p2Char.isFainted = (p2Char.currentHp ?? 100) <= 0;
 
     // Track knockout scoreboard (total enemy heroes defeated)
@@ -707,19 +712,25 @@ export function useGameState() {
 
       setLocalState(prev => ({
         ...prev,
-        tournamentMatches: updatedMatches,
+        tournamentMatches: [...updatedMatches],
         champion,
         phase: champion ? 'CHAMPION' : 'MATCH_RESULT',
       }));
       return;
     }
 
-    setLocalState(prev => ({ ...prev }));
+    setLocalState(prev => ({
+      ...prev,
+      tournamentMatches: [...prev.tournamentMatches],
+    }));
   };
 
   const concedeCurrentAuction = () => {
-    // Instantly triggers auction expiration to award to highest bidder with zero delay
     soundManager.playClick();
+    if (isOnlineMode) {
+      socketHook.voteSkip();
+      return;
+    }
     handleLocalTimeExpired();
   };
 
