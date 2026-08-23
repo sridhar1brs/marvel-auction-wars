@@ -3,7 +3,7 @@ import { Character, BattleRound, Player } from '../../types/game';
 import { ALL_CHARACTERS } from '../../data/characters/index';
 import { CharacterCard } from '../common/CharacterCard';
 import { CharacterPortrait } from '../common/CharacterPortrait';
-import { simulateRoundDuel } from '../../../server/battleEngine';
+import { simulateRoundDuel, generateBattleLoreSummary } from '../../../server/battleEngine';
 import { voiceManager } from '../../audio/voiceManager';
 import { soundManager } from '../../audio/soundManager';
 import { Swords, RotateCcw, Zap, Search, Trophy, Sparkles, Volume2, Shield } from 'lucide-react';
@@ -300,6 +300,58 @@ export function BattleSandbox({ onBack }: Props) {
               </div>
             ))}
           </div>
+
+          {/* MARVEL COMIC LORE BREAKDOWN & TACTICAL ANALYSIS */}
+          {duelComplete && duelRounds.length > 0 && (() => {
+            const winner = f1Score > f2Score ? fighter1 : fighter2;
+            const loser = f1Score > f2Score ? fighter2 : fighter1;
+            const lastRound = duelRounds[duelRounds.length - 1];
+            const lore = generateBattleLoreSummary(winner, loser, lastRound);
+
+            return (
+              <div className="glass-panel-glow p-5 sm:p-6 rounded-2xl border border-purple-500/50 bg-gradient-to-b from-purple-950/40 to-black/80 space-y-4 shadow-glow-cosmic mt-6 animate-fadeIn">
+                <div className="flex items-center gap-2 border-b border-purple-500/30 pb-2.5">
+                  <Sparkles className="w-5 h-5 text-purple-400" />
+                  <h3 className="font-heading font-black text-sm sm:text-base text-white uppercase tracking-wider">
+                    MARVEL LORE BATTLE BREAKDOWN & TACTICAL STRATEGY
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Why Winner Won */}
+                  <div className="p-3.5 rounded-xl bg-emerald-950/30 border border-emerald-500/40 space-y-1.5">
+                    <span className="text-[11px] font-black uppercase text-emerald-300 flex items-center gap-1">
+                      <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Why {winner.name} Won:</span>
+                    </span>
+                    <p className="text-xs text-slate-200 leading-relaxed">
+                      {lore.winnerReason}
+                    </p>
+                  </div>
+
+                  {/* Tactical Advice for Loser */}
+                  <div className="p-3.5 rounded-xl bg-blue-950/30 border border-blue-500/40 space-y-1.5">
+                    <span className="text-[11px] font-black uppercase text-blue-300 flex items-center gap-1">
+                      <Shield className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Tactical Advice for {loser.name}:</span>
+                    </span>
+                    <p className="text-xs text-slate-200 leading-relaxed">
+                      {lore.loserStrategyAdvice}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-black/60 border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+                  <span className="text-slate-300 font-semibold">
+                    <strong className="text-amber-400 font-bold">Turning Point:</strong> {lore.keyTurningPoint}
+                  </span>
+                  <span className="text-purple-300 font-extrabold text-[11px] bg-purple-950/80 px-2.5 py-1 rounded-full border border-purple-500/40">
+                    {lore.marvelCanonVerdict}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 

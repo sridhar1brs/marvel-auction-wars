@@ -13,6 +13,7 @@ import { VictoryScreen } from './components/champion/VictoryScreen';
 import { CharacterDatabase } from './components/encyclopedia/CharacterDatabase';
 import { BattleSandbox } from './components/sandbox/BattleSandbox';
 import { EquipmentShop } from './components/shop/EquipmentShop';
+import { GradeVotingModal } from './components/auction/GradeVotingModal';
 import { GamePhase } from './types/game';
 import { soundManager } from './audio/soundManager';
 import { Sparkles, Swords } from 'lucide-react';
@@ -30,6 +31,9 @@ export function App() {
     startLocalGame,
     placeBid,
     voteSkip,
+    instantSkipCurrentAuction,
+    submitGradeVotes,
+    executeBattleRoundAction,
     playMatch,
     restartGame,
     updatePlayerCollection,
@@ -164,6 +168,16 @@ export function App() {
           />
         )}
 
+        {/* 5B. 3-ROUND GRADE TIER VOTING MODAL */}
+        {state.phase === 'GRADE_VOTING' && (
+          <GradeVotingModal
+            players={state.players}
+            onVoteSubmit={submitGradeVotes}
+            isLocalMode={!isOnlineMode}
+            controllingPlayerId={socketHook.socket?.id}
+          />
+        )}
+
         {/* 6. AUCTION ARENA & WINNER REVEAL */}
         {(state.phase === 'AUCTION' || state.phase === 'AUCTION_WINNER') && (
           <AuctionArena
@@ -171,6 +185,7 @@ export function App() {
             socketId={socketHook.socket?.id}
             onPlaceBid={placeBid}
             onVoteSkip={voteSkip}
+            onInstantSkip={instantSkipCurrentAuction}
             onOpenRelicShop={() => {
               setPreviousPhaseBeforeBrowse(state.phase);
               setPhase('EQUIPMENT_SHOP');
@@ -239,6 +254,7 @@ export function App() {
           <BattlePhase
             state={state}
             onReturnToTree={() => setPhase('TOURNAMENT_TREE')}
+            onExecuteAction={executeBattleRoundAction}
           />
         )}
 

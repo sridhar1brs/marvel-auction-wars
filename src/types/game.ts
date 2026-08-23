@@ -27,8 +27,26 @@ export interface ArtifactItem {
   icon: string;
   description: string;
   bonusPower?: number;
-  effectType: 'double_roll' | 'shield_negate' | 'shrink_enemy' | 'lightning_strike' | 'speed_evasion' | 'stat_boost';
+  effectType: 
+    | 'double_roll' 
+    | 'shield_negate' 
+    | 'shrink_enemy' 
+    | 'lightning_strike' 
+    | 'speed_evasion' 
+    | 'stat_boost'
+    | 'life_drain'
+    | 'reroll'
+    | 'lethal_strike'
+    | 'invulnerable'
+    | 'all_stats'
+    | 'cosmic_supremacy'
+    | 'speed_slow'
+    | 'undo_round'
+    | 'freeze';
 }
+
+export type BattleActionType = 'ATTACK' | 'SPECIAL' | 'DEFEND' | 'ARTIFACT';
+export type GradeVoteOption = CharacterGrade | 'MYSTERY';
 
 export interface Character {
   id: string;
@@ -53,6 +71,9 @@ export interface Character {
   specialAbilities: SpecialAbility[];
   overallPower: number;  // 50-99 scale
   equippedArtifact?: ArtifactItem | null;
+  currentHp?: number;    // Default 100
+  maxHp?: number;        // Default 100
+  isFainted?: boolean;
 }
 
 export type BotPersonality = 'Aggressive' | 'Value' | 'Cosmic' | 'Balanced';
@@ -101,6 +122,7 @@ export type GamePhase =
   | 'LOCAL_SETUP'
   | 'ONLINE_LOBBY'
   | 'AUCTION_INTRO'
+  | 'GRADE_VOTING'
   | 'AUCTION'
   | 'AUCTION_REVEAL_MYTHIC'
   | 'AUCTION_MYSTERY_REVEAL'
@@ -146,6 +168,8 @@ export interface BattleRound {
   tier: CharacterGrade;
   player1Character: Character;
   player2Character: Character;
+  player1Action?: BattleActionType;
+  player2Action?: BattleActionType;
   player1Roll: number;
   player2Roll: number;
   player1SynergyBonus?: number;
@@ -156,6 +180,10 @@ export interface BattleRound {
   player2AbilityTriggered?: SpecialAbility;
   player1TotalPower: number;
   player2TotalPower: number;
+  player1DamageDealt: number;
+  player2DamageDealt: number;
+  player1HpRemaining: number;
+  player2HpRemaining: number;
   winnerPlayerId: string;
   log: string[];
 }
@@ -174,6 +202,8 @@ export interface TournamentMatch {
   player1Score: number;
   player2Score: number;
   targetWins: number;
+  player1SelectedHeroIndex?: number;
+  player2SelectedHeroIndex?: number;
 }
 
 export interface GameState {
@@ -190,4 +220,7 @@ export interface GameState {
   tournamentMatches: TournamentMatch[];
   currentMatchId: string | null;
   champion: Player | null;
+  gradeVotes?: Record<string, GradeVoteOption>;
+  auctionRoundCount?: number;
+  queuedGrade?: GradeVoteOption | null;
 }

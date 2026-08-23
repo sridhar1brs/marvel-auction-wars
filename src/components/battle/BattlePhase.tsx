@@ -1,15 +1,22 @@
-import { TournamentMatch, GameState } from '../../types/game';
+import { useState } from 'react';
+import { TournamentMatch, GameState, BattleActionType } from '../../types/game';
 import { CombatClash } from './CombatClash';
-import { Swords, Trophy, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { CharacterPortrait } from '../common/CharacterPortrait';
+import { Swords, Trophy, ArrowRight, CheckCircle2, Zap, Shield, Sparkles, Heart } from 'lucide-react';
 import { soundManager } from '../../audio/soundManager';
 
 interface Props {
   state: GameState;
   onReturnToTree: () => void;
+  onExecuteAction?: (matchId: string, action1: BattleActionType, action2: BattleActionType, p1HeroIdx: number, p2HeroIdx: number) => void;
 }
 
-export function BattlePhase({ state, onReturnToTree }: Props) {
+export function BattlePhase({ state, onReturnToTree, onExecuteAction }: Props) {
   const match = state.tournamentMatches.find(m => m.id === state.currentMatchId);
+  const [p1HeroIdx, setP1HeroIdx] = useState(0);
+  const [p2HeroIdx, setP2HeroIdx] = useState(0);
+  const [p1Action, setP1Action] = useState<BattleActionType>('ATTACK');
+  const [p2Action, setP2Action] = useState<BattleActionType>('ATTACK');
 
   if (!match || !match.player1 || !match.player2) {
     return (
@@ -28,13 +35,27 @@ export function BattlePhase({ state, onReturnToTree }: Props) {
   const latestRound = match.rounds.length > 0 ? match.rounds[match.rounds.length - 1] : null;
   const isMatchComplete = match.status === 'COMPLETED';
 
+  const handleExecuteRound = () => {
+    soundManager.playClick();
+    if (onExecuteAction) {
+      onExecuteAction(match.id, p1Action, p2Action, p1HeroIdx, p2HeroIdx);
+    }
+  };
+
+  const actionButtons: { id: BattleActionType; label: string; icon: any; color: string }[] = [
+    { id: 'ATTACK', label: 'ATTACK', icon: Swords, color: 'bg-red-950/80 hover:bg-red-900 border-red-500/60 text-red-200' },
+    { id: 'SPECIAL', label: 'SPECIAL MOVE', icon: Zap, color: 'bg-purple-950/80 hover:bg-purple-900 border-purple-500/60 text-purple-200' },
+    { id: 'DEFEND', label: 'DEFENSIVE GUARD', icon: Shield, color: 'bg-blue-950/80 hover:bg-blue-900 border-blue-500/60 text-blue-200' },
+    { id: 'ARTIFACT', label: 'RELIC POWER', icon: Sparkles, color: 'bg-amber-950/80 hover:bg-amber-900 border-amber-500/60 text-amber-200' },
+  ];
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
       {/* Top Match Header & Scoreboard */}
       <div className="glass-panel p-5 rounded-2xl border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
           <span className="text-[10px] font-black uppercase tracking-widest text-red-400 block">
-            {match.roundName.toUpperCase()} BATTLE ARENA
+            {match.roundName.toUpperCase()} BATTLE ARENA (FIRST TO {match.targetWins || 3} WINS)
           </span>
           <h1 className="text-2xl sm:text-3xl font-heading font-black text-white">
             {match.player1.name} vs {match.player2.name}
@@ -65,23 +86,154 @@ export function BattlePhase({ state, onReturnToTree }: Props) {
         </div>
       </div>
 
+      {/* Interactive Combat Command Selection (if match not complete) */}
+      {!isMatchComplete && onExecuteAction && (
+        <div className="glass-panel p-5 rounded-2xl border border-purple-500/30 space-y-5 bg-black/40">
+          <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <div className="flex items-center gap-2">
+              <Swords className="w-5 h-5 text-red-400" />
+              <h2 className="font-heading font-black text-base sm:text-lg text-white uppercase tracking-wider">
+                Round {match.rounds.length + 1}: Select Fighter & Command
+              </h2>
+            </div>
+            <span className="text-xs font-bold text-purple-300 bg-purple-950/80 px-3 py-1 rounded-full border border-purple-500/40">
+              Player Controlled
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Player 1 Choice Box */}
+            <div className="p-4 rounded-xl bg-red-950/20 border border-red-500/40 space-y-3">
+              <span className="text-xs font-black uppercase text-red-300 block">
+                {match.player1.name}'s Fighter Deployment:
+              </span>
+
+              {/* Roster Strip */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                {match.player1.collection.map((c, i) => (
+                  <button
+                    key={c.id}
+                    onClick={() => {
+                      soundManager.playClick();
+                      setP1HeroIdx(i);
+                    }}
+                    className={`shrink-0 p-1.5 rounded-xl border flex flex-col items-center gap-1 transition-all ${
+                      p1HeroIdx === i
+                        ? 'border-red-400 bg-red-900/60 ring-2 ring-red-400/50 scale-105'
+                        : 'border-white/10 bg-black/40 opacity-70 hover:opacity-100'
+                    }`}
+                  >
+                    <CharacterPortrait character={c} size="sm" showBadge={false} />
+                    <span className="text-[10px] font-bold text-white max-w-[60px] truncate">{c.name}</span>
+                    <span className="text-[9px] text-emerald-400 font-extrabold flex items-center gap-0.5">
+                      <Heart className="w-2.5 h-2.5 fill-current text-red-400" />
+                      {c.currentHp !== undefined ? c.currentHp : 100}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Tactical Actions */}
+              <div className="grid grid-cols-2 gap-1.5">
+                {actionButtons.map(btn => {
+                  const Icon = btn.icon;
+                  return (
+                    <button
+                      key={btn.id}
+                      onClick={() => {
+                        soundManager.playClick();
+                        setP1Action(btn.id);
+                      }}
+                      className={`p-2 rounded-lg border text-[11px] font-black flex items-center justify-center gap-1.5 transition-all ${
+                        p1Action === btn.id
+                          ? `${btn.color} ring-2 ring-white/30 scale-[1.02]`
+                          : 'bg-black/40 border-white/10 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{btn.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Player 2 Choice Box */}
+            <div className="p-4 rounded-xl bg-blue-950/20 border border-blue-500/40 space-y-3">
+              <span className="text-xs font-black uppercase text-blue-300 block">
+                {match.player2.name}'s Fighter Deployment:
+              </span>
+
+              {/* Roster Strip */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                {match.player2.collection.map((c, i) => (
+                  <button
+                    key={c.id}
+                    onClick={() => {
+                      soundManager.playClick();
+                      setP2HeroIdx(i);
+                    }}
+                    className={`shrink-0 p-1.5 rounded-xl border flex flex-col items-center gap-1 transition-all ${
+                      p2HeroIdx === i
+                        ? 'border-blue-400 bg-blue-900/60 ring-2 ring-blue-400/50 scale-105'
+                        : 'border-white/10 bg-black/40 opacity-70 hover:opacity-100'
+                    }`}
+                  >
+                    <CharacterPortrait character={c} size="sm" showBadge={false} />
+                    <span className="text-[10px] font-bold text-white max-w-[60px] truncate">{c.name}</span>
+                    <span className="text-[9px] text-emerald-400 font-extrabold flex items-center gap-0.5">
+                      <Heart className="w-2.5 h-2.5 fill-current text-red-400" />
+                      {c.currentHp !== undefined ? c.currentHp : 100}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Tactical Actions */}
+              <div className="grid grid-cols-2 gap-1.5">
+                {actionButtons.map(btn => {
+                  const Icon = btn.icon;
+                  return (
+                    <button
+                      key={btn.id}
+                      onClick={() => {
+                        soundManager.playClick();
+                        setP2Action(btn.id);
+                      }}
+                      className={`p-2 rounded-lg border text-[11px] font-black flex items-center justify-center gap-1.5 transition-all ${
+                        p2Action === btn.id
+                          ? `${btn.color} ring-2 ring-white/30 scale-[1.02]`
+                          : 'bg-black/40 border-white/10 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{btn.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Trigger Clash Button */}
+          <button
+            onClick={handleExecuteRound}
+            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-red-600 via-purple-600 to-red-600 hover:from-red-500 hover:to-purple-500 text-white font-heading font-black text-sm sm:text-base uppercase tracking-widest shadow-glow-red transition-all transform hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
+          >
+            <Swords className="w-5 h-5 animate-pulse" />
+            <span>UNLEASH ROUND CLASH!</span>
+            <Swords className="w-5 h-5 animate-pulse" />
+          </button>
+        </div>
+      )}
+
       {/* Current Animated Combat Duel */}
-      {latestRound ? (
+      {latestRound && (
         <CombatClash
           round={latestRound}
           player1={match.player1}
           player2={match.player2}
         />
-      ) : (
-        <div className="glass-panel p-12 rounded-2xl border border-white/10 text-center text-slate-300 space-y-3">
-          <Swords className="w-8 h-8 text-marvel-red mx-auto animate-bounce" />
-          <h3 className="text-lg font-heading font-black text-white">
-            HEROES ARE ENTERING THE ARENA...
-          </h3>
-          <p className="text-xs text-slate-400">
-            Pairing highest and matching tier heroes for round duels.
-          </p>
-        </div>
       )}
 
       {/* Match Completed Banner / Return Button */}
@@ -115,3 +267,4 @@ export function BattlePhase({ state, onReturnToTree }: Props) {
     </div>
   );
 }
+

@@ -5,7 +5,9 @@ import {
   Character,
   GameSettings, 
   BotPersonality,
-  GamePhase
+  GamePhase,
+  GradeVoteOption,
+  BattleActionType
 } from '../types/game';
 import { ALL_CHARACTERS } from '../data/characters/index';
 import { soundManager } from '../audio/soundManager';
@@ -164,14 +166,26 @@ export function useGameState() {
     stopLocalTimer();
 
     setLocalState(prev => {
-      // Check if all players completed roster limit
+      // 1. Check if all players completed roster limit OR all active players are broke (cannot afford any bids)
       const activePlayers = prev.players.filter(
         p => p.collection.length < prev.settings.characterLimit
       );
 
-      if (activePlayers.length === 0) {
+      const canAnyPlayerAfford = activePlayers.some(p => p.money >= 1);
+
+      if (activePlayers.length === 0 || !canAnyPlayerAfford) {
         setTimeout(finishLocalAuctionPhase, 500);
         return prev;
+      }
+
+      // 2. Check 3-Round Cosmic Grade Tier Voting trigger
+      const completedRounds = prev.purchasedCharacters.length + prev.skippedCharacters.length;
+      if (completedRounds > 0 && completedRounds % 3 === 0 && !prev.queuedGrade && prev.phase !== 'GRADE_VOTING') {
+        soundManager.playAbilityTrigger();
+        return {
+          ...prev,
+          phase: 'GRADE_VOTING',
+        };
       }
 
       let available = [...prev.availableCharacters];
@@ -182,14 +196,26 @@ export function useGameState() {
         skipped = [];
       }
 
-      const nextChar = available.pop() || null;
+      // If a grade was queued from player voting, prioritize finding a character of that tier!
+      let nextCharIndex = -1;
+      if (prev.queuedGrade && prev.queuedGrade !== 'MYSTERY') {
+        nextCharIndex = available.findIndex(c => c.grade === prev.queuedGrade);
+      }
+
+      let nextChar: Character | null = null;
+      if (nextCharIndex !== -1) {
+        nextChar = available.splice(nextCharIndex, 1)[0];
+      } else {
+        nextChar = available.pop() || null;
+      }
+
       if (!nextChar) {
         setTimeout(finishLocalAuctionPhase, 500);
         return prev;
       }
 
       const isMythic = nextChar.grade === 'MYTHIC';
-      const isBlindMode = prev.settings.gameMode === 'blind_bidding';
+      const isBlindMode = prev.settings.gameMode === 'blind_bidding' || prev.queuedGrade === 'MYSTERY';
       // In blind bidding mode, 100% of crates are mystery. In classic, 20% if not mythic.
       const isMystery = isBlindMode || (!isMythic && Math.random() < 0.20);
 
@@ -199,10 +225,14 @@ export function useGameState() {
         soundManager.playAbilityTrigger();
       }
 
+      // Clear queued grade if satisfied
+      const nextQueuedGrade = (completedRounds % 3 === 2) ? null : prev.queuedGrade;
+
       return {
         ...prev,
         availableCharacters: available,
         skippedCharacters: skipped,
+        queuedGrade: nextQueuedGrade,
         phase: (isMythic && !isBlindMode) ? 'AUCTION_REVEAL_MYTHIC' : 'AUCTION',
         auction: {
           currentCharacter: nextChar,
@@ -524,6 +554,112 @@ export function useGameState() {
     return { success: true, isSkipped: false };
   };
 
+  const instantSkipCurrentAuction = () => {
+    soundManager.playClick();
+    soundManager.playSkip();
+    stopLocalTimer();
+
+    setLocalState(prev => ({
+      ...prev,
+      skippedCharacters: prev.auction.currentCharacter 
+        ? [...prev.skippedCharacters, prev.auction.currentCharacter] 
+        : prev.skippedCharacters,
+      auction: {
+        ...prev.auction,
+        isActive: false,
+        statusMessage: 'CARD INSTANTLY SKIPPED!',
+      },
+    }));
+
+    setTimeout(startNextLocalAuction, 600);
+  };
+
+  const submitGradeVotes = (votes: Record<string, GradeVoteOption>) => {
+    soundManager.playAbilityTrigger();
+    // Count votes
+    const counts: Record<string, number> = {};
+    Object.values(votes).forEach(vote => {
+      counts[vote] = (counts[vote] || 0) + 1;
+    });
+
+    let topChoice: GradeVoteOption = 'MYTHIC';
+    let maxCount = -1;
+    Object.entries(counts).forEach(([opt, cnt]) => {
+      if (cnt > maxCount) {
+        maxCount = cnt;
+        topChoice = opt as GradeVoteOption;
+      }
+    });
+
+    setLocalState(prev => ({
+      ...prev,
+      queuedGrade: topChoice,
+      phase: 'AUCTION',
+    }));
+
+    setTimeout(startNextLocalAuction, 400);
+  };
+
+  const executeBattleRoundAction = (
+    matchId: string,
+    action1: BattleActionType,
+    action2: BattleActionType,
+    selectedHero1Index: number = 0,
+    selectedHero2Index: number = 0
+  ) => {
+    const match = localState.tournamentMatches.find(m => m.id === matchId);
+    if (!match || !match.player1 || !match.player2 || match.status === 'COMPLETED') return;
+
+    const p1Char = match.player1.collection[selectedHero1Index] || match.player1.collection[0];
+    const p2Char = match.player2.collection[selectedHero2Index] || match.player2.collection[0];
+
+    const currentRoundNum = match.rounds.length + 1;
+    const result = simulateRoundDuel(
+      match.player1,
+      p1Char,
+      match.player2,
+      p2Char,
+      currentRoundNum,
+      action1,
+      action2
+    );
+
+    soundManager.playAttackHit();
+    if (result.player1AbilityTriggered || result.player2AbilityTriggered) {
+      soundManager.playAbilityTrigger();
+    }
+
+    match.rounds.push(result);
+    if (result.winnerPlayerId === match.player1.id) {
+      match.player1Score += 1;
+    } else {
+      match.player2Score += 1;
+    }
+
+    // Check match completion
+    if (match.player1Score >= match.targetWins || match.player2Score >= match.targetWins) {
+      const winner = match.player1Score >= match.player2Score ? match.player1 : match.player2;
+      match.winner = winner;
+      match.status = 'COMPLETED';
+      winner.stats.battlesWon += 1;
+
+      const { updatedMatches, champion } = advanceTournamentMatches(localState.tournamentMatches);
+      if (champion) {
+        soundManager.playVictory();
+      }
+
+      setLocalState(prev => ({
+        ...prev,
+        tournamentMatches: updatedMatches,
+        champion,
+        phase: champion ? 'CHAMPION' : 'MATCH_RESULT',
+      }));
+      return;
+    }
+
+    setLocalState(prev => ({ ...prev }));
+  };
+
   const playMatch = (matchId: string) => {
     if (isOnlineMode) {
       socketHook.playMatch(matchId);
@@ -612,6 +748,7 @@ export function useGameState() {
       tournamentMatches: [],
       currentMatchId: null,
       champion: null,
+      queuedGrade: null,
       players: prev.players.map(p => ({
         ...p,
         money: prev.settings.startingMoney,
@@ -635,6 +772,9 @@ export function useGameState() {
     startLocalGame,
     placeBid,
     voteSkip,
+    instantSkipCurrentAuction,
+    submitGradeVotes,
+    executeBattleRoundAction,
     playMatch,
     restartGame,
     updatePlayerCollection,

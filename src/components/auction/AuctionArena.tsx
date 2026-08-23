@@ -13,6 +13,7 @@ interface Props {
   socketId?: string;
   onPlaceBid: (playerId: string, amount: number) => void;
   onVoteSkip: (playerId: string) => void;
+  onInstantSkip?: () => void;
   onOpenRelicShop?: () => void;
   isLocalMode?: boolean;
 }
@@ -22,13 +23,14 @@ export function AuctionArena({
   socketId,
   onPlaceBid,
   onVoteSkip,
+  onInstantSkip,
   onOpenRelicShop,
   isLocalMode = true,
 }: Props) {
   const [localTurnPlayerId, setLocalTurnPlayerId] = useState<string>(
     state.players.find(p => !p.isBot)?.id || state.players[0]?.id || ''
   );
-  const [isDualSplitScreen, setIsDualSplitScreen] = useState<boolean>(false);
+  const [isSplitScreen, setIsSplitScreen] = useState<boolean>(false);
 
   const char = state.auction.currentCharacter;
   const isBlindBidding = state.settings.gameMode === 'blind_bidding';
@@ -53,6 +55,13 @@ export function AuctionArena({
     setLocalTurnPlayerId(humanEligible[nextIdx].id);
   };
 
+  const getSplitGridCols = () => {
+    if (humanPlayers.length === 2) return 'grid-cols-1 md:grid-cols-2';
+    if (humanPlayers.length === 3) return 'grid-cols-1 md:grid-cols-3';
+    if (humanPlayers.length === 4) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
+    return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 space-y-6">
       {/* Top HUD & Options Bar */}
@@ -69,22 +78,39 @@ export function AuctionArena({
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Dual Split Screen Toggle Option for 2+ Players */}
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* Instant Skip Button for All Players */}
+          <button
+            onClick={() => {
+              soundManager.playClick();
+              if (onInstantSkip) {
+                onInstantSkip();
+              } else {
+                // Trigger unanimous skip vote for controlling player
+                onVoteSkip(controllingPlayer.id);
+              }
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white border border-red-400/50 shadow-glow-red transition-all transform hover:scale-105 active:scale-95 uppercase tracking-wider"
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+            <span>⚡ SKIP CARD (ALL)</span>
+          </button>
+
+          {/* Multi-Split Screen Toggle Option for 2+ Players */}
           {isLocalMode && humanPlayers.length >= 2 && (
             <button
               onClick={() => {
                 soundManager.playClick();
-                setIsDualSplitScreen(prev => !prev);
+                setIsSplitScreen(prev => !prev);
               }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                isDualSplitScreen
+                isSplitScreen
                   ? 'bg-purple-900/90 text-purple-200 border-purple-400 shadow-glow-cosmic'
                   : 'bg-marvel-card text-slate-300 border-white/10 hover:border-slate-500'
               }`}
             >
-              {isDualSplitScreen ? <LayoutGrid className="w-3.5 h-3.5" /> : <Columns className="w-3.5 h-3.5" />}
-              <span>{isDualSplitScreen ? 'Full Arena View' : '2-Screen Dual View'}</span>
+              {isSplitScreen ? <LayoutGrid className="w-3.5 h-3.5" /> : <Columns className="w-3.5 h-3.5" />}
+              <span>{isSplitScreen ? 'Standard Focus' : `${humanPlayers.length}-Player Split View`}</span>
             </button>
           )}
 
@@ -114,8 +140,8 @@ export function AuctionArena({
         isLocalMode={isLocalMode}
       />
 
-      {/* DUAL SPLIT SCREEN 2-PLAYER VIEW */}
-      {isDualSplitScreen && humanPlayers.length >= 2 ? (
+      {/* MULTI-PLAYER SPLIT SCREEN VIEW (2, 3, 4+ PLAYERS) */}
+      {isSplitScreen && humanPlayers.length >= 2 ? (
         <div className="space-y-4">
           {/* Center Compact Spotlight Card & Timer */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
@@ -138,47 +164,42 @@ export function AuctionArena({
             </div>
           </div>
 
-          {/* 2 Split Player Stations */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Player 1 Screen Half */}
-            <div className="glass-panel p-4 rounded-2xl border border-red-500/40 bg-red-950/10 space-y-3">
-              <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                <span className="font-heading font-black text-white flex items-center gap-2">
-                  <span className="text-xl">{humanPlayers[0].avatar}</span>
-                  <span>{humanPlayers[0].name} (Screen 1)</span>
-                </span>
-                <span className="text-emerald-400 font-black text-sm">${humanPlayers[0].money}</span>
-              </div>
-              <BidControls
-                activePlayer={humanPlayers[0]}
-                auction={state.auction}
-                settings={state.settings}
-                onPlaceBid={onPlaceBid}
-                onVoteSkip={onVoteSkip}
-                isLocalMode={false}
-                eligiblePlayersCount={eligiblePlayers.length}
-              />
-            </div>
+          {/* Dynamic N-Player Split Stations */}
+          <div className={`grid ${getSplitGridCols()} gap-3`}>
+            {humanPlayers.map((player, idx) => {
+              const borderColors = [
+                'border-red-500/50 bg-red-950/20',
+                'border-blue-500/50 bg-blue-950/20',
+                'border-emerald-500/50 bg-emerald-950/20',
+                'border-purple-500/50 bg-purple-950/20',
+                'border-amber-500/50 bg-amber-950/20',
+                'border-cyan-500/50 bg-cyan-950/20',
+              ];
+              const colorClass = borderColors[idx % borderColors.length];
 
-            {/* Player 2 Screen Half */}
-            <div className="glass-panel p-4 rounded-2xl border border-blue-500/40 bg-blue-950/10 space-y-3">
-              <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                <span className="font-heading font-black text-white flex items-center gap-2">
-                  <span className="text-xl">{humanPlayers[1].avatar}</span>
-                  <span>{humanPlayers[1].name} (Screen 2)</span>
-                </span>
-                <span className="text-emerald-400 font-black text-sm">${humanPlayers[1].money}</span>
-              </div>
-              <BidControls
-                activePlayer={humanPlayers[1]}
-                auction={state.auction}
-                settings={state.settings}
-                onPlaceBid={onPlaceBid}
-                onVoteSkip={onVoteSkip}
-                isLocalMode={false}
-                eligiblePlayersCount={eligiblePlayers.length}
-              />
-            </div>
+              return (
+                <div key={player.id} className={`glass-panel p-3.5 rounded-2xl border ${colorClass} space-y-3 flex flex-col justify-between`}>
+                  <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                    <span className="font-heading font-black text-white text-xs sm:text-sm flex items-center gap-1.5 truncate">
+                      <span className="text-lg">{player.avatar}</span>
+                      <span className="truncate">{player.name} (P{idx + 1})</span>
+                    </span>
+                    <span className="text-emerald-400 font-black text-xs bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/30">
+                      ${player.money}
+                    </span>
+                  </div>
+                  <BidControls
+                    activePlayer={player}
+                    auction={state.auction}
+                    settings={state.settings}
+                    onPlaceBid={onPlaceBid}
+                    onVoteSkip={onVoteSkip}
+                    isLocalMode={false}
+                    eligiblePlayersCount={eligiblePlayers.length}
+                  />
+                </div>
+              );
+            })}
           </div>
         </div>
       ) : (
