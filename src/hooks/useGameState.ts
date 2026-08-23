@@ -687,67 +687,16 @@ export function useGameState() {
     if (!match || !match.player1 || !match.player2 || match.status === 'COMPLETED') return;
 
     match.status = 'IN_PROGRESS';
-    const pairings = getTierMatchedPairings(match.player1.collection, match.player2.collection);
     match.rounds = [];
     match.player1Score = 0;
     match.player2Score = 0;
 
+    // Transition to interactive player-controlled battle arena
     setLocalState(prev => ({
       ...prev,
       currentMatchId: matchId,
       phase: 'BATTLE_FIGHT',
     }));
-
-    let roundIdx = 0;
-    const runNextRound = () => {
-      if (roundIdx >= pairings.length) {
-        const winner = match.player1Score >= match.player2Score ? match.player1 : match.player2;
-        match.winner = winner!;
-        match.status = 'COMPLETED';
-        winner!.stats.battlesWon += 1;
-
-        const { updatedMatches, champion } = advanceTournamentMatches(localState.tournamentMatches);
-        if (champion) {
-          soundManager.playVictory();
-        }
-
-        setLocalState(prev => ({
-          ...prev,
-          tournamentMatches: updatedMatches,
-          champion,
-          phase: champion ? 'CHAMPION' : 'MATCH_RESULT',
-        }));
-        return;
-      }
-
-      const pairing = pairings[roundIdx];
-      const result = simulateRoundDuel(
-        match.player1!,
-        pairing.p1Char,
-        match.player2!,
-        pairing.p2Char,
-        roundIdx + 1
-      );
-
-      soundManager.playAttackHit();
-      if (result.player1AbilityTriggered || result.player2AbilityTriggered) {
-        soundManager.playAbilityTrigger();
-      }
-
-      match.rounds.push(result);
-      if (result.winnerPlayerId === match.player1!.id) {
-        match.player1Score += 1;
-      } else {
-        match.player2Score += 1;
-      }
-
-      setLocalState(prev => ({ ...prev }));
-      roundIdx++;
-
-      setTimeout(runNextRound, 4000);
-    };
-
-    setTimeout(runNextRound, 1500);
   };
 
   const restartGame = () => {

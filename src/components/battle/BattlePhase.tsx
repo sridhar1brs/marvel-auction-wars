@@ -32,14 +32,32 @@ export function BattlePhase({ state, onReturnToTree, onExecuteAction }: Props) {
     );
   }
 
+  const p1 = match.player1;
+  const p2 = match.player2;
   const latestRound = match.rounds.length > 0 ? match.rounds[match.rounds.length - 1] : null;
   const isMatchComplete = match.status === 'COMPLETED';
 
   const handleExecuteRound = () => {
     soundManager.playClick();
-    if (onExecuteAction) {
-      onExecuteAction(match.id, p1Action, p2Action, p1HeroIdx, p2HeroIdx);
+    if (!onExecuteAction) return;
+
+    let botHeroIdx = p2HeroIdx;
+    let botAction = p2Action;
+
+    if (p2.isBot) {
+      // Pick a random available hero with HP > 0 for bot
+      const liveHeroes = p2.collection
+        .map((c, i) => ({ c, i }))
+        .filter(({ c }) => (c.currentHp === undefined || c.currentHp > 0));
+      
+      if (liveHeroes.length > 0) {
+        botHeroIdx = liveHeroes[Math.floor(Math.random() * liveHeroes.length)].i;
+      }
+      const actions: BattleActionType[] = ['ATTACK', 'SPECIAL', 'DEFEND', 'ARTIFACT'];
+      botAction = actions[Math.floor(Math.random() * actions.length)];
     }
+
+    onExecuteAction(match.id, p1Action, botAction, p1HeroIdx, botHeroIdx);
   };
 
   const actionButtons: { id: BattleActionType; label: string; icon: any; color: string }[] = [
@@ -88,7 +106,7 @@ export function BattlePhase({ state, onReturnToTree, onExecuteAction }: Props) {
 
       {/* Interactive Combat Command Selection (if match not complete) */}
       {!isMatchComplete && onExecuteAction && (
-        <div className="glass-panel p-5 rounded-2xl border border-purple-500/30 space-y-5 bg-black/40">
+        <div className="glass-panel p-5 rounded-2xl border border-purple-500/30 space-y-5 bg-black/40 shadow-glow-cosmic animate-fadeIn">
           <div className="flex items-center justify-between border-b border-white/10 pb-3">
             <div className="flex items-center gap-2">
               <Swords className="w-5 h-5 text-red-400" />
@@ -96,8 +114,8 @@ export function BattlePhase({ state, onReturnToTree, onExecuteAction }: Props) {
                 Round {match.rounds.length + 1}: Select Fighter & Command
               </h2>
             </div>
-            <span className="text-xs font-bold text-purple-300 bg-purple-950/80 px-3 py-1 rounded-full border border-purple-500/40">
-              Player Controlled
+            <span className="text-xs font-bold text-purple-300 bg-purple-950/80 px-3 py-1 rounded-full border border-purple-500/40 animate-pulse">
+              🎮 Ready for Your Orders
             </span>
           </div>
 
@@ -160,18 +178,27 @@ export function BattlePhase({ state, onReturnToTree, onExecuteAction }: Props) {
 
             {/* Player 2 Choice Box */}
             <div className="p-4 rounded-xl bg-blue-950/20 border border-blue-500/40 space-y-3">
-              <span className="text-xs font-black uppercase text-blue-300 block">
-                {match.player2.name}'s Fighter Deployment:
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase text-blue-300 block">
+                  {p2.name}'s Deployment:
+                </span>
+                {p2.isBot && (
+                  <span className="text-[10px] font-extrabold text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/40">
+                    🤖 AI Auto-Tactics
+                  </span>
+                )}
+              </div>
 
               {/* Roster Strip */}
               <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                {match.player2.collection.map((c, i) => (
+                {p2.collection.map((c, i) => (
                   <button
                     key={c.id}
                     onClick={() => {
-                      soundManager.playClick();
-                      setP2HeroIdx(i);
+                      if (!p2.isBot) {
+                        soundManager.playClick();
+                        setP2HeroIdx(i);
+                      }
                     }}
                     className={`shrink-0 p-1.5 rounded-xl border flex flex-col items-center gap-1 transition-all ${
                       p2HeroIdx === i
@@ -197,8 +224,10 @@ export function BattlePhase({ state, onReturnToTree, onExecuteAction }: Props) {
                     <button
                       key={btn.id}
                       onClick={() => {
-                        soundManager.playClick();
-                        setP2Action(btn.id);
+                        if (!p2.isBot) {
+                          soundManager.playClick();
+                          setP2Action(btn.id);
+                        }
                       }}
                       className={`p-2 rounded-lg border text-[11px] font-black flex items-center justify-center gap-1.5 transition-all ${
                         p2Action === btn.id
@@ -218,10 +247,10 @@ export function BattlePhase({ state, onReturnToTree, onExecuteAction }: Props) {
           {/* Trigger Clash Button */}
           <button
             onClick={handleExecuteRound}
-            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-red-600 via-purple-600 to-red-600 hover:from-red-500 hover:to-purple-500 text-white font-heading font-black text-sm sm:text-base uppercase tracking-widest shadow-glow-red transition-all transform hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
+            className="w-full py-4 rounded-2xl bg-gradient-to-r from-red-600 via-purple-600 to-red-600 hover:from-red-500 hover:to-purple-500 text-white font-heading font-black text-base uppercase tracking-widest shadow-glow-red transition-all transform hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-3"
           >
             <Swords className="w-5 h-5 animate-pulse" />
-            <span>UNLEASH ROUND CLASH!</span>
+            <span>⚡ UNLEASH ROUND {match.rounds.length + 1} CLASH!</span>
             <Swords className="w-5 h-5 animate-pulse" />
           </button>
         </div>
