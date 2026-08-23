@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-marvel-darker text-slate-100 antialiased selection:bg-marvel-red selection:text-white;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  h1, h2, h3, .font-heading {
+    font-family: 'Outfit', 'Bebas Neue', system-ui, sans-serif;
+    letter-spacing: 0.05em;
+  }
+}
+
+/* Custom Marvel Glows & Glassmorphism */
+.glass-panel {
+  background: rgba(18, 22, 32, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-glow {
+  background: rgba(18, 22, 32, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(230, 36, 41, 0.3);
+  box-shadow: 0 0 30px rgba(230, 36, 41, 0.15);
+}
+
+.cosmic-panel {
+  background: linear-gradient(135deg, rgba(30, 15, 55, 0.9) 0%, rgba(10, 10, 20, 0.95) 100%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  box-shadow: 0 0 35px rgba(168, 85, 247, 0.25);
+}
+
+/* Metallic Comic Text Gradients */
+.text-gold-gradient {
+  background: linear-gradient(180deg, #FFF6B7 0%, #F59E0B 70%, #B45309 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-marvel-gradient {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F87171 40%, #E62429 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-cosmic-gradient {
+  background: linear-gradient(180deg, #FDF4FF 0%, #C084FC 50%, #9333EA 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Scanline Effect */
+.scanlines {
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.25) 50%
+  ), linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.03),
+    rgba(0, 255, 0, 0.01),
+    rgba(0, 0, 255, 0.03)
+  );
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+}
+
+/* Glowing Neon Borders */
+.border-glow-c {
+  border-color: #10B981;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+}
+
+.border-glow-b {
+  border-color: #3B82F6;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+}
+
+.border-glow-a {
+  border-color: #EF4444;
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.5);
+}
+
+.border-glow-mythic {
+  border-color: #A855F7;
+  box-shadow: 0 0 35px rgba(168, 85, 247, 0.6), inset 0 0 15px rgba(168, 85, 247, 0.3);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0B0D13;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #232A3B;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #E62429;
+}
