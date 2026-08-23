@@ -261,32 +261,49 @@ export function useGameState() {
     stopLocalTimer();
 
     setLocalState(prev => {
-      // Prevent double-execution if the timer queued multiple calls
+      // Prevent double-execution if the timer queued multiple calls or phase changed
       if (prev.phase !== 'AUCTION') return prev;
 
       const winnerId = prev.auction.highestBidderId;
       const finalBid = prev.auction.currentBid;
       const char = prev.auction.currentCharacter;
-      const updatedPlayers = [...prev.players];
-      const updatedPurchased = [...prev.purchasedCharacters];
-      const updatedSkipped = [...prev.skippedCharacters];
+
+      let updatedPurchased = [...prev.purchasedCharacters];
+      let updatedSkipped = [...prev.skippedCharacters];
+
+      const updatedPlayers = prev.players.map(p => {
+        if (winnerId && p.id === winnerId && char && finalBid > 0) {
+          // Strict duplicate prevention: never add the same card twice
+          const alreadyOwned = p.collection.some(c => c.id === char.id);
+          if (alreadyOwned) return p;
+
+          return {
+            ...p,
+            money: Math.max(0, p.money - finalBid),
+            collection: [...p.collection, char],
+            stats: {
+              ...p.stats,
+              moneySpent: p.stats.moneySpent + finalBid,
+              highestBid: Math.max(p.stats.highestBid, finalBid),
+            },
+          };
+        }
+        return {
+          ...p,
+          collection: [...p.collection],
+          stats: { ...p.stats },
+        };
+      });
 
       if (winnerId && char && finalBid > 0) {
-        const winner = updatedPlayers.find(p => p.id === winnerId);
-        if (winner) {
-          winner.money -= finalBid;
-          winner.collection.push(char);
-          winner.stats.moneySpent += finalBid;
+        if (!updatedPurchased.some(c => c.id === char.id)) {
           updatedPurchased.push(char);
-          soundManager.playGavelWon();
-
-          // Play character signature voice line & sound effect!
-          setTimeout(() => {
-            voiceManager.playCharacterVoiceline(char);
-          }, 350);
         }
+        soundManager.playGavelWon();
       } else if (char) {
-        updatedSkipped.push(char);
+        if (!updatedSkipped.some(c => c.id === char.id)) {
+          updatedSkipped.push(char);
+        }
       }
 
       return {
@@ -298,7 +315,7 @@ export function useGameState() {
         auction: {
           ...prev.auction,
           isActive: false,
-          isMysteryCrate: false, // Reveal unboxed character!
+          isMysteryCrate: false,
           unboxedCharacter: char,
           statusMessage: winnerId 
             ? `🎉 Won by ${prev.auction.highestBidderName} for $${finalBid}! (${char?.name})` 

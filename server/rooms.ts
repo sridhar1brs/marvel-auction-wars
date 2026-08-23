@@ -296,15 +296,22 @@ export class GameRoom {
     if (winnerId && char && finalBid > 0) {
       const winner = this.state.players.find(p => p.id === winnerId);
       if (winner) {
-        winner.money -= finalBid;
-        winner.collection.push(char);
-        winner.stats.moneySpent += finalBid;
-        this.state.purchasedCharacters.push(char);
+        // Strict duplicate protection
+        const alreadyOwned = winner.collection.some(c => c.id === char.id);
+        if (!alreadyOwned) {
+          winner.money = Math.max(0, winner.money - finalBid);
+          winner.collection.push(char);
+          winner.stats.moneySpent += finalBid;
+        }
+
+        if (!this.state.purchasedCharacters.some(c => c.id === char.id)) {
+          this.state.purchasedCharacters.push(char);
+        }
 
         this.state.auction.statusMessage = `🎉 ${winner.name} won ${char.name} for $${finalBid}!`;
       }
     } else {
-      if (char) {
+      if (char && !this.state.skippedCharacters.some(c => c.id === char.id)) {
         this.state.skippedCharacters.push(char);
       }
       this.state.auction.statusMessage = 'NO BIDS PLACED - Card remains unsold.';
