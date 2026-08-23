@@ -5,6 +5,7 @@ import {
   AuctionState, 
   TournamentMatch,
   Character,
+  GradeVoteOption,
 } from '../src/types/game';
 import { ALL_CHARACTERS } from '../src/data/characters/index';
 import { validateBid, validateSkipVote, calculateBotBid } from './auctionEngine';
@@ -14,6 +15,8 @@ import { simulateRoundDuel, getTierMatchedPairings } from './battleEngine';
 export class GameRoom {
   public state: GameState;
   private timerInterval: NodeJS.Timeout | null = null;
+  private gradeVoteTimeout: NodeJS.Timeout | null = null;
+  private gradeVotes: Record<string, GradeVoteOption> = {};
   private onStateChange: (state: GameState) => void;
 
   constructor(roomId: string, hostPlayer: Player, onStateChange: (state: GameState) => void) {
@@ -34,6 +37,8 @@ export class GameRoom {
       availableCharacters: [...ALL_CHARACTERS].sort(() => Math.random() - 0.5),
       purchasedCharacters: [],
       skippedCharacters: [],
+      lastVotedCheckpoint: 0,
+      queuedGrade: null,
       auction: {
         currentCharacter: null,
         currentBid: 0,
@@ -111,11 +116,18 @@ export class GameRoom {
 
   public startGame() {
     if (this.state.players.length < 2) return;
-    // Set all starting moneys
+    // Set all starting moneys and reset rosters
     this.state.players.forEach(p => {
       p.money = this.state.settings.startingMoney;
       p.collection = [];
+      p.stats = { battlesWon: 0, moneySpent: 0, highestBid: 0 };
     });
+
+    this.state.purchasedCharacters = [];
+    this.state.skippedCharacters = [];
+    this.state.lastVotedCheckpoint = 0;
+    this.state.queuedGrade = null;
+    this.gradeVotes = {};
 
     this.state.phase = 'AUCTION_INTRO';
     this.notifyState();
@@ -128,30 +140,93 @@ export class GameRoom {
   public startNextAuction() {
     this.stopTimer();
 
-    // Check if all players completed character collection
-    const activePlayers = this.state.players.filter(
+    // 1. Check if all players completed character collection
+    const needingPlayers = this.state.players.filter(
       p => p.collection.length < this.state.settings.characterLimit
     );
 
-    if (activePlayers.length === 0) {
+    if (needingPlayers.length === 0) {
       this.finishAuctionPhase();
       return;
     }
 
-    // Pick next random character from remaining available pool
+    // Emergency Funds: If a player who still needs characters has $0, grant $5 S.H.I.E.L.D. draft funds!
+    needingPlayers.forEach(p => {
+      if (p.money <= 0) {
+        p.money = 5;
+      }
+    });
+
+    // 2. Check 3-Round Cosmic Grade Tier Voting Checkpoint (Rounds 3, 6, 9, 12, 15...)
+    const completedRounds = this.state.purchasedCharacters.length + this.state.skippedCharacters.length;
+    const currentCheckpoint = Math.floor(completedRounds / 3);
+
+    if (
+      completedRounds > 0 && 
+      completedRounds % 3 === 0 && 
+      this.state.lastVotedCheckpoint !== currentCheckpoint && 
+      this.state.phase !== 'GRADE_VOTING'
+    ) {
+      this.state.lastVotedCheckpoint = currentCheckpoint;
+      this.state.phase = 'GRADE_VOTING';
+      this.gradeVotes = {};
+      this.notifyState();
+      this.startGradeVoteTimer();
+      return;
+    }
+
+    // 3. Find character lot tailored for players who STILL need to buy cards!
+    const maxNeedingFunds = Math.max(1, ...needingPlayers.map(p => p.money));
+
     if (this.state.availableCharacters.length === 0) {
-      // Reshuffle skipped if completely exhausted
       this.state.availableCharacters = [...this.state.skippedCharacters].sort(() => Math.random() - 0.5);
       this.state.skippedCharacters = [];
     }
 
-    const nextChar = this.state.availableCharacters.pop() || null;
+    let nextCharIndex = -1;
+
+    // If a grade was queued from player voting, prioritize finding an affordable character of that tier!
+    if (this.state.queuedGrade && this.state.queuedGrade !== 'MYSTERY') {
+      nextCharIndex = this.state.availableCharacters.findIndex(
+        c => c.grade === this.state.queuedGrade && c.startingPrice <= maxNeedingFunds
+      );
+      if (nextCharIndex === -1) {
+        nextCharIndex = this.state.availableCharacters.findIndex(c => c.grade === this.state.queuedGrade);
+      }
+    }
+
+    // If no queued grade or not found, find a character that active drafting players can afford!
+    if (nextCharIndex === -1) {
+      nextCharIndex = this.state.availableCharacters.findIndex(c => c.startingPrice <= maxNeedingFunds);
+    }
+
+    let nextChar: Character | null = null;
+    if (nextCharIndex !== -1) {
+      nextChar = this.state.availableCharacters.splice(nextCharIndex, 1)[0];
+    } else {
+      nextChar = this.state.availableCharacters.pop() || null;
+    }
+
     if (!nextChar) {
       this.finishAuctionPhase();
       return;
     }
 
+    // Dynamic Affordability Guarantee:
+    // Cap starting price so remaining players can ALWAYS afford to bid and purchase!
+    if (nextChar.startingPrice > maxNeedingFunds) {
+      nextChar = {
+        ...nextChar,
+        startingPrice: Math.max(1, maxNeedingFunds),
+      };
+    }
+
     const isMythic = nextChar.grade === 'MYTHIC';
+    const isBlindMode = this.state.settings.gameMode === 'blind_bidding' || this.state.queuedGrade === 'MYSTERY';
+    const isMystery = isBlindMode || (!isMythic && Math.random() < 0.20);
+
+    // The queued grade applies to THIS NEXT ROUND ONLY, then resets
+    this.state.queuedGrade = null;
 
     this.state.auction = {
       currentCharacter: nextChar,
@@ -163,14 +238,19 @@ export class GameRoom {
       bidsHistory: [],
       skipVotes: [],
       hasBidded: [],
-      statusMessage: isMythic ? '⚡ MYTHIC CHARACTER DETECTED!' : `Auctioning ${nextChar.name}`,
+      isMysteryCrate: isMystery,
+      statusMessage: (isMythic && !isBlindMode) 
+        ? '⚡ MYTHIC CHARACTER DETECTED!' 
+        : isMystery 
+        ? '🎲 MYSTERY COSMIC CRATE DETECTED!' 
+        : `Auctioning ${nextChar.name}`,
       isMythicRevealed: isMythic,
     };
 
-    this.state.phase = isMythic ? 'AUCTION_REVEAL_MYTHIC' : 'AUCTION';
+    this.state.phase = (isMythic && !isBlindMode) ? 'AUCTION_REVEAL_MYTHIC' : 'AUCTION';
     this.notifyState();
 
-    if (isMythic) {
+    if (isMythic && !isBlindMode) {
       setTimeout(() => {
         if (this.state.phase === 'AUCTION_REVEAL_MYTHIC') {
           this.state.phase = 'AUCTION';
@@ -181,6 +261,72 @@ export class GameRoom {
     } else {
       this.startTimer();
     }
+  }
+
+  // 3-Round Grade Voting submission
+  public submitGradeVote(playerId: string, vote: GradeVoteOption): { success: boolean } {
+    this.gradeVotes[playerId] = vote;
+
+    const humanPlayers = this.state.players.filter(p => !p.isBot);
+    const allHumansVoted = humanPlayers.every(p => this.gradeVotes[p.id]);
+
+    if (allHumansVoted) {
+      this.finishGradeVoting();
+    } else {
+      this.notifyState();
+    }
+
+    return { success: true };
+  }
+
+  private startGradeVoteTimer() {
+    this.stopGradeVoteTimer();
+    this.gradeVoteTimeout = setTimeout(() => {
+      if (this.state.phase === 'GRADE_VOTING') {
+        this.finishGradeVoting();
+      }
+    }, 15000);
+  }
+
+  private stopGradeVoteTimer() {
+    if (this.gradeVoteTimeout) {
+      clearTimeout(this.gradeVoteTimeout);
+      this.gradeVoteTimeout = null;
+    }
+  }
+
+  private finishGradeVoting() {
+    this.stopGradeVoteTimer();
+
+    // Auto-fill votes for bots or non-voters
+    this.state.players.forEach(p => {
+      if (!this.gradeVotes[p.id]) {
+        const options: GradeVoteOption[] = ['MYTHIC', 'A', 'B', 'C', 'MYSTERY'];
+        this.gradeVotes[p.id] = options[Math.floor(Math.random() * options.length)];
+      }
+    });
+
+    const counts: Record<string, number> = {};
+    Object.values(this.gradeVotes).forEach(v => {
+      counts[v] = (counts[v] || 0) + 1;
+    });
+
+    let topChoice: GradeVoteOption = 'MYTHIC';
+    let maxCount = -1;
+    Object.entries(counts).forEach(([opt, count]) => {
+      if (count > maxCount) {
+        maxCount = count;
+        topChoice = opt as GradeVoteOption;
+      }
+    });
+
+    this.state.queuedGrade = topChoice;
+    this.state.phase = 'AUCTION';
+    this.notifyState();
+
+    setTimeout(() => {
+      this.startNextAuction();
+    }, 600);
   }
 
   public placeBid(playerId: string, amount: number): { success: boolean; error?: string } {

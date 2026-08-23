@@ -622,9 +622,16 @@ export function useGameState() {
     setTimeout(startNextLocalAuction, 600);
   };
 
-  const submitGradeVotes = (votes: Record<string, GradeVoteOption>) => {
+  const submitGradeVotes = async (votes: Record<string, GradeVoteOption>) => {
     soundManager.playAbilityTrigger();
-    // Count votes
+
+    if (isOnlineMode) {
+      const myId = socketHook.socket?.id || '';
+      const myVote = votes[myId] || Object.values(votes)[0] || 'MYTHIC';
+      return await socketHook.submitGradeVote(myVote);
+    }
+
+    // Count votes for local mode
     const counts: Record<string, number> = {};
     Object.values(votes).forEach(vote => {
       counts[vote] = (counts[vote] || 0) + 1;

@@ -104,6 +104,14 @@ export function useSocket() {
     });
   };
 
+  const submitGradeVote = (vote: any): Promise<{ success: boolean; error?: string }> => {
+    return new Promise((resolve) => {
+      socketRef.current?.emit('vote_grade', { vote }, (res: { success: boolean; error?: string }) => {
+        resolve(res || { success: true });
+      });
+    });
+  };
+
   const playMatch = (matchId: string) => {
     socketRef.current?.emit('play_match', { matchId });
   };
@@ -126,7 +134,9 @@ export function useSocket() {
     startGame,
     placeBid,
     voteSkip,
+    submitGradeVote,
     playMatch,
     restartGame,
   };
 }
+

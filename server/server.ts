@@ -168,6 +168,28 @@ io.on('connection', (socket: Socket) => {
     callback?.(res);
   });
 
+  // 8B. 3-Round Cosmic Grade Vote
+  socket.on('vote_grade', (data: { vote: any }, callback) => {
+    const session = socketToRoom.get(socket.id);
+    if (!session) return callback?.({ success: false, error: 'Session not found.' });
+    const room = rooms.get(session.roomId);
+    if (!room) return callback?.({ success: false, error: 'Room not found.' });
+
+    const res = room.submitGradeVote(session.playerId, data.vote);
+    callback?.(res);
+  });
+
+  socket.on('submit_grade_votes', (data: { votes: Record<string, any> }, callback) => {
+    const session = socketToRoom.get(socket.id);
+    if (!session) return callback?.({ success: false, error: 'Session not found.' });
+    const room = rooms.get(session.roomId);
+    if (!room) return callback?.({ success: false, error: 'Room not found.' });
+
+    const myVote = data.votes[session.playerId] || Object.values(data.votes)[0] || 'MYTHIC';
+    const res = room.submitGradeVote(session.playerId, myVote);
+    callback?.(res);
+  });
+
   // 9. Play Current Tournament Match
   socket.on('play_match', (data: { matchId: string }) => {
     const session = socketToRoom.get(socket.id);
