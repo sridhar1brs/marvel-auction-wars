@@ -12,12 +12,12 @@ export function SoundToggle() {
     soundManager.playClick();
   };
 
-  const handleToggleAvengersBgm = () => {
+  const handleToggleWebLetterDaysBgm = () => {
     if (bgmActive) {
-      soundManager.stopAvengersTheme();
+      soundManager.stopWebLetterDaysTheme();
       setBgmActive(false);
     } else {
-      soundManager.startAvengersTheme();
+      soundManager.startWebLetterDaysTheme();
       setBgmActive(true);
     }
     soundManager.playClick();
@@ -38,18 +38,18 @@ export function SoundToggle() {
         {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
       </button>
 
-      {/* The Avengers Theme - Alan Silvestri */}
+      {/* Web Letter Days OST - Spider-Man: Brand New Day */}
       <button
-        onClick={handleToggleAvengersBgm}
-        title="Play / Pause 'The Avengers' Theme by Alan Silvestri"
-        className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-heading font-black tracking-wider uppercase transition-all ${
+        onClick={handleToggleWebLetterDaysBgm}
+        title="Play / Pause 'Web Letter Days' (Spider-Man: Brand New Day Soundtrack)"
+        className={`flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] font-heading font-black tracking-wider uppercase transition-all ${
           bgmActive
-            ? 'bg-gradient-to-r from-red-600 to-amber-600 text-white border border-amber-400/80 shadow-glow-gold animate-pulse'
-            : 'bg-slate-800/90 text-slate-300 hover:text-white border border-white/10 hover:border-amber-500/50'
+            ? 'bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white border border-red-400 shadow-glow-red animate-pulse'
+            : 'bg-slate-800/90 text-slate-300 hover:text-white border border-white/10 hover:border-red-500/50'
         }`}
       >
-        <Music className={`w-3.5 h-3.5 ${bgmActive ? 'animate-bounce text-amber-300' : 'text-slate-400'}`} />
-        <span>{bgmActive ? '🎵 AVENGERS THEME' : 'PLAY AVENGERS BGM'}</span>
+        <Music className={`w-3.5 h-3.5 ${bgmActive ? 'animate-bounce text-red-300' : 'text-slate-400'}`} />
+        <span>🕷️ WEB LETTER DAYS OST</span>
       </button>
     </div>
   );

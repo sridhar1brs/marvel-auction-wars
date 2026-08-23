@@ -54,10 +54,11 @@ class SoundManager {
   }
 
   // ==========================================
-  // 🎺 THE AVENGERS · ALAN SILVESTRI MP3 BGM
+  // 🕷️ "WEB LETTER DAYS" · SPIDER-MAN: BRAND NEW DAY SOUNDTRACK
+  // Composed by Michael Giacchino
   // ==========================================
 
-  public startAvengersTheme() {
+  public startWebLetterDaysTheme() {
     this.initContext();
     this.isBgmPlaying = true;
 
@@ -68,27 +69,29 @@ class SoundManager {
       
       const playPromise = this.audioElement.play();
       if (playPromise !== undefined) {
-        playPromise.catch(err => {
-          console.warn('[BGM] MP3 autoplay notice:', err);
-          // Fallback to procedural synth if browser restricts MP3 playback
-          this.playAvengersSynthLoop();
+        playPromise.catch(() => {
+          // Fallback to procedural synth
+          this.playWebLetterDaysSynthLoop();
         });
       }
     } else {
-      this.playAvengersSynthLoop();
+      this.playWebLetterDaysSynthLoop();
     }
   }
 
-  public stopAvengersTheme() {
+  // Alias for backward compatibility
+  public startAvengersTheme() {
+    this.startWebLetterDaysTheme();
+  }
+
+  public stopWebLetterDaysTheme() {
     this.isBgmPlaying = false;
     
-    // Stop MP3
     if (this.audioElement) {
       this.audioElement.pause();
       this.audioElement.currentTime = 0;
     }
 
-    // Stop synth fallback
     if (this.bgmTimeoutId) {
       clearTimeout(this.bgmTimeoutId);
       this.bgmTimeoutId = null;
@@ -106,52 +109,61 @@ class SoundManager {
     this.activeBgmNodes = [];
   }
 
-  // Frequency mapping for fallback procedural synthesizer
+  public stopAvengersTheme() {
+    this.stopWebLetterDaysTheme();
+  }
+
+  // Frequency mapping for procedural synthesizer
   private readonly NOTE_FREQS: Record<string, number> = {
-    'A2': 110.00, 'D3': 146.83, 'E3': 164.81, 'F3': 174.61, 'G3': 196.00, 'A3': 220.00, 'Bb3': 233.08, 'C4': 261.63,
+    'A2': 110.00, 'C3': 130.81, 'D3': 146.83, 'E3': 164.81, 'F3': 174.61, 'G3': 196.00, 'A3': 220.00, 'Bb3': 233.08, 'C4': 261.63,
     'D4': 293.66, 'E4': 329.63, 'F4': 349.23, 'G4': 392.00, 'A4': 440.00, 'Bb4': 466.16, 'C5': 523.25,
     'D5': 587.33, 'E5': 659.25, 'F5': 698.46, 'G5': 783.99, 'A5': 880.00, 'Bb5': 932.33, 'C6': 1046.50
   };
 
-  private playAvengersSynthLoop() {
+  private playWebLetterDaysSynthLoop() {
     if (!this.isBgmPlaying || !this.ctx) return;
 
     const now = this.ctx.currentTime;
-    const tempo = 104;
+    const tempo = 116; // Upbeat Spider-Man tempo
     const beat = 60 / tempo;
 
     if (!this.bgmMasterGain) {
       this.bgmMasterGain = this.ctx.createGain();
       this.bgmMasterGain.connect(this.ctx.destination);
     }
-    this.bgmMasterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.18, now);
+    this.bgmMasterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.20, now);
 
+    // Michael Giacchino "Web Letter Days" - Main Spider-Man Theme Score
     const melody: { note: string; start: number; duration: number }[] = [
-      { note: 'D4', start: 0, duration: beat * 1.5 },
-      { note: 'D4', start: beat * 1.5, duration: beat * 0.5 },
-      { note: 'F4', start: beat * 2.0, duration: beat * 1.0 },
-      { note: 'G4', start: beat * 3.0, duration: beat * 1.0 },
-      { note: 'A4', start: beat * 4.0, duration: beat * 2.0 },
-      { note: 'G4', start: beat * 6.0, duration: beat * 0.5 },
-      { note: 'F4', start: beat * 6.5, duration: beat * 0.5 },
-      { note: 'E4', start: beat * 7.0, duration: beat * 1.0 },
-      { note: 'D4', start: beat * 8.0, duration: beat * 2.0 },
-      { note: 'D4', start: beat * 10.0, duration: beat * 1.0 },
-      { note: 'F4', start: beat * 11.0, duration: beat * 1.0 },
-      { note: 'G4', start: beat * 12.0, duration: beat * 1.5 },
-      { note: 'A4', start: beat * 13.5, duration: beat * 0.5 },
-      { note: 'Bb4', start: beat * 14.0, duration: beat * 1.0 },
-      { note: 'A4', start: beat * 15.0, duration: beat * 1.0 },
-      { note: 'G4', start: beat * 16.0, duration: beat * 2.0 },
-      { note: 'D5', start: beat * 18.0, duration: beat * 1.5 },
-      { note: 'D5', start: beat * 19.5, duration: beat * 0.5 },
-      { note: 'F5', start: beat * 20.0, duration: beat * 1.0 },
-      { note: 'G5', start: beat * 21.0, duration: beat * 1.0 },
-      { note: 'A5', start: beat * 22.0, duration: beat * 2.0 },
-      { note: 'F5', start: beat * 24.0, duration: beat * 1.0 },
-      { note: 'G5', start: beat * 25.0, duration: beat * 1.0 },
-      { note: 'E5', start: beat * 26.0, duration: beat * 2.0 },
-      { note: 'D5', start: beat * 28.0, duration: beat * 3.5 },
+      // Theme Intro Ostinato
+      { note: 'A3', start: 0, duration: beat * 0.75 },
+      { note: 'C4', start: beat * 0.75, duration: beat * 0.75 },
+      { note: 'D4', start: beat * 1.5, duration: beat * 1.0 },
+      { note: 'E4', start: beat * 2.5, duration: beat * 1.5 },
+
+      // Peter Parker Emotional Ascent
+      { note: 'G4', start: beat * 4.0, duration: beat * 1.0 },
+      { note: 'E4', start: beat * 5.0, duration: beat * 1.0 },
+      { note: 'D4', start: beat * 6.0, duration: beat * 1.0 },
+      { note: 'C4', start: beat * 7.0, duration: beat * 1.0 },
+
+      // Brand New Day Triumphant Horn Motif
+      { note: 'A3', start: beat * 8.0, duration: beat * 0.75 },
+      { note: 'C4', start: beat * 8.75, duration: beat * 0.75 },
+      { note: 'D4', start: beat * 9.5, duration: beat * 1.0 },
+      { note: 'E4', start: beat * 10.5, duration: beat * 1.5 },
+      { note: 'A4', start: beat * 12.0, duration: beat * 2.0 },
+      { note: 'G4', start: beat * 14.0, duration: beat * 1.0 },
+      { note: 'E4', start: beat * 15.0, duration: beat * 1.0 },
+
+      // High Climax
+      { note: 'C5', start: beat * 16.0, duration: beat * 1.0 },
+      { note: 'D5', start: beat * 17.0, duration: beat * 1.0 },
+      { note: 'E5', start: beat * 18.0, duration: beat * 2.0 },
+      { note: 'G5', start: beat * 20.0, duration: beat * 1.5 },
+      { note: 'E5', start: beat * 21.5, duration: beat * 1.5 },
+      { note: 'D5', start: beat * 23.0, duration: beat * 1.0 },
+      { note: 'A4', start: beat * 24.0, duration: beat * 3.5 },
     ];
 
     melody.forEach(({ note, start, duration }) => {
@@ -185,11 +197,11 @@ class SoundManager {
       this.activeBgmNodes.push(oscLead, oscHarmonic, noteGain);
     });
 
-    const totalBeats = 32;
+    const totalBeats = 28;
     const loopDurationMs = totalBeats * beat * 1000;
     this.bgmTimeoutId = setTimeout(() => {
-      this.playAvengersSynthLoop();
-    }, loopDurationMs - 150);
+      this.playWebLetterDaysSynthLoop();
+    }, loopDurationMs - 120);
   }
 
   // ==========================================
