@@ -9,7 +9,17 @@ export function useSocket() {
   const [lastError, setLastError] = useState<string | null>(null);
 
   useEffect(() => {
-    const socket = io('/', {
+    // Resolve backend server URL for Netlify / remote frontend deployment
+    const isDirectServerHost = typeof window !== 'undefined' && (
+      window.location.port === '3001' || 
+      window.location.hostname === '65.0.38.101' || 
+      (window.location.hostname === 'localhost' && window.location.port === '5173')
+    );
+
+    const metaEnv = (import.meta as unknown as { env?: Record<string, string> }).env;
+    const backendUrl = metaEnv?.VITE_BACKEND_URL || (isDirectServerHost ? '/' : 'http://65.0.38.101:3001');
+
+    const socket = io(backendUrl, {
       transports: ['websocket', 'polling'],
       autoConnect: true,
     });
