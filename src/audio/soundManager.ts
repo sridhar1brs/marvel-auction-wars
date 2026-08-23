@@ -11,11 +11,11 @@ class SoundManager {
   private bgmMasterGain: GainNode | null = null;
 
   constructor() {
-    // Setup audio element for Alan Silvestri's The Avengers MP3
+    // Setup audio element for Michael Giacchino's Web Letter Days MP3
     if (typeof window !== 'undefined') {
-      this.audioElement = new Audio('/audio/avengers_theme.mp3');
+      this.audioElement = new Audio('/audio/web_letter_days.mp3');
       this.audioElement.loop = true;
-      this.audioElement.volume = 0.35;
+      this.audioElement.volume = 0.50;
       this.audioElement.preload = 'auto';
     }
   }
@@ -40,7 +40,7 @@ class SoundManager {
 
     // Toggle Synth Gain
     if (this.bgmMasterGain && this.ctx) {
-      this.bgmMasterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.18, this.ctx.currentTime);
+      this.bgmMasterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.20, this.ctx.currentTime);
     }
     return this.isMuted;
   }
@@ -61,7 +61,28 @@ class SoundManager {
   public startWebLetterDaysTheme() {
     this.initContext();
     this.isBgmPlaying = true;
-    this.playWebLetterDaysSynthLoop();
+
+    if (!this.audioElement && typeof window !== 'undefined') {
+      this.audioElement = new Audio('/audio/web_letter_days.mp3');
+      this.audioElement.loop = true;
+      this.audioElement.volume = 0.50;
+    }
+
+    if (this.audioElement) {
+      this.audioElement.currentTime = 0;
+      this.audioElement.muted = this.isMuted;
+      this.audioElement.volume = 0.50;
+      
+      const playPromise = this.audioElement.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(err => {
+          console.warn('[SoundManager] MP3 playback notice, falling back to synth:', err);
+          this.playWebLetterDaysSynthLoop();
+        });
+      }
+    } else {
+      this.playWebLetterDaysSynthLoop();
+    }
   }
 
   // Alias for backward compatibility
@@ -456,8 +477,23 @@ class SoundManager {
   public playWebLetterDays() {
     if (this.isMuted) return;
     this.initContext();
-    if (!this.ctx) return;
-    this.synthesizeWebLetterDays();
+
+    if (typeof window !== 'undefined') {
+      try {
+        const audio = new Audio('/audio/web_letter_days.mp3');
+        audio.volume = 0.65;
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {
+            this.synthesizeWebLetterDays();
+          });
+        }
+      } catch {
+        this.synthesizeWebLetterDays();
+      }
+    } else {
+      this.synthesizeWebLetterDays();
+    }
   }
 
   private synthesizeWebLetterDays() {
