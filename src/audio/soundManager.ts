@@ -61,22 +61,7 @@ class SoundManager {
   public startWebLetterDaysTheme() {
     this.initContext();
     this.isBgmPlaying = true;
-
-    if (this.audioElement) {
-      this.audioElement.currentTime = 0;
-      this.audioElement.muted = this.isMuted;
-      this.audioElement.volume = 0.35;
-      
-      const playPromise = this.audioElement.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {
-          // Fallback to procedural synth
-          this.playWebLetterDaysSynthLoop();
-        });
-      }
-    } else {
-      this.playWebLetterDaysSynthLoop();
-    }
+    this.playWebLetterDaysSynthLoop();
   }
 
   // Alias for backward compatibility
@@ -472,19 +457,7 @@ class SoundManager {
     if (this.isMuted) return;
     this.initContext();
     if (!this.ctx) return;
-
-    // Check if an external audio file exists in public/audio/web_letter_days.mp3
-    try {
-      const audio = new Audio('/audio/web_letter_days.mp3');
-      audio.volume = 0.65;
-      audio.play().catch(() => {
-        // If file not found or blocked, fall back seamlessly to procedural synthesizer
-        this.synthesizeWebLetterDays();
-      });
-      return;
-    } catch {
-      this.synthesizeWebLetterDays();
-    }
+    this.synthesizeWebLetterDays();
   }
 
   private synthesizeWebLetterDays() {
