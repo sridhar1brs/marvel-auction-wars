@@ -566,40 +566,22 @@ export function useGameState() {
     const player = localState.players.find(p => p.id === playerId);
     if (!player) return { success: false, isSkipped: false, error: 'Player not found' };
 
-    const res = validateSkipVote(player, localState.auction, localState.players);
-    if (!res.valid) {
-      return { success: false, isSkipped: false, error: res.error };
-    }
-
-    if (res.isSkipped) {
-      soundManager.playSkip();
-      stopLocalTimer();
-      setLocalState(prev => ({
-        ...prev,
-        skippedCharacters: prev.auction.currentCharacter 
-          ? [...prev.skippedCharacters, prev.auction.currentCharacter] 
-          : prev.skippedCharacters,
-        auction: {
-          ...prev.auction,
-          isActive: false,
-          skipVotes: res.newVotes,
-          statusMessage: 'CARD SKIPPED BY UNANIMOUS VOTE!',
-        },
-      }));
-
-      setTimeout(startNextLocalAuction, 1500);
-      return { success: true, isSkipped: true };
-    }
-
+    soundManager.playSkip();
+    stopLocalTimer();
     setLocalState(prev => ({
       ...prev,
+      skippedCharacters: prev.auction.currentCharacter 
+        ? [...prev.skippedCharacters, prev.auction.currentCharacter] 
+        : prev.skippedCharacters,
       auction: {
         ...prev.auction,
-        skipVotes: res.newVotes,
+        isActive: false,
+        statusMessage: `⏭️ CARD SKIPPED BY ${player.name.toUpperCase()}!`,
       },
     }));
 
-    return { success: true, isSkipped: false };
+    setTimeout(startNextLocalAuction, 400);
+    return { success: true, isSkipped: true };
   };
 
   const instantSkipCurrentAuction = () => {
@@ -662,6 +644,17 @@ export function useGameState() {
     selectedHero1Index: number = 0,
     selectedHero2Index: number = 0
   ) => {
+    if (isOnlineMode) {
+      const matches = socketHook.onlineState?.tournamentMatches || [];
+      const match = matches.find(m => m.id === matchId);
+      if (!match || !match.player1 || !match.player2) return;
+      const isP1 = match.player1.id === socketHook.socket?.id;
+      const myAction = isP1 ? action1 : action2;
+      const myHeroIdx = isP1 ? selectedHero1Index : selectedHero2Index;
+      socketHook.executeBattleAction(myAction, myHeroIdx);
+      return;
+    }
+
     const match = localState.tournamentMatches.find(m => m.id === matchId);
     if (!match || !match.player1 || !match.player2 || match.status === 'COMPLETED') return;
 

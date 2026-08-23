@@ -20,7 +20,15 @@ export function GradeVotingModal({
   const [activePlayerVoteIndex, setActivePlayerVoteIndex] = useState(0);
 
   const humanPlayers = players.filter(p => !p.isBot);
-  const currentPlayer = humanPlayers[activePlayerVoteIndex] || humanPlayers[0] || players[0];
+  const myPlayer = controllingPlayerId 
+    ? (players.find(p => p.id === controllingPlayerId) || humanPlayers[0] || players[0])
+    : (humanPlayers[activePlayerVoteIndex] || humanPlayers[0] || players[0]);
+
+  const currentPlayer = isLocalMode 
+    ? (humanPlayers[activePlayerVoteIndex] || humanPlayers[0] || players[0])
+    : myPlayer;
+
+  const [hasVotedOnline, setHasVotedOnline] = useState(false);
 
   const voteOptions: { id: GradeVoteOption; label: string; sub: string; color: string; icon: any; border: string }[] = [
     {
@@ -67,6 +75,14 @@ export function GradeVotingModal({
 
   const handleSelectOption = (option: GradeVoteOption) => {
     soundManager.playClick();
+
+    if (!isLocalMode) {
+      setHasVotedOnline(true);
+      soundManager.playAbilityTrigger();
+      onVoteSubmit({ [myPlayer.id]: option });
+      return;
+    }
+
     const updated = {
       ...playerVotes,
       [currentPlayer.id]: option,
@@ -74,7 +90,7 @@ export function GradeVotingModal({
     setPlayerVotes(updated);
 
     // If more human players need to vote in local mode
-    if (isLocalMode && activePlayerVoteIndex < humanPlayers.length - 1) {
+    if (activePlayerVoteIndex < humanPlayers.length - 1) {
       setActivePlayerVoteIndex(prev => prev + 1);
     } else {
       // Complete voting (generate random AI votes for bots)

@@ -196,34 +196,22 @@ export function BidControls({
         </div>
       )}
 
-      {/* Skip Card Rule & Progress */}
+      {/* Skip Card Action */}
       <div className="pt-3 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-          <ShieldAlert className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+          <FastForward className="w-3.5 h-3.5 text-purple-400 shrink-0" />
           <span>
-            Skip Votes: <strong className="text-white">{auction.skipVotes.length} / {eligiblePlayersCount} Active Players</strong>
+            Passing on this lot? Click skip to immediately advance to next hero.
           </span>
         </div>
 
         <button
           onClick={() => onVoteSkip(activePlayer.id)}
-          disabled={hasBidded || hasVotedSkip || !auction.isActive}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border ${
-            hasVotedSkip
-              ? 'bg-purple-950 text-purple-300 border-purple-500/80 shadow-glow-cosmic'
-              : hasBidded
-              ? 'bg-black/40 text-slate-600 border-white/5 cursor-not-allowed'
-              : 'bg-slate-900 hover:bg-purple-950/60 text-slate-300 hover:text-purple-200 border-white/10 hover:border-purple-500'
-          }`}
+          disabled={!auction.isActive}
+          className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-slate-900 hover:bg-purple-900/80 text-purple-200 hover:text-white border border-purple-500/40 hover:border-purple-400 shadow-md hover:shadow-glow-cosmic transition-all transform hover:scale-[1.02] active:scale-[0.98]"
         >
-          <CheckCircle className={`w-3.5 h-3.5 ${hasVotedSkip ? 'text-purple-400' : 'text-slate-500'}`} />
-          <span>
-            {hasVotedSkip 
-              ? '✓ SKIP VOTE RECORDED' 
-              : hasBidded 
-              ? 'CANNOT SKIP AFTER BID' 
-              : 'VOTE TO SKIP CARD'}
-          </span>
+          <FastForward className="w-4 h-4 text-purple-300" />
+          <span>⏭️ SKIP THIS CARD NOW</span>
         </button>
       </div>
     </div>

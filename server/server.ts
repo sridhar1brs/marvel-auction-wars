@@ -200,6 +200,17 @@ io.on('connection', (socket: Socket) => {
     }
   });
 
+  // 9B. Execute Battle Action
+  socket.on('execute_battle_action', (data: { action: any; fighterIndex?: number }, callback) => {
+    const session = socketToRoom.get(socket.id);
+    if (!session) return callback?.({ success: false, error: 'Session not found.' });
+    const room = rooms.get(session.roomId);
+    if (!room) return callback?.({ success: false, error: 'Room not found.' });
+
+    const res = room.executeBattleAction(session.playerId, data.action, data.fighterIndex);
+    callback?.(res);
+  });
+
   // 10. Restart Game
   socket.on('restart_game', () => {
     const session = socketToRoom.get(socket.id);

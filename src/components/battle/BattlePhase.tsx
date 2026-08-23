@@ -12,9 +12,17 @@ interface Props {
   state: GameState;
   onReturnToTree: () => void;
   onExecuteAction?: (matchId: string, action1: BattleActionType, action2: BattleActionType, p1HeroIdx: number, p2HeroIdx: number) => void;
+  isOnlineMode?: boolean;
+  controllingPlayerId?: string;
 }
 
-export function BattlePhase({ state, onReturnToTree, onExecuteAction }: Props) {
+export function BattlePhase({ 
+  state, 
+  onReturnToTree, 
+  onExecuteAction,
+  isOnlineMode = false,
+  controllingPlayerId,
+}: Props) {
   const match = state.tournamentMatches.find(m => m.id === state.currentMatchId);
   const [p1HeroIdx, setP1HeroIdx] = useState(0);
   const [p2HeroIdx, setP2HeroIdx] = useState(0);
@@ -41,6 +49,13 @@ export function BattlePhase({ state, onReturnToTree, onExecuteAction }: Props) {
   const latestRound = match.rounds.length > 0 ? match.rounds[match.rounds.length - 1] : null;
   const isMatchComplete = match.status === 'COMPLETED';
 
+  const isUserP1 = isOnlineMode && controllingPlayerId ? (p1.id === controllingPlayerId) : true;
+  const isUserP2 = isOnlineMode && controllingPlayerId ? (p2.id === controllingPlayerId) : false;
+
+  const hasP1Locked = !!match.player1Action;
+  const hasP2Locked = !!match.player2Action;
+  const isUserLocked = isOnlineMode ? (isUserP1 ? hasP1Locked : isUserP2 ? hasP2Locked : false) : false;
+
   // Automatically select first alive hero if current selection fainted
   const p1SelectedHero: Character = p1.collection[p1HeroIdx] || p1.collection[0];
   const p2SelectedHero: Character = p2.collection[p2HeroIdx] || p2.collection[0];
@@ -60,6 +75,15 @@ export function BattlePhase({ state, onReturnToTree, onExecuteAction }: Props) {
   const handleExecuteRound = () => {
     soundManager.playClick();
     if (!onExecuteAction) return;
+
+    if (isOnlineMode) {
+      if (isUserP2) {
+        onExecuteAction(match.id, p1Action, p2Action, p1HeroIdx, p2HeroIdx);
+      } else {
+        onExecuteAction(match.id, p1Action, p2Action, p1HeroIdx, p2HeroIdx);
+      }
+      return;
+    }
 
     let botHeroIdx = p2HeroIdx;
     let botAction = p2Action;
@@ -616,10 +640,21 @@ export function BattlePhase({ state, onReturnToTree, onExecuteAction }: Props) {
           <div className="pt-6">
             <button
               onClick={handleExecuteRound}
-              className="w-full py-5 rounded-3xl bg-gradient-to-r from-red-600 via-purple-600 to-rose-600 hover:from-red-500 hover:to-purple-500 text-white font-heading font-black text-lg sm:text-xl uppercase tracking-widest shadow-[0_0_40px_rgba(239,68,68,0.7)] border-2 border-amber-400 transition-all transform hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-3 animate-pulse"
+              disabled={isUserLocked}
+              className={`w-full py-5 rounded-3xl font-heading font-black text-lg sm:text-xl uppercase tracking-widest border-2 transition-all transform flex items-center justify-center gap-3 ${
+                isUserLocked
+                  ? 'bg-purple-950/80 border-purple-400/80 text-purple-200 shadow-glow-cosmic cursor-wait'
+                  : 'bg-gradient-to-r from-red-600 via-purple-600 to-rose-600 hover:from-red-500 hover:to-purple-500 text-white shadow-[0_0_40px_rgba(239,68,68,0.7)] border-amber-400 hover:scale-[1.01] active:scale-[0.99] animate-pulse'
+              }`}
             >
               <Swords className="w-6 h-6 text-amber-300 animate-spin" />
-              <span>⚡ UNLEASH ROUND {match.rounds.length + 1} CLASH! ⚡</span>
+              <span>
+                {isOnlineMode
+                  ? isUserLocked
+                    ? '⏳ MOVE LOCKED IN • WAITING FOR OPPONENT...'
+                    : `⚡ LOCK IN ${isUserP1 ? p1SelectedHero?.name : p2SelectedHero?.name}'S MOVE (${isUserP1 ? p1Action : p2Action}) ⚡`
+                  : `⚡ UNLEASH ROUND ${match.rounds.length + 1} CLASH! ⚡`}
+              </span>
               <Swords className="w-6 h-6 text-amber-300 animate-spin" />
             </button>
           </div>

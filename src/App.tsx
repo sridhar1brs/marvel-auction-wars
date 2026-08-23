@@ -257,6 +257,8 @@ export function App() {
             state={state}
             onReturnToTree={() => setPhase('TOURNAMENT_TREE')}
             onExecuteAction={executeBattleRoundAction}
+            isOnlineMode={isOnlineMode}
+            controllingPlayerId={socketHook.socket?.id}
           />
         )}
 

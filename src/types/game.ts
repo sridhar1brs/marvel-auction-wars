@@ -204,6 +204,8 @@ export interface TournamentMatch {
   targetWins: number;
   player1SelectedHeroIndex?: number;
   player2SelectedHeroIndex?: number;
+  player1Action?: BattleActionType;
+  player2Action?: BattleActionType;
 }
 
 export interface GameState {

@@ -116,6 +116,14 @@ export function useSocket() {
     socketRef.current?.emit('play_match', { matchId });
   };
 
+  const executeBattleAction = (action: any, fighterIndex?: number): Promise<{ success: boolean; error?: string }> => {
+    return new Promise((resolve) => {
+      socketRef.current?.emit('execute_battle_action', { action, fighterIndex }, (res: { success: boolean; error?: string }) => {
+        resolve(res || { success: true });
+      });
+    });
+  };
+
   const restartGame = () => {
     socketRef.current?.emit('restart_game');
   };
@@ -136,6 +144,7 @@ export function useSocket() {
     voteSkip,
     submitGradeVote,
     playMatch,
+    executeBattleAction,
     restartGame,
   };
 }

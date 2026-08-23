@@ -6,6 +6,8 @@ import {
   TournamentMatch,
   Character,
   GradeVoteOption,
+  BattleActionType,
+  BattleRound,
 } from '../src/types/game';
 import { ALL_CHARACTERS } from '../src/data/characters/index';
 import { validateBid, validateSkipVote, calculateBotBid } from './auctionEngine';
@@ -367,32 +369,26 @@ export class GameRoom {
     const player = this.state.players.find(p => p.id === playerId);
     if (!player) return { success: false, isSkipped: false, error: 'Player not found.' };
 
-    const result = validateSkipVote(player, this.state.auction, this.state.players);
-    if (!result.valid) {
-      return { success: false, isSkipped: false, error: result.error };
+    if (!this.state.auction.isActive || !this.state.auction.currentCharacter) {
+      return { success: false, isSkipped: false, error: 'No active auction.' };
     }
 
-    this.state.auction.skipVotes = result.newVotes;
+    // Instant Skip: 1 person skip immediately advances the card as requested!
+    this.state.auction.statusMessage = `⏭️ CARD SKIPPED BY ${player.name.toUpperCase()}!`;
+    this.state.auction.isActive = false;
+    this.stopTimer();
 
-    if (result.isSkipped) {
-      this.state.auction.statusMessage = 'CARD SKIPPED BY UNANIMOUS VOTE!';
-      this.state.auction.isActive = false;
-      this.stopTimer();
-
-      if (this.state.auction.currentCharacter) {
-        this.state.skippedCharacters.push(this.state.auction.currentCharacter);
-      }
-
-      this.notifyState();
-
-      setTimeout(() => {
-        this.startNextAuction();
-      }, 1500);
-      return { success: true, isSkipped: true };
+    if (this.state.auction.currentCharacter) {
+      this.state.skippedCharacters.push(this.state.auction.currentCharacter);
     }
 
     this.notifyState();
-    return { success: true, isSkipped: false };
+
+    setTimeout(() => {
+      this.startNextAuction();
+    }, 400);
+
+    return { success: true, isSkipped: true };
   }
 
   private startTimer() {
@@ -468,7 +464,7 @@ export class GameRoom {
 
     setTimeout(() => {
       this.startNextAuction();
-    }, 3000);
+    }, 2800);
   }
 
   private finishAuctionPhase() {
@@ -484,72 +480,242 @@ export class GameRoom {
       setTimeout(() => {
         this.state.phase = 'TOURNAMENT_TREE';
         this.notifyState();
-      }, 3000);
-    }, 2500);
+      }, 2500);
+    }, 2000);
   }
 
-  // Battle execution for current match
+  // Interactive Battle Execution for current match
   public playCurrentMatch(matchId: string) {
     const match = this.state.tournamentMatches.find(m => m.id === matchId);
     if (!match || !match.player1 || !match.player2 || match.status === 'COMPLETED') return;
 
     this.state.currentMatchId = matchId;
     match.status = 'IN_PROGRESS';
-
-    const pairings = getTierMatchedPairings(match.player1.collection, match.player2.collection);
     match.rounds = [];
     match.player1Score = 0;
     match.player2Score = 0;
 
+    // Initialize HP (100 HP) on all fighters in collection
+    [match.player1, match.player2].forEach(p => {
+      p.collection.forEach(c => {
+        if (c.currentHp === undefined) c.currentHp = c.maxHp || 100;
+        if (c.maxHp === undefined) c.maxHp = 100;
+        c.isFainted = c.currentHp <= 0;
+      });
+    });
+
     this.state.phase = 'BATTLE_FIGHT';
     this.notifyState();
+  }
 
-    // Sequentially resolve battle rounds with dramatic timeouts
-    let roundIndex = 0;
-    const runNextDuel = () => {
-      if (roundIndex >= pairings.length) {
-        // Match finished
-        const winner = match.player1Score >= match.player2Score ? match.player1 : match.player2;
-        match.winner = winner!;
-        match.status = 'COMPLETED';
-        winner!.stats.battlesWon += 1;
+  // Interactive player tactical move execution
+  public executeBattleAction(
+    playerId: string,
+    action: BattleActionType,
+    fighterIndex?: number
+  ): { success: boolean } {
+    const match = this.state.tournamentMatches.find(m => m.id === this.state.currentMatchId);
+    if (!match || !match.player1 || !match.player2 || match.status === 'COMPLETED') {
+      return { success: false };
+    }
 
-        const { updatedMatches, champion } = advanceTournamentMatches(this.state.tournamentMatches);
-        this.state.tournamentMatches = updatedMatches;
-        this.state.champion = champion;
+    const isP1 = match.player1.id === playerId;
+    const isP2 = match.player2.id === playerId;
+    if (!isP1 && !isP2) return { success: false };
 
-        this.state.phase = champion ? 'CHAMPION' : 'MATCH_RESULT';
-        this.notifyState();
-        return;
-      }
+    if (isP1) {
+      match.player1Action = action;
+      if (fighterIndex !== undefined) match.player1SelectedHeroIndex = fighterIndex;
+    } else {
+      match.player2Action = action;
+      if (fighterIndex !== undefined) match.player2SelectedHeroIndex = fighterIndex;
+    }
 
-      const pairing = pairings[roundIndex];
-      const result = simulateRoundDuel(
-        match.player1!,
-        pairing.p1Char,
-        match.player2!,
-        pairing.p2Char,
-        roundIndex + 1
-      );
+    // Auto-choose move for Bot player if present
+    if (match.player1.isBot && !match.player1Action) {
+      const actions: BattleActionType[] = ['ATTACK', 'SPECIAL', 'DEFEND', 'ARTIFACT'];
+      match.player1Action = actions[Math.floor(Math.random() * actions.length)];
+    }
+    if (match.player2.isBot && !match.player2Action) {
+      const actions: BattleActionType[] = ['ATTACK', 'SPECIAL', 'DEFEND', 'ARTIFACT'];
+      match.player2Action = actions[Math.floor(Math.random() * actions.length)];
+    }
 
-      match.rounds.push(result);
-      if (result.winnerPlayerId === match.player1!.id) {
-        match.player1Score += 1;
-      } else {
-        match.player2Score += 1;
-      }
-
+    // If both players have locked in tactical moves -> RESOLVE CLASH!
+    if (match.player1Action && match.player2Action) {
+      this.resolveCurrentDuelClash(match);
+    } else {
       this.notifyState();
-      roundIndex++;
+    }
 
-      setTimeout(runNextDuel, 4000);
+    return { success: true };
+  }
+
+  private resolveCurrentDuelClash(match: TournamentMatch) {
+    const p1 = match.player1!;
+    const p2 = match.player2!;
+
+    let p1HeroIdx = match.player1SelectedHeroIndex ?? 0;
+    let p2HeroIdx = match.player2SelectedHeroIndex ?? 0;
+
+    let p1Hero = p1.collection[p1HeroIdx];
+    let p2Hero = p2.collection[p2HeroIdx];
+
+    // Ensure living hero
+    if (!p1Hero || (p1Hero.currentHp !== undefined && p1Hero.currentHp <= 0)) {
+      p1HeroIdx = p1.collection.findIndex(c => (c.currentHp ?? 100) > 0);
+      if (p1HeroIdx === -1) p1HeroIdx = 0;
+      p1Hero = p1.collection[p1HeroIdx];
+      match.player1SelectedHeroIndex = p1HeroIdx;
+    }
+    if (!p2Hero || (p2Hero.currentHp !== undefined && p2Hero.currentHp <= 0)) {
+      p2HeroIdx = p2.collection.findIndex(c => (c.currentHp ?? 100) > 0);
+      if (p2HeroIdx === -1) p2HeroIdx = 0;
+      p2Hero = p2.collection[p2HeroIdx];
+      match.player2SelectedHeroIndex = p2HeroIdx;
+    }
+
+    const roundNumber = match.rounds.length + 1;
+    const p1Action = match.player1Action || 'ATTACK';
+    const p2Action = match.player2Action || 'ATTACK';
+
+    const p1Base = p1Hero.overallPower;
+    const p2Base = p2Hero.overallPower;
+
+    const p1Roll = Math.floor(Math.random() * 20) + 1;
+    const p2Roll = Math.floor(Math.random() * 20) + 1;
+
+    let p1Bonus = 0;
+    let p2Bonus = 0;
+    let p1AbilityTriggered = undefined;
+    let p2AbilityTriggered = undefined;
+
+    if (p1Action === 'SPECIAL' && p1Hero.specialAbilities?.[0]) {
+      p1Bonus += p1Hero.specialAbilities[0].bonusPower || 14;
+      p1AbilityTriggered = p1Hero.specialAbilities[0];
+    } else if (p1Action === 'ARTIFACT' && p1Hero.equippedArtifact) {
+      p1Bonus += p1Hero.equippedArtifact.bonusPower || 12;
+    }
+
+    if (p2Action === 'SPECIAL' && p2Hero.specialAbilities?.[0]) {
+      p2Bonus += p2Hero.specialAbilities[0].bonusPower || 14;
+      p2AbilityTriggered = p2Hero.specialAbilities[0];
+    } else if (p2Action === 'ARTIFACT' && p2Hero.equippedArtifact) {
+      p2Bonus += p2Hero.equippedArtifact.bonusPower || 12;
+    }
+
+    const p1TotalPower = p1Base + p1Roll + p1Bonus;
+    const p2TotalPower = p2Base + p2Roll + p2Bonus;
+
+    const isP1Winner = p1TotalPower >= p2TotalPower;
+    const winnerPlayerId = isP1Winner ? p1.id : p2.id;
+
+    // Damage calculations with Kinetic Guard 50% damage reduction
+    const rawDamage = Math.max(18, Math.floor(Math.abs(p1TotalPower - p2TotalPower) * 1.5) + Math.floor(Math.random() * 10) + 14);
+    let p1DamageDealt = isP1Winner ? rawDamage : 0;
+    let p2DamageDealt = !isP1Winner ? rawDamage : 0;
+
+    if (p1DamageDealt > 0 && p2Action === 'DEFEND') {
+      p1DamageDealt = Math.max(5, Math.floor(p1DamageDealt * 0.5));
+    }
+    if (p2DamageDealt > 0 && p1Action === 'DEFEND') {
+      p2DamageDealt = Math.max(5, Math.floor(p2DamageDealt * 0.5));
+    }
+
+    const p1PrevHp = p1Hero.currentHp ?? 100;
+    const p2PrevHp = p2Hero.currentHp ?? 100;
+
+    const p1NewHp = Math.max(0, p1PrevHp - p2DamageDealt);
+    const p2NewHp = Math.max(0, p2PrevHp - p1DamageDealt);
+
+    p1Hero.currentHp = p1NewHp;
+    p2Hero.currentHp = p2NewHp;
+    p1Hero.isFainted = p1NewHp <= 0;
+    p2Hero.isFainted = p2NewHp <= 0;
+
+    if (isP1Winner) {
+      match.player1Score += 1;
+    } else {
+      match.player2Score += 1;
+    }
+
+    const log = [
+      `⚔️ Round ${roundNumber}: ${p1Hero.name} (${p1Action}) vs ${p2Hero.name} (${p2Action})`,
+      `${p1Hero.name} Power: ${p1TotalPower} (Base ${p1Base} + Roll +${p1Roll}${p1Bonus ? ` + ${p1Bonus}` : ''})`,
+      `${p2Hero.name} Power: ${p2TotalPower} (Base ${p2Base} + Roll +${p2Roll}${p2Bonus ? ` + ${p2Bonus}` : ''})`,
+      isP1Winner 
+        ? `💥 ${p1Hero.name} dealt ${p1DamageDealt} damage to ${p2Hero.name}! (${p2Hero.name} HP: ${p2NewHp})`
+        : `💥 ${p2Hero.name} dealt ${p2DamageDealt} damage to ${p1Hero.name}! (${p1Hero.name} HP: ${p1NewHp})`,
+    ];
+
+    if (p1NewHp <= 0) log.push(`💀 ${p1Hero.name} FAINTED!`);
+    if (p2NewHp <= 0) log.push(`💀 ${p2Hero.name} FAINTED!`);
+
+    const roundResult: BattleRound = {
+      roundNumber,
+      tier: p1Hero.grade,
+      player1Character: { ...p1Hero },
+      player2Character: { ...p2Hero },
+      player1Action: p1Action,
+      player2Action: p2Action,
+      player1Roll: p1Roll,
+      player2Roll: p2Roll,
+      player1TotalPower: p1TotalPower,
+      player2TotalPower: p2TotalPower,
+      player1DamageDealt: p1DamageDealt,
+      player2DamageDealt: p2DamageDealt,
+      player1HpRemaining: p1NewHp,
+      player2HpRemaining: p2NewHp,
+      winnerPlayerId,
+      player1AbilityTriggered: p1AbilityTriggered,
+      player2AbilityTriggered: p2AbilityTriggered,
+      log,
     };
 
-    setTimeout(runNextDuel, 1500);
+    match.rounds.push(roundResult);
+
+    // Reset pending action locks for the next turn
+    match.player1Action = undefined;
+    match.player2Action = undefined;
+
+    // Check if entire team is KO'd (Health reaches 0 on all fighters)
+    const p1AllDead = p1.collection.every(c => (c.currentHp ?? 100) <= 0);
+    const p2AllDead = p2.collection.every(c => (c.currentHp ?? 100) <= 0);
+    const isMatchOver = p1AllDead || p2AllDead || match.rounds.length >= 6;
+
+    if (isMatchOver) {
+      const winner = p2AllDead || match.player1Score > match.player2Score ? p1 : p2;
+      match.winner = winner;
+      match.status = 'COMPLETED';
+      winner.stats.battlesWon += 1;
+
+      const { updatedMatches, champion } = advanceTournamentMatches(this.state.tournamentMatches);
+      this.state.tournamentMatches = updatedMatches;
+      this.state.champion = champion;
+
+      this.notifyState();
+
+      setTimeout(() => {
+        this.state.phase = champion ? 'CHAMPION' : 'MATCH_RESULT';
+        this.notifyState();
+      }, 4000);
+    } else {
+      // Auto-switch to next living fighter if current fighter fainted
+      if (p1Hero.isFainted) {
+        const nextIdx = p1.collection.findIndex(c => (c.currentHp ?? 100) > 0);
+        if (nextIdx !== -1) match.player1SelectedHeroIndex = nextIdx;
+      }
+      if (p2Hero.isFainted) {
+        const nextIdx = p2.collection.findIndex(c => (c.currentHp ?? 100) > 0);
+        if (nextIdx !== -1) match.player2SelectedHeroIndex = nextIdx;
+      }
+      this.notifyState();
+    }
   }
 
   public resetGame() {
     this.stopTimer();
+    this.stopGradeVoteTimer();
     this.state.phase = 'ONLINE_LOBBY';
     this.state.availableCharacters = [...ALL_CHARACTERS].sort(() => Math.random() - 0.5);
     this.state.purchasedCharacters = [];
@@ -557,6 +723,9 @@ export class GameRoom {
     this.state.tournamentMatches = [];
     this.state.currentMatchId = null;
     this.state.champion = null;
+    this.state.lastVotedCheckpoint = 0;
+    this.state.queuedGrade = null;
+    this.gradeVotes = {};
     this.state.players.forEach(p => {
       p.money = this.state.settings.startingMoney;
       p.collection = [];
@@ -570,3 +739,4 @@ export class GameRoom {
     this.onStateChange({ ...this.state });
   }
 }
+
