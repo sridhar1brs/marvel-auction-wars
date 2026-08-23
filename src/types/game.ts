@@ -223,4 +223,5 @@ export interface GameState {
   gradeVotes?: Record<string, GradeVoteOption>;
   auctionRoundCount?: number;
   queuedGrade?: GradeVoteOption | null;
+  lastVotedCheckpoint?: number;
 }

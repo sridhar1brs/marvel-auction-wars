@@ -179,12 +179,20 @@ export function useGameState() {
         return prev;
       }
 
-      // 2. Check 3-Round Cosmic Grade Tier Voting trigger
+      // 2. Check 3-Round Cosmic Grade Tier Voting Checkpoint (Rounds 3, 6, 9, 12, 15...)
       const completedRounds = prev.purchasedCharacters.length + prev.skippedCharacters.length;
-      if (completedRounds > 0 && completedRounds % 3 === 0 && !prev.queuedGrade && prev.phase !== 'GRADE_VOTING') {
+      const currentCheckpoint = Math.floor(completedRounds / 3);
+
+      if (
+        completedRounds > 0 && 
+        completedRounds % 3 === 0 && 
+        prev.lastVotedCheckpoint !== currentCheckpoint && 
+        prev.phase !== 'GRADE_VOTING'
+      ) {
         soundManager.playAbilityTrigger();
         return {
           ...prev,
+          lastVotedCheckpoint: currentCheckpoint,
           phase: 'GRADE_VOTING',
         };
       }
@@ -246,8 +254,8 @@ export function useGameState() {
         soundManager.playAbilityTrigger();
       }
 
-      // Clear queued grade after 3 rounds
-      const nextQueuedGrade = (completedRounds % 3 === 2) ? null : prev.queuedGrade;
+      // The queued grade applies to THIS NEXT ROUND ONLY, and is cleared immediately
+      const nextQueuedGrade = null;
 
       return {
         ...prev,
@@ -496,6 +504,8 @@ export function useGameState() {
         availableCharacters: [...ALL_CHARACTERS].sort(() => Math.random() - 0.5),
         purchasedCharacters: [],
         skippedCharacters: [],
+        lastVotedCheckpoint: 0,
+        queuedGrade: null,
       };
     });
 
