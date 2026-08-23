@@ -9,19 +9,16 @@ export function useSocket() {
   const [lastError, setLastError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Resolve backend server URL for Netlify / remote frontend deployment
-    const isDirectServerHost = typeof window !== 'undefined' && (
-      window.location.port === '3001' || 
-      window.location.hostname === '65.0.38.101' || 
-      (window.location.hostname === 'localhost' && window.location.port === '5173')
-    );
-
     const metaEnv = (import.meta as unknown as { env?: Record<string, string> }).env;
-    const backendUrl = metaEnv?.VITE_BACKEND_URL || (isDirectServerHost ? '/' : 'http://65.0.38.101:3001');
+    // Connect to '/' which Netlify proxies to backend with full HTTPS SSL support
+    const backendUrl = metaEnv?.VITE_BACKEND_URL || '/';
 
     const socket = io(backendUrl, {
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
     });
     socketRef.current = socket;
 

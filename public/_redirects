@@ -1,1 +1,3 @@
-/*    /index.html   200
+/socket.io/*  http://65.0.38.101:3001/socket.io/:splat  200!
+/api/*        http://65.0.38.101:3001/api/:splat        200!
+/*            /index.html                               200
