@@ -86,7 +86,10 @@ io.on('connection', (socket: Socket) => {
 
   // 2. Join Room
   socket.on('join_room', (data: { roomId: string; playerName: string; avatar: string }, callback) => {
-    const code = data.roomId.toUpperCase().trim();
+    let code = (data.roomId || '').toUpperCase().trim();
+    if (/^\d{4}$/.test(code)) {
+      code = `MARVEL-${code}`;
+    }
     const room = rooms.get(code);
 
     if (!room) {
@@ -263,6 +266,28 @@ io.on('connection', (socket: Socket) => {
     if (room) {
       room.proceedToBattles();
     }
+  });
+
+  // 9E. Concede Match in Battle Phase
+  socket.on('concede_match', (callback) => {
+    const session = socketToRoom.get(socket.id);
+    if (!session) return callback?.({ success: false, error: 'Session not found.' });
+    const room = rooms.get(session.roomId);
+    if (!room) return callback?.({ success: false, error: 'Room not found.' });
+
+    const res = room.concedeMatch(session.playerId);
+    callback?.(res);
+  });
+
+  // 9F. Skip Match in Battle Phase
+  socket.on('skip_match', (callback) => {
+    const session = socketToRoom.get(socket.id);
+    if (!session) return callback?.({ success: false, error: 'Session not found.' });
+    const room = rooms.get(session.roomId);
+    if (!room) return callback?.({ success: false, error: 'Room not found.' });
+
+    const res = room.skipMatch();
+    callback?.(res);
   });
 
   // 10. Restart Game

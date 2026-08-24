@@ -58,9 +58,13 @@ export function useSocket() {
   };
 
   const joinRoom = (roomId: string, playerName: string, avatar: string): Promise<{ success: boolean; error?: string }> => {
+    let normalizedCode = (roomId || '').toUpperCase().trim();
+    if (/^\d{4}$/.test(normalizedCode)) {
+      normalizedCode = `MARVEL-${normalizedCode}`;
+    }
     return new Promise((resolve) => {
       if (!socketRef.current) return resolve({ success: false, error: 'Socket not initialized' });
-      socketRef.current.emit('join_room', { roomId, playerName, avatar }, (res: { success: boolean; state?: GameState; error?: string }) => {
+      socketRef.current.emit('join_room', { roomId: normalizedCode, playerName, avatar }, (res: { success: boolean; state?: GameState; error?: string }) => {
         if (res.success && res.state) {
           setOnlineState(res.state);
         } else if (res.error) {
@@ -128,6 +132,22 @@ export function useSocket() {
     });
   };
 
+  const concedeMatch = (): Promise<{ success: boolean; error?: string }> => {
+    return new Promise((resolve) => {
+      socketRef.current?.emit('concede_match', (res: { success: boolean; error?: string }) => {
+        resolve(res || { success: true });
+      });
+    });
+  };
+
+  const skipMatch = (): Promise<{ success: boolean; error?: string }> => {
+    return new Promise((resolve) => {
+      socketRef.current?.emit('skip_match', (res: { success: boolean; error?: string }) => {
+        resolve(res || { success: true });
+      });
+    });
+  };
+
   const playMatch = (matchId: string) => {
     socketRef.current?.emit('play_match', { matchId });
   };
@@ -170,6 +190,8 @@ export function useSocket() {
     concedeAuction,
     submitGradeVote,
     playMatch,
+    concedeMatch,
+    skipMatch,
     executeBattleAction,
     updateCollection,
     proceedToBattles,

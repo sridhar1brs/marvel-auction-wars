@@ -1,3 +1,28 @@
+
+/* Desktop & Wide PC Typography Scaling */
+@media (min-width: 1024px) {
+  html {
+    font-size: 16.5px;
+  }
+}
+
+@media (min-width: 1440px) {
+  html {
+    font-size: 17.5px;
+  }
+}
+
+@media (min-width: 1920px) {
+  html {
+    font-size: 18.5px;
+  }
+}
+
+/* Mobile 100dvh Dynamic Viewport Height Utility */
+.mobile-fill-height {
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+}
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

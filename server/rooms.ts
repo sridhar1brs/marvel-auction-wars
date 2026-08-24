@@ -669,6 +669,62 @@ export class GameRoom {
     }
   }
 
+  public concedeMatch(playerId: string): { success: boolean } {
+    const match = this.state.tournamentMatches.find(m => m.id === this.state.currentMatchId);
+    if (!match || !match.player1 || !match.player2 || match.status === 'COMPLETED') {
+      return { success: false };
+    }
+
+    const isP1 = match.player1.id === playerId;
+    const isP2 = match.player2.id === playerId;
+    if (!isP1 && !isP2) return { success: false };
+
+    const winner = isP1 ? match.player2 : match.player1;
+    const loser = isP1 ? match.player1 : match.player2;
+
+    loser.collection.forEach(c => {
+      c.currentHp = 0;
+      c.isFainted = true;
+    });
+
+    match.winner = winner;
+    match.status = 'COMPLETED';
+    winner.stats.battlesWon += 1;
+
+    const { updatedMatches, champion } = advanceTournamentMatches(this.state.tournamentMatches);
+    this.state.tournamentMatches = updatedMatches;
+    this.state.champion = champion;
+
+    this.notifyState();
+
+    setTimeout(() => {
+      this.state.phase = champion ? 'CHAMPION' : 'MATCH_RESULT';
+      this.notifyState();
+    }, 2500);
+
+    return { success: true };
+  }
+
+  public skipMatch(): { success: boolean } {
+    const match = this.state.tournamentMatches.find(m => m.id === this.state.currentMatchId);
+    if (!match || !match.player1 || !match.player2 || match.status === 'COMPLETED') {
+      return { success: false };
+    }
+
+    let iterations = 0;
+    while ((match.status as string) !== 'COMPLETED' && iterations < 30) {
+      iterations++;
+      const p1Alive = match.player1.collection.some(c => (c.currentHp ?? 100) > 0);
+      const p2Alive = match.player2.collection.some(c => (c.currentHp ?? 100) > 0);
+      if (!p1Alive || !p2Alive) break;
+
+      match.player1Action = 'ATTACK';
+      match.player2Action = 'ATTACK';
+      this.resolveCurrentDuelClash(match);
+    }
+    return { success: true };
+  }
+
   public resetGame() {
     this.stopTimer();
     this.stopGradeVoteTimer();

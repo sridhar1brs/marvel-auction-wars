@@ -788,6 +788,106 @@ export function useGameState() {
     handleLocalTimeExpired();
   };
 
+  const concedeCurrentMatch = (matchId?: string) => {
+    soundManager.playClick();
+    if (isOnlineMode) {
+      socketHook.concedeMatch();
+      return;
+    }
+
+    const currentId = matchId || localState.currentMatchId;
+    const match = localState.tournamentMatches.find(m => m.id === currentId);
+    if (!match || !match.player1 || !match.player2 || match.status === 'COMPLETED') return;
+
+    // In local mode, Player 1 concedes to Player 2
+    const winner = match.player2;
+    const loser = match.player1;
+
+    loser.collection.forEach(c => {
+      c.currentHp = 0;
+      c.isFainted = true;
+    });
+
+    match.winner = winner;
+    match.status = 'COMPLETED';
+    winner.stats.battlesWon += 1;
+
+    const { updatedMatches, champion } = advanceTournamentMatches(localState.tournamentMatches);
+    if (champion) {
+      soundManager.playVictory();
+    }
+
+    setLocalState(prev => ({
+      ...prev,
+      tournamentMatches: [...updatedMatches],
+      champion,
+      phase: champion ? 'CHAMPION' : 'MATCH_RESULT',
+    }));
+  };
+
+  const skipCurrentMatch = (matchId?: string) => {
+    soundManager.playClick();
+    if (isOnlineMode) {
+      socketHook.skipMatch();
+      return;
+    }
+
+    const currentId = matchId || localState.currentMatchId;
+    const match = localState.tournamentMatches.find(m => m.id === currentId);
+    if (!match || !match.player1 || !match.player2 || match.status === 'COMPLETED') return;
+
+    let safety = 0;
+    while ((match.status as string) !== 'COMPLETED' && safety < 30) {
+      safety++;
+      const p1Alive = match.player1.collection.some(c => (c.currentHp ?? 100) > 0);
+      const p2Alive = match.player2.collection.some(c => (c.currentHp ?? 100) > 0);
+      if (!p1Alive || !p2Alive) break;
+
+      const p1Idx = match.player1.collection.findIndex(c => (c.currentHp ?? 100) > 0);
+      const p2Idx = match.player2.collection.findIndex(c => (c.currentHp ?? 100) > 0);
+      const p1Hero = match.player1.collection[p1Idx !== -1 ? p1Idx : 0];
+      const p2Hero = match.player2.collection[p2Idx !== -1 ? p2Idx : 0];
+
+      const roundResult = simulateRoundDuel(
+        match.player1,
+        p1Hero,
+        match.player2,
+        p2Hero,
+        match.rounds.length + 1,
+        'ATTACK',
+        'ATTACK'
+      );
+
+      match.rounds.push(roundResult);
+      p1Hero.currentHp = roundResult.player1HpRemaining;
+      p1Hero.isFainted = (p1Hero.currentHp ?? 100) <= 0;
+      p2Hero.currentHp = roundResult.player2HpRemaining;
+      p2Hero.isFainted = (p2Hero.currentHp ?? 100) <= 0;
+
+      const p1Dead = match.player1.collection.every(c => (c.currentHp ?? 100) <= 0);
+      const p2Dead = match.player2.collection.every(c => (c.currentHp ?? 100) <= 0);
+      if (p1Dead || p2Dead) {
+        const winner = p2Dead ? match.player1 : match.player2;
+        match.winner = winner;
+        match.status = 'COMPLETED';
+        winner.stats.battlesWon += 1;
+        break;
+      }
+    }
+
+    const { updatedMatches, champion } = advanceTournamentMatches(localState.tournamentMatches);
+    if (champion) {
+      soundManager.playVictory();
+    }
+
+    setLocalState(prev => ({
+      ...prev,
+      tournamentMatches: [...updatedMatches],
+      champion,
+      phase: champion ? 'CHAMPION' : 'MATCH_RESULT',
+    }));
+  };
+
   const playMatch = (matchId: string) => {
     if (isOnlineMode) {
       socketHook.playMatch(matchId);
@@ -853,6 +953,8 @@ export function useGameState() {
     concedeCurrentAuction,
     submitGradeVotes,
     executeBattleRoundAction,
+    concedeCurrentMatch,
+    skipCurrentMatch,
     playMatch,
     restartGame,
     updatePlayerCollection,

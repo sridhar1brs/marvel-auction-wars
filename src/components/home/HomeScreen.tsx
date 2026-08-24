@@ -36,7 +36,7 @@ export function HomeScreen({
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-60px)] flex flex-col items-center justify-center px-4 py-8 sm:py-12 overflow-hidden cyber-grid bg-[#06080E]">
+    <div className="relative min-h-[calc(100dvh-60px)] flex-1 flex flex-col items-center justify-between px-3 sm:px-6 py-3 sm:py-8 lg:py-10 overflow-hidden cyber-grid bg-[#06080E]">
       {/* 1. Moving Red & Blue Cosmic Nebula Fog Backgrounds (No character outlines) */}
       <div className="absolute top-10 left-[-10%] w-[650px] h-[650px] rounded-full cosmic-fog-red pointer-events-none z-0" />
       <div className="absolute bottom-10 right-[-10%] w-[650px] h-[650px] rounded-full cosmic-fog-blue pointer-events-none z-0" />
@@ -62,12 +62,12 @@ export function HomeScreen({
         </div>
 
         {/* AUCTION WARS Metallic Title */}
-        <h1 className="text-4xl sm:text-6xl md:text-7xl font-heading font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-100 to-slate-400 drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] uppercase mt-1">
+        <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-heading font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-100 to-slate-400 drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] uppercase mt-1">
           AUCTION WARS
         </h1>
 
         {/* Slogan */}
-        <p className="text-base sm:text-xl font-heading font-black tracking-[0.25em] text-amber-400 uppercase mt-1 drop-shadow-[0_2px_8px_rgba(245,158,11,0.4)]">
+        <p className="text-base sm:text-xl lg:text-2xl font-heading font-black tracking-[0.25em] text-amber-400 uppercase mt-1 drop-shadow-[0_2px_8px_rgba(245,158,11,0.4)]">
           BID. BUILD. BATTLE.
         </p>
 

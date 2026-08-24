@@ -60,7 +60,7 @@ export function OnlineLobby({
             ONLINE MULTIPLAYER
           </h1>
           <p className="text-xs text-slate-400">
-            Create a custom room or join friends with a 6-digit room code.
+            Create a custom room or join friends with a room code (e.g. MARVEL-4821 or 4821).
           </p>
         </div>
 
@@ -109,8 +109,8 @@ export function OnlineLobby({
               type="text"
               value={roomCodeInput}
               onChange={e => setRoomCodeInput(e.target.value.toUpperCase())}
-              placeholder="6-DIGIT CODE"
-              maxLength={8}
+              placeholder="ROOM CODE (e.g. MARVEL-4821 or 4821)"
+              maxLength={20}
               className="flex-1 bg-black/60 border border-white/15 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm text-white font-mono tracking-widest text-center focus:outline-none focus:border-blue-500"
             />
             <button

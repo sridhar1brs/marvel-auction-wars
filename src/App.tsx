@@ -17,7 +17,7 @@ import { SkillVaultPage } from './components/shop/SkillVaultPage';
 import { GradeVotingModal } from './components/auction/GradeVotingModal';
 import { MarvelCinematicIntro } from './components/common/MarvelCinematicIntro';
 import { BossRaidManager } from './components/raid/BossRaidManager';
-import { JarvisChatbot } from './components/common/JarvisChatbot';
+import { GeminiChatbot } from './components/common/GeminiChatbot';
 import { GamePhase } from './types/game';
 import { soundManager } from './audio/soundManager';
 import { Sparkles, Swords, Film } from 'lucide-react';
@@ -330,7 +330,7 @@ export function App() {
       )}
 
       {/* Global J.A.R.V.I.S. AI Tactical Assistant */}
-      <JarvisChatbot state={state} />
+      <GeminiChatbot state={state} />
     </div>
   );
 }
