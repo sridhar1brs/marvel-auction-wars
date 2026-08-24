@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Character, Player, BattleActionType, ArtifactItem } from '../../types/game';
 import { ALL_CHARACTERS } from '../../data/characters/index';
 import { MARVEL_ARTIFACTS } from '../../data/artifacts';
@@ -9,7 +9,7 @@ import { FloatingReactions } from '../common/FloatingReactions';
 import { getFighterTagTeamCombo } from '../../engine/synergyEngine';
 import { 
   Users, DollarSign, Swords, Shield, Zap, Sparkles, Heart, Flame, Skull, 
-  Trophy, ArrowRight, RotateCcw, Activity, RefreshCw, ShoppingBag, Check, FastForward, Crown, Lock, Plus
+  Trophy, ArrowRight, RotateCcw, Activity, RefreshCw, ShoppingBag, Check, FastForward, Crown, Lock, Plus, Timer, Clock
 } from 'lucide-react';
 import { soundManager } from '../../audio/soundManager';
 import { playSound } from '../../audio/soundEffects';
@@ -137,21 +137,32 @@ export const RAID_BOSSES: RaidBossConfig[] = [
 
 export function BossRaidManager({ onExit }: Props) {
   const [stage, setStage] = useState<RaidStage>('SETUP');
+  
+  // 1. Player Count (1 to 6)
   const [playerCount, setPlayerCount] = useState<number>(4);
   const [playerNames, setPlayerNames] = useState<string[]>([
     'Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5', 'Player 6'
   ]);
   const playerAvatars = ['🦾', '🛡️', '⚡', '🕷️', '🐺', '🔮'];
 
+  // 2. Custom Combined Money (10 - 200)
+  const [combinedMoney, setCombinedMoney] = useState<number>(100);
+
+  // 3. Team Character Limit (1 - 12)
+  const [teamCharacterLimit, setTeamCharacterLimit] = useState<number>(4);
+
+  // 4. Timer Count (10s, 15s, 20s, 30s, 45s, 60s, 0 = Unlimited)
+  const [timerSeconds, setTimerSeconds] = useState<number>(20);
+  const [turnTimeRemaining, setTurnTimeRemaining] = useState<number>(20);
+
+  // Boss Selection
   const [selectedBossId, setSelectedBossId] = useState<string>('infinity_ultron');
   const currentBoss = useMemo(() => {
     return RAID_BOSSES.find(b => b.id === selectedBossId) || RAID_BOSSES[0];
   }, [selectedBossId]);
 
-  // Combined Team Funds ($25 per player)
+  // Combined Team Funds & Roster
   const [teamMoney, setTeamMoney] = useState<number>(100);
-
-  // Drafted heroes for the team (1 per player)
   const [teamRoster, setTeamRoster] = useState<{ playerIdx: number; character: Character; equippedRelic?: ArtifactItem }[]>([]);
 
   // Draft Auction State
@@ -189,13 +200,13 @@ export function BossRaidManager({ onExit }: Props) {
   const getNextDraftLot = () => {
     const randomIdx = Math.floor(Math.random() * ALL_CHARACTERS.length);
     setDraftLotChar(ALL_CHARACTERS[randomIdx]);
+    if (timerSeconds > 0) setTurnTimeRemaining(timerSeconds);
   };
 
   // 1. START COOP DRAFT
   const handleStartCoopDraft = () => {
     soundManager.playClick();
-    const startingPool = playerCount * 25; // e.g. 4 players = $100 pooled
-    setTeamMoney(startingPool);
+    setTeamMoney(combinedMoney);
     setTeamRoster([]);
     setBossHp(currentBoss.maxHp);
     setBossPhase(1);
@@ -212,7 +223,7 @@ export function BossRaidManager({ onExit }: Props) {
     if (teamMoney < cost) return;
 
     soundManager.playGavelWon();
-    const nextPlayerIdx = teamRoster.length;
+    const nextPlayerIdx = teamRoster.length % playerCount;
     const newSquad = [
       ...teamRoster,
       {
@@ -229,8 +240,8 @@ export function BossRaidManager({ onExit }: Props) {
     setTeamMoney(prev => prev - cost);
     setTeamRoster(newSquad);
 
-    // Check if team is full (1 character per player)
-    if (newSquad.length >= playerCount) {
+    // Check if team is full based on configured teamCharacterLimit
+    if (newSquad.length >= teamCharacterLimit) {
       soundManager.playVictory();
       setStage('RELIC_VAULT');
     } else {
@@ -272,6 +283,7 @@ export function BossRaidManager({ onExit }: Props) {
     setIsDefeated(false);
     setActiveFighterIdx(0);
     setCombatLog([currentBoss.introLog]);
+    if (timerSeconds > 0) setTurnTimeRemaining(timerSeconds);
     setStage('BOSS_ARENA');
   };
 
@@ -375,6 +387,7 @@ export function BossRaidManager({ onExit }: Props) {
 
     setTimeout(() => {
       setIsClashing(false);
+      if (timerSeconds > 0) setTurnTimeRemaining(timerSeconds);
       // Auto-advance turn to next alive player
       const nextAlive = teamRoster.findIndex((item, idx) => idx > activeFighterIdx && (item.character.currentHp === undefined || item.character.currentHp > 0));
       if (nextAlive !== -1) {
@@ -385,6 +398,27 @@ export function BossRaidManager({ onExit }: Props) {
       }
     }, 500);
   };
+
+  // Turn Countdown Timer Tick Effect
+  useEffect(() => {
+    if (timerSeconds <= 0 || isClashing || isDefeated || stage === 'SETUP' || stage === 'RELIC_VAULT') return;
+
+    const interval = setInterval(() => {
+      setTurnTimeRemaining(prev => {
+        if (prev <= 1) {
+          if (stage === 'COOP_DRAFT') {
+            handleSkipDraftLot();
+          } else if (stage === 'BOSS_ARENA' && !isClashing && !isDefeated) {
+            handleExecuteRaidAttack();
+          }
+          return timerSeconds;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [stage, timerSeconds, isClashing, isDefeated, activeFighterIdx, draftLotChar]);
 
   const bossHpPercent = Math.round((bossHp / currentBoss.maxHp) * 100);
 
@@ -400,49 +434,52 @@ export function BossRaidManager({ onExit }: Props) {
             <span>CO-OP TITAN RAID CAMPAIGN</span>
           </div>
           <h1 className="text-4xl sm:text-6xl font-heading font-black text-white uppercase tracking-wider">
-            CHOOSE YOUR STRIKE SQUAD
+            CUSTOMIZE YOUR RAID
           </h1>
           <p className="text-sm text-slate-300 max-w-xl mx-auto">
-            Team up with 1 to 6 players! Pool your starting funds into a shared treasury, recruit heroes together, and gear up to defeat a cosmic titan!
+            Configure your strike squad size (1-6 players), pooled team money ($10-$200), squad hero roster limit, and combat turn timer!
           </p>
         </div>
 
-        {/* Player Count Selector (1-6 Players) */}
-        <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-4">
+        {/* 1. Player Count Selector (1-6 Players) */}
+        <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-white/10 space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-black uppercase text-slate-200 flex items-center gap-2">
+            <span className="text-xs sm:text-sm font-black uppercase text-slate-200 flex items-center gap-2">
               <Users className="w-4 h-4 text-cyan-400" />
-              <span>HOW MANY PLAYERS IN RAID? (1 TO 6 PLAYERS):</span>
+              <span>1. NUMBER OF PLAYERS (1 TO 6 PLAYERS):</span>
             </span>
-            <span className="text-xs font-black text-emerald-400 bg-emerald-950 px-3 py-1 rounded-full border border-emerald-500/40">
-              ${playerCount * 25} COMBINED TREASURY
+            <span className="text-xs font-black text-cyan-400 bg-cyan-950 px-3 py-1 rounded-full border border-cyan-500/40">
+              {playerCount} Active Players
             </span>
           </div>
 
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3">
             {[1, 2, 3, 4, 5, 6].map(num => (
               <button
                 key={num}
                 onClick={() => {
                   soundManager.playClick();
                   setPlayerCount(num);
+                  if (teamCharacterLimit < num) {
+                    setTeamCharacterLimit(num);
+                  }
                 }}
-                className={`py-4 rounded-2xl font-heading font-black text-xl transition-all border ${
+                className={`py-3 sm:py-4 rounded-2xl font-heading font-black text-base sm:text-lg transition-all border ${
                   playerCount === num
                     ? 'bg-gradient-to-r from-red-600 to-rose-600 border-amber-400 text-white shadow-glow-red scale-105 ring-2 ring-amber-400'
                     : 'bg-black/60 border-white/10 hover:border-red-500/50 text-slate-300'
                 }`}
               >
-                {num} {num === 1 ? 'PLAYER' : 'PLAYERS'}
+                {num} {num === 1 ? 'HERO' : 'HEROES'}
               </button>
             ))}
           </div>
 
           {/* Player Names Input */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
             {Array.from({ length: playerCount }).map((_, i) => (
-              <div key={i} className="flex items-center gap-2 bg-black/50 p-2.5 rounded-xl border border-white/10">
-                <span className="text-lg">{playerAvatars[i]}</span>
+              <div key={i} className="flex items-center gap-2 bg-black/50 p-2 rounded-xl border border-white/10">
+                <span className="text-base">{playerAvatars[i]}</span>
                 <input
                   type="text"
                   value={playerNames[i]}
@@ -459,11 +496,142 @@ export function BossRaidManager({ onExit }: Props) {
           </div>
         </div>
 
-        {/* Boss Selection (9 Cosmic Threats) */}
-        <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-4">
-          <span className="text-sm font-black uppercase text-slate-200 flex items-center gap-2">
+        {/* 2. Combined Money Selector ($10 - $200) */}
+        <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-emerald-500/30 bg-slate-900/50 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs sm:text-sm font-black uppercase text-slate-200 flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-emerald-400" />
+              <span>2. COMBINED TEAM MONEY ($10 - $200):</span>
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-400">
+                (~${Math.round(combinedMoney / playerCount)}/player)
+              </span>
+              <span className="text-sm sm:text-base font-heading font-black text-emerald-400 bg-emerald-950 px-3.5 py-1 rounded-xl border border-emerald-500/40">
+                ${combinedMoney} COMBINED
+              </span>
+            </div>
+          </div>
+
+          {/* Slider & Quick Presets */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-4">
+              <input
+                type="range"
+                min={10}
+                max={200}
+                step={5}
+                value={combinedMoney}
+                onChange={e => setCombinedMoney(Number(e.target.value))}
+                className="w-full h-2.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+              />
+              <div className="relative w-24">
+                <span className="absolute left-2.5 top-2 text-xs font-bold text-emerald-400">$</span>
+                <input
+                  type="number"
+                  min={10}
+                  max={200}
+                  value={combinedMoney}
+                  onChange={e => setCombinedMoney(Math.min(200, Math.max(10, Number(e.target.value) || 10)))}
+                  className="w-full bg-black/60 border border-emerald-500/40 pl-6 pr-2 py-1.5 rounded-xl text-xs font-black text-white text-center focus:outline-none focus:border-emerald-400"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              {[10, 25, 50, 75, 100, 150, 200].map(val => (
+                <button
+                  key={val}
+                  onClick={() => {
+                    soundManager.playClick();
+                    setCombinedMoney(val);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                    combinedMoney === val
+                      ? 'bg-emerald-600 text-white border-emerald-400 shadow-glow-gold'
+                      : 'bg-black/50 text-slate-300 border-white/10 hover:border-emerald-500/40'
+                  }`}
+                >
+                  ${val}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Team Character Limit & Timer Count Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          
+          {/* How many characters the whole team can have (1 - 12) */}
+          <div className="glass-panel p-5 rounded-3xl border border-white/10 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase text-slate-200 flex items-center gap-1.5">
+                <Crown className="w-4 h-4 text-amber-400" />
+                <span>3. SQUAD CHARACTERS (1-12):</span>
+              </span>
+              <span className="text-xs font-black text-amber-400 bg-amber-950 px-2.5 py-0.5 rounded-lg border border-amber-500/40">
+                {teamCharacterLimit} Heroes
+              </span>
+            </div>
+
+            <div className="grid grid-cols-5 gap-1.5">
+              {[1, 2, 3, 4, 5, 6, 8, 10, 12].map(num => (
+                <button
+                  key={num}
+                  onClick={() => {
+                    soundManager.playClick();
+                    setTeamCharacterLimit(num);
+                  }}
+                  className={`py-2 rounded-xl font-heading font-black text-xs transition-all border ${
+                    teamCharacterLimit === num
+                      ? 'bg-amber-600 text-white border-amber-300 shadow-glow-gold'
+                      : 'bg-black/50 text-slate-300 border-white/10 hover:border-amber-500/40'
+                  }`}
+                >
+                  {num}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Timer Count (10s, 15s, 20s, 30s, 60s, ∞) */}
+          <div className="glass-panel p-5 rounded-3xl border border-white/10 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase text-slate-200 flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-purple-400" />
+                <span>4. TURN / DRAFT TIMER:</span>
+              </span>
+              <span className="text-xs font-black text-purple-300 bg-purple-950 px-2.5 py-0.5 rounded-lg border border-purple-500/40">
+                {timerSeconds === 0 ? '∞ Unlimited' : `${timerSeconds}s`}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-6 gap-1.5">
+              {[10, 15, 20, 30, 60, 0].map(sec => (
+                <button
+                  key={sec}
+                  onClick={() => {
+                    soundManager.playClick();
+                    setTimerSeconds(sec);
+                  }}
+                  className={`py-2 rounded-xl font-heading font-black text-xs transition-all border ${
+                    timerSeconds === sec
+                      ? 'bg-purple-600 text-white border-purple-300 shadow-glow-cosmic'
+                      : 'bg-black/50 text-slate-300 border-white/10 hover:border-purple-500/40'
+                  }`}
+                >
+                  {sec === 0 ? '∞' : `${sec}s`}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Boss Selection (9 Cosmic Threats) */}
+        <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-white/10 space-y-4">
+          <span className="text-xs sm:text-sm font-black uppercase text-slate-200 flex items-center gap-2">
             <Skull className="w-4 h-4 text-red-400" />
-            <span>SELECT TARGET COSMIC TITAN (9 BOSSES AVAILABLE):</span>
+            <span>5. SELECT TARGET COSMIC TITAN (9 BOSSES):</span>
           </span>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -519,7 +687,8 @@ export function BossRaidManager({ onExit }: Props) {
   if (stage === 'COOP_DRAFT') {
     const cost = draftLotChar ? Math.max(5, Math.round(draftLotChar.startingPrice * 0.8)) : 10;
     const canAfford = teamMoney >= cost;
-    const nextPlayerName = playerNames[teamRoster.length] || `Player ${teamRoster.length + 1}`;
+    const nextPlayerIdx = teamRoster.length % playerCount;
+    const nextPlayerName = playerNames[nextPlayerIdx] || `Player ${nextPlayerIdx + 1}`;
 
     return (
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-6 animate-fadeIn">
@@ -538,10 +707,19 @@ export function BossRaidManager({ onExit }: Props) {
           </div>
 
           <div className="flex items-center gap-4">
+            {timerSeconds > 0 && (
+              <div className="flex items-center gap-2 bg-purple-950/80 px-3.5 py-1.5 rounded-2xl border border-purple-500/40">
+                <Clock className={`w-4 h-4 ${turnTimeRemaining <= 5 ? 'text-red-400 animate-spin' : 'text-purple-300'}`} />
+                <span className="text-xs font-mono font-black text-purple-200">
+                  {turnTimeRemaining}s Remaining
+                </span>
+              </div>
+            )}
+
             <div className="text-right">
               <span className="text-[10px] font-black uppercase text-slate-400 block">SQUAD RECRUITMENT STATUS</span>
               <span className="text-sm font-black text-cyan-300">
-                {teamRoster.length} / {playerCount} HEROES RECRUITED
+                {teamRoster.length} / {teamCharacterLimit} HEROES RECRUITED
               </span>
             </div>
             <div className="text-xs bg-red-950 px-3 py-1.5 rounded-xl border border-red-500/50 text-red-300 font-bold">
@@ -616,11 +794,12 @@ export function BossRaidManager({ onExit }: Props) {
         {/* Current Squad Bench Dock */}
         <div className="glass-panel p-5 rounded-3xl border border-white/10 space-y-3">
           <span className="text-xs font-black uppercase text-slate-300 block">
-            RECRUITED STRIKE SQUAD ({teamRoster.length}/{playerCount} HEROES):
+            RECRUITED STRIKE SQUAD ({teamRoster.length}/{teamCharacterLimit} HEROES):
           </span>
           <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
-            {Array.from({ length: playerCount }).map((_, i) => {
+            {Array.from({ length: teamCharacterLimit }).map((_, i) => {
               const item = teamRoster[i];
+              const playerIdx = i % playerCount;
               return (
                 <div
                   key={i}
@@ -636,7 +815,7 @@ export function BossRaidManager({ onExit }: Props) {
                         <img src={item.character.imageUrl} alt={item.character.name} className="w-full h-full object-cover" />
                       </div>
                       <div className="w-full min-w-0">
-                        <span className="text-[10px] font-black text-cyan-300 block truncate">{playerNames[i]}</span>
+                        <span className="text-[10px] font-black text-cyan-300 block truncate">{playerNames[item.playerIdx]}</span>
                         <span className="text-xs font-black text-white block truncate">{item.character.name}</span>
                         <span className="text-[10px] text-amber-400 font-bold block">PWR {item.character.overallPower}</span>
                       </div>
@@ -644,8 +823,8 @@ export function BossRaidManager({ onExit }: Props) {
                   ) : (
                     <div className="h-24 flex flex-col items-center justify-center text-slate-500">
                       <Plus className="w-6 h-6 mb-1 opacity-40" />
-                      <span className="text-[10px] font-bold">{playerNames[i]}</span>
-                      <span className="text-[9px]">Awaiting Hero</span>
+                      <span className="text-[10px] font-bold">{playerNames[playerIdx]}</span>
+                      <span className="text-[9px]">Hero #{i + 1}</span>
                     </div>
                   )}
                 </div>
@@ -744,7 +923,7 @@ export function BossRaidManager({ onExit }: Props) {
         <div className="text-center md:text-left space-y-1">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-red-900/60 border border-red-500/50 text-[11px] font-black uppercase text-red-200 tracking-widest">
             <Skull className="w-3.5 h-3.5 text-red-400 animate-pulse" />
-            <span>CO-OP TITAN RAID ARENA • {playerCount} PLAYERS</span>
+            <span>CO-OP TITAN RAID ARENA • {playerCount} PLAYERS • {teamCharacterLimit} HERO SQUAD</span>
           </div>
           <h1 className="font-heading font-black text-3xl sm:text-4xl text-white uppercase tracking-tight">
             RAID BOSS: {currentBoss.name}
@@ -754,12 +933,21 @@ export function BossRaidManager({ onExit }: Props) {
           </p>
         </div>
 
-        <button
-          onClick={onExit}
-          className="px-5 py-2.5 rounded-xl bg-black/60 hover:bg-slate-800 border border-white/10 text-xs font-bold text-slate-300"
-        >
-          Exit Raid to Menu
-        </button>
+        <div className="flex items-center gap-3">
+          {timerSeconds > 0 && (
+            <div className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border ${turnTimeRemaining <= 5 ? 'bg-red-950 border-red-500 text-red-200 animate-pulse' : 'bg-black/60 border-purple-500/50 text-purple-200'}`}>
+              <Clock className="w-4 h-4 text-amber-400" />
+              <span className="text-xs font-mono font-black">{turnTimeRemaining}s Turn Timer</span>
+            </div>
+          )}
+
+          <button
+            onClick={onExit}
+            className="px-5 py-2.5 rounded-xl bg-black/60 hover:bg-slate-800 border border-white/10 text-xs font-bold text-slate-300"
+          >
+            Exit Raid
+          </button>
+        </div>
       </div>
 
       {/* 2. MAIN BATTLEFIELD GRID */}
@@ -968,7 +1156,7 @@ export function BossRaidManager({ onExit }: Props) {
       {/* 3. HERO BENCH DOCK */}
       <div className="glass-panel p-5 rounded-3xl border border-white/10 space-y-3">
         <span className="text-xs font-black uppercase text-slate-300 block">
-          YOUR TEAM HEROES (CLICK TO SWITCH ACTIVE ATTACKER):
+          YOUR TEAM HEROES ({teamRoster.length} HEROES • CLICK TO SWITCH ATTACKER):
         </span>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
           {teamRoster.map((item, i) => {
@@ -1032,7 +1220,7 @@ export function BossRaidManager({ onExit }: Props) {
             👑 COSMIC RAID VICTORY!
           </h2>
           <p className="text-sm text-slate-300 max-w-lg mx-auto">
-            Your {playerCount}-player united strike squad brought down {currentBoss.name}! The cosmos sings your praises!
+            Your {playerCount}-player squad brought down {currentBoss.name}! The cosmos sings your praises!
           </p>
           <div className="flex justify-center gap-3 pt-2">
             <button
