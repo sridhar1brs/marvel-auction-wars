@@ -473,15 +473,29 @@ export class GameRoom {
     this.notifyState();
 
     setTimeout(() => {
-      this.state.phase = 'BATTLE_TRANSITION';
-      this.state.tournamentMatches = generateTournamentBracket(this.state.players);
+      this.state.phase = 'EQUIPMENT_SHOP';
       this.notifyState();
-
-      setTimeout(() => {
-        this.state.phase = 'TOURNAMENT_TREE';
-        this.notifyState();
-      }, 2500);
     }, 2000);
+  }
+
+  public proceedToBattles() {
+    this.state.phase = 'BATTLE_TRANSITION';
+    this.state.tournamentMatches = generateTournamentBracket(this.state.players);
+    this.notifyState();
+
+    setTimeout(() => {
+      this.state.phase = 'TOURNAMENT_TREE';
+      this.notifyState();
+    }, 2500);
+  }
+
+  public updatePlayerCollection(playerId: string, updatedCollection: Character[], updatedMoney: number) {
+    const player = this.state.players.find(p => p.id === playerId);
+    if (player) {
+      player.collection = updatedCollection;
+      player.money = updatedMoney;
+      this.notifyState();
+    }
   }
 
   // Interactive Battle Execution for current match

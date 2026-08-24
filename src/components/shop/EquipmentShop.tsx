@@ -11,6 +11,7 @@ interface Props {
   onProceedToBattles: () => void;
   onBack?: () => void;
   isLocalMode?: boolean;
+  controllingPlayerId?: string;
 }
 
 export function EquipmentShop({
@@ -19,8 +20,13 @@ export function EquipmentShop({
   onProceedToBattles,
   onBack,
   isLocalMode = true,
+  controllingPlayerId,
 }: Props) {
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string>(players[0]?.id || '');
+  const initialPlayerId = (!isLocalMode && controllingPlayerId)
+    ? (players.find(p => p.id === controllingPlayerId)?.id || players[0]?.id || '')
+    : (players[0]?.id || '');
+
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string>(initialPlayerId);
   const [selectedHeroIndex, setSelectedHeroIndex] = useState<number>(0);
 
   const activePlayer = players.find(p => p.id === selectedPlayerId) || players[0];

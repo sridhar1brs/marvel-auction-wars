@@ -211,6 +211,27 @@ io.on('connection', (socket: Socket) => {
     callback?.(res);
   });
 
+  // 9C. Update Player Collection (Equipping Artifacts from Relic Shop)
+  socket.on('update_collection', (data: { collection: any[]; money: number }, callback) => {
+    const session = socketToRoom.get(socket.id);
+    if (!session) return callback?.({ success: false, error: 'Session not found.' });
+    const room = rooms.get(session.roomId);
+    if (!room) return callback?.({ success: false, error: 'Room not found.' });
+
+    room.updatePlayerCollection(session.playerId, data.collection, data.money);
+    callback?.({ success: true });
+  });
+
+  // 9D. Proceed from Relic Shop to Tournament Battles
+  socket.on('proceed_to_battles', () => {
+    const session = socketToRoom.get(socket.id);
+    if (!session) return;
+    const room = rooms.get(session.roomId);
+    if (room) {
+      room.proceedToBattles();
+    }
+  });
+
   // 10. Restart Game
   socket.on('restart_game', () => {
     const session = socketToRoom.get(socket.id);

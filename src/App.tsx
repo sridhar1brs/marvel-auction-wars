@@ -231,6 +231,7 @@ export function App() {
             onProceedToBattles={proceedFromShopToBattles}
             onBack={() => setPhase(previousPhaseBeforeBrowse || 'HOME')}
             isLocalMode={!isOnlineMode}
+            controllingPlayerId={socketHook.socket?.id}
           />
         )}
 

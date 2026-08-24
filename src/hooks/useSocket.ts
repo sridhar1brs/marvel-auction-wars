@@ -124,6 +124,14 @@ export function useSocket() {
     });
   };
 
+  const updateCollection = (collection: any[], money: number) => {
+    socketRef.current?.emit('update_collection', { collection, money });
+  };
+
+  const proceedToBattles = () => {
+    socketRef.current?.emit('proceed_to_battles');
+  };
+
   const restartGame = () => {
     socketRef.current?.emit('restart_game');
   };
@@ -145,6 +153,8 @@ export function useSocket() {
     submitGradeVote,
     playMatch,
     executeBattleAction,
+    updateCollection,
+    proceedToBattles,
     restartGame,
   };
 }

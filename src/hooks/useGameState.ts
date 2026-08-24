@@ -106,11 +106,16 @@ export function useGameState() {
   });
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [clientPhaseOverride, setClientPhaseOverride] = useState<GamePhase | null>(null);
 
-  // Active Effective State (Online or Local)
-  const currentState: GameState = isOnlineMode && socketHook.onlineState 
+  // Active Effective State (Online or Local, with Client Phase Override if user is browsing auxiliary screens)
+  const baseState = isOnlineMode && socketHook.onlineState 
     ? socketHook.onlineState 
     : localState;
+
+  const currentState: GameState = clientPhaseOverride 
+    ? { ...baseState, phase: clientPhaseOverride }
+    : baseState;
 
   // Local Auction Timer & AI Bot Loop
   const stopLocalTimer = useCallback(() => {
@@ -136,6 +141,12 @@ export function useGameState() {
   }, [stopLocalTimer]);
 
   const proceedFromShopToBattles = useCallback(() => {
+    if (isOnlineMode) {
+      setClientPhaseOverride(null);
+      socketHook.proceedToBattles();
+      return;
+    }
+
     setLocalState(prev => {
       const matches = generateTournamentBracket(prev.players);
       return {
@@ -151,16 +162,20 @@ export function useGameState() {
         phase: 'TOURNAMENT_TREE',
       }));
     }, 2200);
-  }, []);
+  }, [isOnlineMode, socketHook]);
 
   const updatePlayerCollection = useCallback((playerId: string, updatedCollection: Character[], updatedMoney: number) => {
+    if (isOnlineMode) {
+      socketHook.updateCollection(updatedCollection, updatedMoney);
+      return;
+    }
     setLocalState(prev => ({
       ...prev,
       players: prev.players.map(p => 
         p.id === playerId ? { ...p, collection: updatedCollection, money: updatedMoney } : p
       ),
     }));
-  }, []);
+  }, [isOnlineMode, socketHook]);
 
   const startNextLocalAuction = useCallback(() => {
     stopLocalTimer();
@@ -444,7 +459,22 @@ export function useGameState() {
 
   // Actions
   const setPhase = (phase: GamePhase) => {
-    if (isOnlineMode) return;
+    if (isOnlineMode) {
+      if (phase === 'HOME') {
+        setClientPhaseOverride(null);
+        setIsOnlineMode(false);
+        setLocalState(prev => ({ ...prev, phase: 'HOME' }));
+        return;
+      }
+      if (['EQUIPMENT_SHOP', 'ENCYCLOPEDIA', 'SANDBOX', 'HOW_TO_PLAY'].includes(phase)) {
+        setClientPhaseOverride(phase);
+        return;
+      }
+      setClientPhaseOverride(null);
+      return;
+    }
+
+    setClientPhaseOverride(null);
     setLocalState(prev => ({ ...prev, phase }));
   };
 
