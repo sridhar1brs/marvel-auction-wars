@@ -10,6 +10,7 @@ interface Props {
   settings: GameSettings;
   onPlaceBid: (playerId: string, amount: number) => void;
   onVoteSkip: (playerId: string) => void;
+  onInstantSkip?: () => void;
   onConcede?: () => void;
   isLocalMode?: boolean;
   eligiblePlayersCount: number;
@@ -21,6 +22,7 @@ export function BidControls({
   settings,
   onPlaceBid,
   onVoteSkip,
+  onInstantSkip,
   onConcede,
   isLocalMode,
   eligiblePlayersCount,
@@ -116,7 +118,8 @@ export function BidControls({
           <div className="p-3 bg-red-950/80 border border-red-500/50 rounded-xl text-center text-xs font-bold text-red-200">
             ⚠️ Insufficient funds. Next minimum bid is ${minNextBid}, but you have ${activePlayer.money}.
           </div>
-          {auction.highestBidderId && onConcede && (
+          {/* Concede Button - ONLY visible if NOT the highest bidder / buyer */}
+          {!isHighestBidder && auction.highestBidderId && auction.highestBidderId !== activePlayer.id && onConcede && (
             <button
               type="button"
               onClick={() => {
@@ -125,7 +128,7 @@ export function BidControls({
               }}
               className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-900/80 to-red-950/80 hover:from-amber-800 hover:to-red-900 border border-amber-500/50 text-amber-200 font-heading font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all"
             >
-              <span>🏳️ GIVE UP / CONCEDE CARD</span>
+              <span>🏳️ CONCEDE LOT TO {auction.highestBidderName}</span>
             </button>
           )}
         </div>
@@ -196,23 +199,54 @@ export function BidControls({
         </div>
       )}
 
-      {/* Skip Card Action */}
+      {/* Skip Actions (Distinct Instant Skip All vs Vote to Skip) */}
       <div className="pt-3 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
           <FastForward className="w-3.5 h-3.5 text-purple-400 shrink-0" />
           <span>
-            Passing on this lot? Click skip to immediately advance to next hero.
+            Skip options: Vote unanimously or instant skip to next character lot.
           </span>
         </div>
 
-        <button
-          onClick={() => onVoteSkip(activePlayer.id)}
-          disabled={!auction.isActive}
-          className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-slate-900 hover:bg-purple-900/80 text-purple-200 hover:text-white border border-purple-500/40 hover:border-purple-400 shadow-md hover:shadow-glow-cosmic transition-all transform hover:scale-[1.02] active:scale-[0.98]"
-        >
-          <FastForward className="w-4 h-4 text-purple-300" />
-          <span>⏭️ SKIP THIS CARD NOW</span>
-        </button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {/* 1. Instant Skip All Button */}
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playClick();
+              if (onInstantSkip) {
+                onInstantSkip();
+              } else {
+                onVoteSkip(activePlayer.id);
+              }
+            }}
+            disabled={!auction.isActive}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-red-950/80 hover:bg-red-900 text-red-200 hover:text-white border border-red-500/50 shadow-sm transition-all"
+          >
+            <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
+            <span>⚡ SKIP ALL</span>
+          </button>
+
+          {/* 2. Vote to Skip Button */}
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playClick();
+              onVoteSkip(activePlayer.id);
+            }}
+            disabled={!auction.isActive}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
+              hasVotedSkip
+                ? 'bg-purple-950 text-purple-200 border-purple-400 shadow-glow-cosmic'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-white/10'
+            }`}
+          >
+            <FastForward className="w-3.5 h-3.5 text-purple-300" />
+            <span>
+              {hasVotedSkip ? '✅ VOTED SKIP' : '🗳️ VOTE SKIP'} ({auction.skipVotes.length}/{eligiblePlayersCount})
+            </span>
+          </button>
+        </div>
       </div>
     </div>
   );

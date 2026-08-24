@@ -108,8 +108,8 @@ export function AuctionArena({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap justify-end">
-          {/* Instant Give Up / Concede to Highest Bidder Button */}
-          {state.auction.highestBidderId && state.auction.currentBid > 0 && onConcede && (
+          {/* Concede Button - ONLY visible to rivals/opponents, NEVER to the highest bidder/buyer */}
+          {state.auction.highestBidderId && state.auction.highestBidderId !== controllingPlayer.id && state.auction.currentBid > 0 && onConcede && (
             <button
               onClick={() => {
                 soundManager.playClick();
@@ -117,25 +117,43 @@ export function AuctionArena({
               }}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white border border-amber-400/50 shadow-sm transition-all transform hover:scale-105 active:scale-95 uppercase tracking-wider"
             >
-              <span>🏳️ GIVE UP / SELL TO {state.auction.highestBidderName}</span>
+              <span>🏳️ CONCEDE LOT TO {state.auction.highestBidderName}</span>
             </button>
           )}
 
-          {/* Instant Skip Button for All Players */}
+          {/* 1. Instant Skip All Button (Force Skip for Everyone) */}
           <button
             onClick={() => {
               soundManager.playClick();
               if (onInstantSkip) {
                 onInstantSkip();
               } else {
-                // Trigger unanimous skip vote for controlling player
                 onVoteSkip(controllingPlayer.id);
               }
             }}
+            title="Instantly skips this character lot immediately for all players"
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white border border-red-400/50 shadow-glow-red transition-all transform hover:scale-105 active:scale-95 uppercase tracking-wider"
           >
             <ShieldAlert className="w-3.5 h-3.5" />
-            <span>⚡ SKIP CARD (ALL)</span>
+            <span>⚡ SKIP ALL (INSTANT)</span>
+          </button>
+
+          {/* 2. Vote to Skip Button (Skips only when ALL players click) */}
+          <button
+            onClick={() => {
+              soundManager.playClick();
+              onVoteSkip(controllingPlayer.id);
+            }}
+            title="Registers your vote to skip. Requires all active players to skip."
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
+              state.auction.skipVotes.includes(controllingPlayer.id)
+                ? 'bg-purple-950/90 text-purple-200 border-purple-400 shadow-glow-cosmic'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-white/10'
+            }`}
+          >
+            <span>
+              {state.auction.skipVotes.includes(controllingPlayer.id) ? '✅ VOTED SKIP' : '🗳️ VOTE SKIP'} ({state.auction.skipVotes.length}/{eligiblePlayers.length})
+            </span>
           </button>
 
           {/* Multi-Split Screen Toggle Option for 2+ Players */}
@@ -324,6 +342,7 @@ export function AuctionArena({
               settings={state.settings}
               onPlaceBid={onPlaceBid}
               onVoteSkip={onVoteSkip}
+              onInstantSkip={onInstantSkip}
               onConcede={onConcede}
               isLocalMode={isLocalMode}
               eligiblePlayersCount={eligiblePlayers.length}

@@ -15,7 +15,7 @@ import { BattleSandbox } from './components/sandbox/BattleSandbox';
 import { EquipmentShop } from './components/shop/EquipmentShop';
 import { GradeVotingModal } from './components/auction/GradeVotingModal';
 import { MarvelCinematicIntro } from './components/common/MarvelCinematicIntro';
-import { BossRaidArena } from './components/raid/BossRaidArena';
+import { BossRaidManager } from './components/raid/BossRaidManager';
 import { GamePhase } from './types/game';
 import { soundManager } from './audio/soundManager';
 import { Sparkles, Swords, Film } from 'lucide-react';
@@ -296,11 +296,10 @@ export function App() {
           />
         )}
 
-        {/* 15. CO-OP BOSS RAID ARENA (PVE) */}
+        {/* 15. CO-OP BOSS RAID CAMPAIGN (1-6 PLAYERS, SHARED FUNDS, RELIC VAULT & 9 TITANS) */}
         {state.phase === 'BOSS_RAID' && (
-          <BossRaidArena
-            players={state.players}
-            onExitRaid={() => setPhase('HOME')}
+          <BossRaidManager
+            onExit={() => setPhase('HOME')}
           />
         )}
       </main>
