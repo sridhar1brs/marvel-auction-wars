@@ -39,7 +39,7 @@ export const RAID_BOSSES: RaidBossConfig[] = [
     name: 'Infinity Ultron',
     title: 'Supreme Multiverse Destroyer',
     maxHp: 600,
-    imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
+    imageUrl: '/images/characters/char-m-026.jpg',
     introLog: '⚡ RAID COMMENCED! Infinity Ultron wields all 6 Infinity Stones to cleave the multiverse!',
     specialName: '🌌 INFINITY STONES OBLIVION',
     phase2Aura: 'border-cyan-500 shadow-glow-cosmic',
@@ -50,7 +50,7 @@ export const RAID_BOSSES: RaidBossConfig[] = [
     name: 'Galactus',
     title: 'Devourer of Worlds',
     maxHp: 500,
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/c/c8/Galan_%28Earth-828%29_from_The_Fantastic_Four_First_Steps_promotional_material_001.jpg/revision/latest?cb=20250704182708',
+    imageUrl: '/images/characters/char-m-002.jpg',
     introLog: '⚡ RAID COMMENCED! Galactus channels the infinite Power Cosmic to consume planets!',
     specialName: '🪐 PLANETARY CONVERGENCE',
     phase2Aura: 'border-purple-500 shadow-glow-cosmic',
@@ -61,7 +61,7 @@ export const RAID_BOSSES: RaidBossConfig[] = [
     name: 'Thanos (Infinity Gauntlet)',
     title: 'The Mad Titan',
     maxHp: 550,
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/6/63/Thanos_%28Earth-616%29_from_Avengers_Infinity_War_Prelude_Vol_1_1_001.jpg/revision/latest?cb=20180124190807',
+    imageUrl: '/images/characters/char-m-010.jpg',
     introLog: '⚡ RAID COMMENCED! Thanos wields all 6 Infinity Stones on the Golden Gauntlet!',
     specialName: '💥 TITAN METEOR CRUSH',
     phase2Aura: 'border-amber-500 shadow-glow-gold',
@@ -72,7 +72,7 @@ export const RAID_BOSSES: RaidBossConfig[] = [
     name: 'Knull',
     title: 'God of the Symbiotes & Void King',
     maxHp: 580,
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/9/9f/Knull_%28Earth-616%29_from_King_in_Black_Vol_1_1_001.png/revision/latest?cb=20201202202613',
+    imageUrl: '/images/characters/char-m-001.jpg',
     introLog: '⚡ RAID COMMENCED! Knull unsheathes the All-Black Necrosword from the primordial abyss!',
     specialName: '🩸 ALL-BLACK NECRO-VOID TSUNAMI',
     phase2Aura: 'border-red-600 shadow-glow-red',
@@ -83,7 +83,7 @@ export const RAID_BOSSES: RaidBossConfig[] = [
     name: 'Kang the Conqueror',
     title: 'Temporal Overlord of 1,000 Timelines',
     maxHp: 520,
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/f/f6/Nathaniel_Richards_%28Kang%29_%28Earth-6311%29_from_Timeless_Vol_1_1_001.jpg/revision/latest?cb=20211230005707',
+    imageUrl: '/images/characters/char-a-017.jpg',
     introLog: '⚡ RAID COMMENCED! Kang commands futuristic 40th-century antimatter armaments!',
     specialName: '⏳ CHRONO-TIMELINE EXTINCTION',
     phase2Aura: 'border-blue-500 shadow-glow-blue',
@@ -94,7 +94,7 @@ export const RAID_BOSSES: RaidBossConfig[] = [
     name: 'Apocalypse (En Sabah Nur)',
     title: 'Immortal Mutant Pharaoh',
     maxHp: 480,
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/f/f9/En_Sabah_Nur_%28Earth-616%29_from_X-Men_Vol_5_2_001.jpg/revision/latest?cb=20191114002621',
+    imageUrl: '/images/characters/char-a-010.jpg',
     introLog: '⚡ RAID COMMENCED! Apocalypse awakens his celestial techno-organic armor!',
     specialName: '⚔️ FOUR HORSEMEN WRATH',
     phase2Aura: 'border-indigo-500 shadow-glow-cosmic',
@@ -105,7 +105,7 @@ export const RAID_BOSSES: RaidBossConfig[] = [
     name: 'Dormammu',
     title: 'Lord of the Dark Dimension',
     maxHp: 650,
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/8/87/Dormammu_%28Earth-616%29_from_Defenders_Vol_3_1_001.jpg/revision/latest?cb=20180424180447',
+    imageUrl: '/images/characters/char-m-005.jpg',
     introLog: '⚡ RAID COMMENCED! Dormammu floods the mortal realm with Dark Dimension Hellfire!',
     specialName: '🔥 FLAMES OF THE FALTINE',
     phase2Aura: 'border-orange-500 shadow-glow-red',
@@ -116,7 +116,7 @@ export const RAID_BOSSES: RaidBossConfig[] = [
     name: 'Dark Phoenix',
     title: 'Cosmic Entity of Extinction',
     maxHp: 620,
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/0/07/Jean_Grey_%28Earth-616%29_from_Phoenix_Vol_1_1_001.jpg/revision/latest?cb=20240717203606',
+    imageUrl: '/images/characters/char-m-008.jpg',
     introLog: '⚡ RAID COMMENCED! The Phoenix Force unleashes raw uninhibited stellar destruction!',
     specialName: '☄️ SUPERNOVA STAR-EATER',
     phase2Aura: 'border-rose-500 shadow-glow-red',
@@ -127,7 +127,7 @@ export const RAID_BOSSES: RaidBossConfig[] = [
     name: 'The Beyonder',
     title: 'Omnipotent Entity of Battleworld',
     maxHp: 700,
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/1/1a/Beyonder_%28Earth-616%29_from_Defenders_Beyond_Vol_1_2_001.jpg/revision/latest?cb=20220810214644',
+    imageUrl: '/images/characters/char-m-006.jpg',
     introLog: '⚡ RAID COMMENCED! The Beyonder bends the rules of reality to his whim!',
     specialName: '✨ BATTLEWORLD REALITY WARP',
     phase2Aura: 'border-yellow-400 shadow-glow-gold',
@@ -648,8 +648,19 @@ export function BossRaidManager({ onExit }: Props) {
                     : 'bg-black/50 border-white/10 hover:border-red-500/40 text-slate-300'
                 }`}
               >
-                <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-white/20">
-                  <img src={boss.imageUrl} alt={boss.name} className="w-full h-full object-cover" />
+                <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-white/20 bg-slate-900">
+                  <img 
+                    src={boss.imageUrl} 
+                    alt={boss.name} 
+                    onError={(e) => {
+                      const el = e.currentTarget;
+                      if (!el.dataset.failed) {
+                        el.dataset.failed = '1';
+                        el.src = `https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/680-ultron.jpg`;
+                      }
+                    }}
+                    className="w-full h-full object-cover" 
+                  />
                 </div>
                 <div className="min-w-0 flex-1">
                   <span className="text-xs font-black text-white block truncate">{boss.name}</span>
@@ -811,8 +822,19 @@ export function BossRaidManager({ onExit }: Props) {
                 >
                   {item ? (
                     <>
-                      <div className="w-14 h-14 rounded-xl overflow-hidden border border-white/20">
-                        <img src={item.character.imageUrl} alt={item.character.name} className="w-full h-full object-cover" />
+                      <div className="w-14 h-14 rounded-xl overflow-hidden border border-white/20 bg-slate-900">
+                        <img 
+                          src={`/images/characters/${item.character.id}.jpg`} 
+                          alt={item.character.name} 
+                          onError={(e) => {
+                            const el = e.currentTarget;
+                            if (!el.dataset.failed) {
+                              el.dataset.failed = '1';
+                              el.src = item.character.imageUrl;
+                            }
+                          }}
+                          className="w-full h-full object-cover" 
+                        />
                       </div>
                       <div className="w-full min-w-0">
                         <span className="text-[10px] font-black text-cyan-300 block truncate">{playerNames[item.playerIdx]}</span>
@@ -968,6 +990,13 @@ export function BossRaidManager({ onExit }: Props) {
             <img 
               src={currentBoss.imageUrl} 
               alt={currentBoss.name} 
+              onError={(e) => {
+                const el = e.currentTarget;
+                if (!el.dataset.failed) {
+                  el.dataset.failed = '1';
+                  el.src = 'https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/680-ultron.jpg';
+                }
+              }}
               className="w-full h-full object-cover transform hover:scale-110 transition-transform duration-500" 
             />
             {bossPhase === 2 && (
@@ -1179,8 +1208,19 @@ export function BossRaidManager({ onExit }: Props) {
                     : 'bg-black/60 border-white/10 hover:border-cyan-500/50'
                 }`}
               >
-                <div className="w-14 h-14 rounded-xl overflow-hidden border border-white/20">
-                  <img src={item.character.imageUrl} alt={item.character.name} className="w-full h-full object-cover" />
+                <div className="w-14 h-14 rounded-xl overflow-hidden border border-white/20 bg-slate-900">
+                  <img 
+                    src={`/images/characters/${item.character.id}.jpg`} 
+                    alt={item.character.name} 
+                    onError={(e) => {
+                      const el = e.currentTarget;
+                      if (!el.dataset.failed) {
+                        el.dataset.failed = '1';
+                        el.src = item.character.imageUrl;
+                      }
+                    }}
+                    className="w-full h-full object-cover" 
+                  />
                 </div>
                 <div className="text-center w-full min-w-0">
                   <span className="text-[10px] font-black text-cyan-300 block truncate">{playerNames[item.playerIdx]}</span>

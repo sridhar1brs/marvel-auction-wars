@@ -62,7 +62,7 @@ export function BossRaidArena({ players, onExitRaid }: Props) {
       name: 'Infinity Ultron',
       title: 'Supreme Multiverse Destroyer',
       maxHp: 600,
-      imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
+      imageUrl: '/images/characters/char-m-026.jpg',
       introLog: '⚡ RAID COMMENCED! Infinity Ultron wields all 6 Infinity Stones & Multiverse Cleave!',
       specialName: '🌌 INFINITY STONES OBLIVION'
     },
@@ -70,7 +70,7 @@ export function BossRaidArena({ players, onExitRaid }: Props) {
       name: 'Galactus',
       title: 'Devourer of Worlds',
       maxHp: 500,
-      imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/c/c8/Galan_%28Earth-828%29_from_The_Fantastic_Four_First_Steps_promotional_material_001.jpg/revision/latest?cb=20250704182708',
+      imageUrl: '/images/characters/char-m-002.jpg',
       introLog: '⚡ RAID COMMENCED! Galactus channels the infinite Power Cosmic!',
       specialName: '🪐 PLANETARY CONVERGENCE'
     },
@@ -78,7 +78,7 @@ export function BossRaidArena({ players, onExitRaid }: Props) {
       name: 'Thanos (Infinity Gauntlet)',
       title: 'The Mad Titan',
       maxHp: 550,
-      imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/6/63/Thanos_%28Earth-616%29_from_Avengers_Infinity_War_Prelude_Vol_1_1_001.jpg/revision/latest?cb=20180124190807',
+      imageUrl: '/images/characters/char-m-010.jpg',
       introLog: '⚡ RAID COMMENCED! Thanos stands ready with the complete Infinity Gauntlet!',
       specialName: '💥 TITAN METEOR CRUSH'
     }
@@ -322,6 +322,13 @@ export function BossRaidArena({ players, onExitRaid }: Props) {
             <img 
               src={currentBossConfig.imageUrl} 
               alt={currentBossConfig.name} 
+              onError={(e) => {
+                const el = e.currentTarget;
+                if (!el.dataset.failed) {
+                  el.dataset.failed = '1';
+                  el.src = 'https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/680-ultron.jpg';
+                }
+              }}
               className="w-full h-full object-cover transform hover:scale-110 transition-transform duration-500" 
             />
             {bossPhase === 2 && (
@@ -542,8 +549,19 @@ export function BossRaidArena({ players, onExitRaid }: Props) {
                     : 'bg-black/60 border-white/10 hover:border-cyan-500/50'
                 }`}
               >
-                <div className="w-14 h-14 rounded-xl overflow-hidden border border-white/20">
-                  <img src={hero.imageUrl} alt={hero.name} className="w-full h-full object-cover" />
+                <div className="w-14 h-14 rounded-xl overflow-hidden border border-white/20 bg-slate-900">
+                  <img 
+                    src={`/images/characters/${hero.id}.jpg`} 
+                    alt={hero.name} 
+                    onError={(e) => {
+                      const el = e.currentTarget;
+                      if (!el.dataset.failed) {
+                        el.dataset.failed = '1';
+                        el.src = hero.imageUrl;
+                      }
+                    }}
+                    className="w-full h-full object-cover" 
+                  />
                 </div>
                 <div className="text-center w-full min-w-0">
                   <span className="text-xs font-black text-white block truncate leading-tight">{hero.name}</span>
