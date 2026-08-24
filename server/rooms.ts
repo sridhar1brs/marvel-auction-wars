@@ -464,7 +464,7 @@ export class GameRoom {
 
     setTimeout(() => {
       this.startNextAuction();
-    }, 2800);
+    }, 4800);
   }
 
   private finishAuctionPhase() {
@@ -478,7 +478,30 @@ export class GameRoom {
     }, 2000);
   }
 
+  public instantSkipLot() {
+    if (!this.state.auction.isActive) return;
+    this.stopTimer();
+    this.handleAuctionTimeExpired();
+  }
+
+  public concedeLot(playerId: string) {
+    if (!this.state.auction.isActive) return;
+    const highestBidderId = this.state.auction.highestBidderId;
+    if (highestBidderId && highestBidderId !== playerId) {
+      this.stopTimer();
+      this.handleAuctionTimeExpired();
+    }
+  }
+
   public proceedToBattles() {
+    // Guarantee every player has at least 1 hero to enter battle!
+    this.state.players.forEach((p, idx) => {
+      if (p.collection.length === 0) {
+        const emergencyHero = ALL_CHARACTERS[idx % ALL_CHARACTERS.length] || ALL_CHARACTERS[0];
+        p.collection = [{ ...emergencyHero, currentHp: 100, maxHp: 100, isFainted: false }];
+      }
+    });
+
     this.state.phase = 'BATTLE_TRANSITION';
     this.state.tournamentMatches = generateTournamentBracket(this.state.players);
     this.notifyState();
@@ -593,102 +616,13 @@ export class GameRoom {
     const p1Action = match.player1Action || 'ATTACK';
     const p2Action = match.player2Action || 'ATTACK';
 
-    const p1Base = p1Hero.overallPower;
-    const p2Base = p2Hero.overallPower;
+    const roundResult = simulateRoundDuel(p1, p1Hero, p2, p2Hero, roundNumber, p1Action, p2Action);
 
-    const p1Roll = Math.floor(Math.random() * 20) + 1;
-    const p2Roll = Math.floor(Math.random() * 20) + 1;
-
-    let p1Bonus = 0;
-    let p2Bonus = 0;
-    let p1AbilityTriggered = undefined;
-    let p2AbilityTriggered = undefined;
-
-    if (p1Action === 'SPECIAL' && p1Hero.specialAbilities?.[0]) {
-      p1Bonus += p1Hero.specialAbilities[0].bonusPower || 14;
-      p1AbilityTriggered = p1Hero.specialAbilities[0];
-    } else if (p1Action === 'DUAL_STRIKE') {
-      p1Bonus += 22; // Tag-Team Dual Strike synergy boost
-    } else if (p1Action === 'ARTIFACT' && p1Hero.equippedArtifact) {
-      p1Bonus += p1Hero.equippedArtifact.bonusPower || 12;
-    }
-
-    if (p2Action === 'SPECIAL' && p2Hero.specialAbilities?.[0]) {
-      p2Bonus += p2Hero.specialAbilities[0].bonusPower || 14;
-      p2AbilityTriggered = p2Hero.specialAbilities[0];
-    } else if (p2Action === 'DUAL_STRIKE') {
-      p2Bonus += 22; // Tag-Team Dual Strike synergy boost
-    } else if (p2Action === 'ARTIFACT' && p2Hero.equippedArtifact) {
-      p2Bonus += p2Hero.equippedArtifact.bonusPower || 12;
-    }
-
-    const p1TotalPower = p1Base + p1Roll + p1Bonus;
-    const p2TotalPower = p2Base + p2Roll + p2Bonus;
-
-    const isP1Winner = p1TotalPower >= p2TotalPower;
-    const winnerPlayerId = isP1Winner ? p1.id : p2.id;
-
-    // Damage calculations with Kinetic Guard 50% damage reduction
-    const rawDamage = Math.max(18, Math.floor(Math.abs(p1TotalPower - p2TotalPower) * 1.5) + Math.floor(Math.random() * 10) + 14);
-    let p1DamageDealt = isP1Winner ? rawDamage : 0;
-    let p2DamageDealt = !isP1Winner ? rawDamage : 0;
-
-    if (p1DamageDealt > 0 && p2Action === 'DEFEND') {
-      p1DamageDealt = Math.max(5, Math.floor(p1DamageDealt * 0.5));
-    }
-    if (p2DamageDealt > 0 && p1Action === 'DEFEND') {
-      p2DamageDealt = Math.max(5, Math.floor(p2DamageDealt * 0.5));
-    }
-
-    const p1PrevHp = p1Hero.currentHp ?? 100;
-    const p2PrevHp = p2Hero.currentHp ?? 100;
-
-    const p1NewHp = Math.max(0, p1PrevHp - p2DamageDealt);
-    const p2NewHp = Math.max(0, p2PrevHp - p1DamageDealt);
-
-    p1Hero.currentHp = p1NewHp;
-    p2Hero.currentHp = p2NewHp;
-    p1Hero.isFainted = p1NewHp <= 0;
-    p2Hero.isFainted = p2NewHp <= 0;
-
-    if (isP1Winner) {
-      match.player1Score += 1;
-    } else {
-      match.player2Score += 1;
-    }
-
-    const log = [
-      `⚔️ Round ${roundNumber}: ${p1Hero.name} (${p1Action}) vs ${p2Hero.name} (${p2Action})`,
-      `${p1Hero.name} Power: ${p1TotalPower} (Base ${p1Base} + Roll +${p1Roll}${p1Bonus ? ` + ${p1Bonus}` : ''})`,
-      `${p2Hero.name} Power: ${p2TotalPower} (Base ${p2Base} + Roll +${p2Roll}${p2Bonus ? ` + ${p2Bonus}` : ''})`,
-      isP1Winner 
-        ? `💥 ${p1Hero.name} dealt ${p1DamageDealt} damage to ${p2Hero.name}! (${p2Hero.name} HP: ${p2NewHp})`
-        : `💥 ${p2Hero.name} dealt ${p2DamageDealt} damage to ${p1Hero.name}! (${p1Hero.name} HP: ${p1NewHp})`,
-    ];
-
-    if (p1NewHp <= 0) log.push(`💀 ${p1Hero.name} FAINTED!`);
-    if (p2NewHp <= 0) log.push(`💀 ${p2Hero.name} FAINTED!`);
-
-    const roundResult: BattleRound = {
-      roundNumber,
-      tier: p1Hero.grade,
-      player1Character: { ...p1Hero },
-      player2Character: { ...p2Hero },
-      player1Action: p1Action,
-      player2Action: p2Action,
-      player1Roll: p1Roll,
-      player2Roll: p2Roll,
-      player1TotalPower: p1TotalPower,
-      player2TotalPower: p2TotalPower,
-      player1DamageDealt: p1DamageDealt,
-      player2DamageDealt: p2DamageDealt,
-      player1HpRemaining: p1NewHp,
-      player2HpRemaining: p2NewHp,
-      winnerPlayerId,
-      player1AbilityTriggered: p1AbilityTriggered,
-      player2AbilityTriggered: p2AbilityTriggered,
-      log,
-    };
+    // Synchronize HP changes back to hero objects
+    p1Hero.currentHp = roundResult.player1HpRemaining;
+    p2Hero.currentHp = roundResult.player2HpRemaining;
+    p1Hero.isFainted = (p1Hero.currentHp ?? 100) <= 0;
+    p2Hero.isFainted = (p2Hero.currentHp ?? 100) <= 0;
 
     match.rounds.push(roundResult);
 

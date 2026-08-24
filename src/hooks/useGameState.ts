@@ -3,6 +3,7 @@ import {
   GameState, 
   Player, 
   Character,
+  CharacterGrade,
   GameSettings, 
   BotPersonality,
   GamePhase,
@@ -148,9 +149,22 @@ export function useGameState() {
     }
 
     setLocalState(prev => {
-      const matches = generateTournamentBracket(prev.players);
+      // Guarantee every player has at least 1 hero to enter battle!
+      const guaranteedPlayers = prev.players.map((p, idx) => {
+        if (p.collection.length === 0) {
+          const emergencyHero = ALL_CHARACTERS[idx % ALL_CHARACTERS.length] || ALL_CHARACTERS[0];
+          return {
+            ...p,
+            collection: [{ ...emergencyHero, currentHp: 100, maxHp: 100, isFainted: false }],
+          };
+        }
+        return p;
+      });
+
+      const matches = generateTournamentBracket(guaranteedPlayers);
       return {
         ...prev,
+        players: guaranteedPlayers,
         phase: 'BATTLE_TRANSITION',
         tournamentMatches: matches,
       };
@@ -220,18 +234,26 @@ export function useGameState() {
         skipped = [];
       }
 
-      // If a grade was queued from player voting, prioritize finding an affordable character of that tier!
-      let nextCharIndex = -1;
-      if (prev.queuedGrade && prev.queuedGrade !== 'MYSTERY') {
-        nextCharIndex = available.findIndex(
-          c => c.grade === prev.queuedGrade && c.startingPrice <= maxPlayerFunds
-        );
-        if (nextCharIndex === -1) {
-          nextCharIndex = available.findIndex(c => c.grade === prev.queuedGrade);
-        }
+      const isBlindMode = prev.settings.gameMode === 'blind_bidding' || prev.queuedGrade === 'MYSTERY';
+
+      let targetGrade: CharacterGrade | null = null;
+      if (isBlindMode) {
+        // Blind Bidding Rarity Probability: Mythic 5%, A 25%, B 45%, C 25%
+        const roll = Math.random();
+        if (roll < 0.05) targetGrade = 'MYTHIC';
+        else if (roll < 0.30) targetGrade = 'A';
+        else if (roll < 0.75) targetGrade = 'B';
+        else targetGrade = 'C';
+      } else if (prev.queuedGrade && prev.queuedGrade !== 'MYSTERY') {
+        targetGrade = prev.queuedGrade;
       }
 
-      // If no queued grade or not found, find a character that active drafting players can afford!
+      let nextCharIndex = -1;
+      if (targetGrade) {
+        nextCharIndex = available.findIndex(c => c.grade === targetGrade);
+      }
+
+      // If no target grade or not found, find a character that active drafting players can afford!
       if (nextCharIndex === -1) {
         nextCharIndex = available.findIndex(c => c.startingPrice <= maxPlayerFunds);
       }
@@ -248,10 +270,13 @@ export function useGameState() {
         return prev;
       }
 
-      // Dynamic Affordability Guarantee:
-      // If character's base starting price is higher than active players' funds,
-      // cap startingPrice so players can ALWAYS afford to bid and buy them!
-      if (nextChar.startingPrice > maxPlayerFunds) {
+      // In Blind Bidding mode, every card has the exact uniform $5 starting price!
+      if (isBlindMode) {
+        nextChar = {
+          ...nextChar,
+          startingPrice: 5,
+        };
+      } else if (nextChar.startingPrice > maxPlayerFunds) {
         nextChar = {
           ...nextChar,
           startingPrice: Math.max(1, maxPlayerFunds),
@@ -259,7 +284,6 @@ export function useGameState() {
       }
 
       const isMythic = nextChar.grade === 'MYTHIC';
-      const isBlindMode = prev.settings.gameMode === 'blind_bidding' || prev.queuedGrade === 'MYSTERY';
       // In blind bidding mode, 100% of crates are mystery. In classic, 20% if not mythic.
       const isMystery = isBlindMode || (!isMythic && Math.random() < 0.20);
 
@@ -370,7 +394,7 @@ export function useGameState() {
 
     setTimeout(() => {
       startNextLocalAuction();
-    }, 3200);
+    }, 5200);
   }, [stopLocalTimer, startNextLocalAuction]);
 
   // Local auction countdown and AI bot bidding tick
@@ -618,7 +642,7 @@ export function useGameState() {
     soundManager.playClick();
     soundManager.playSkip();
     if (isOnlineMode) {
-      return await socketHook.voteSkip();
+      return await socketHook.instantSkipAuction();
     }
     stopLocalTimer();
 
@@ -758,7 +782,7 @@ export function useGameState() {
   const concedeCurrentAuction = () => {
     soundManager.playClick();
     if (isOnlineMode) {
-      socketHook.voteSkip();
+      socketHook.concedeAuction();
       return;
     }
     handleLocalTimeExpired();

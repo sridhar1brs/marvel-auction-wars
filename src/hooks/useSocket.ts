@@ -104,6 +104,22 @@ export function useSocket() {
     });
   };
 
+  const instantSkipAuction = (): Promise<{ success: boolean; error?: string }> => {
+    return new Promise((resolve) => {
+      socketRef.current?.emit('instant_skip', (res: { success: boolean; error?: string }) => {
+        resolve(res || { success: true });
+      });
+    });
+  };
+
+  const concedeAuction = (): Promise<{ success: boolean; error?: string }> => {
+    return new Promise((resolve) => {
+      socketRef.current?.emit('concede_lot', (res: { success: boolean; error?: string }) => {
+        resolve(res || { success: true });
+      });
+    });
+  };
+
   const submitGradeVote = (vote: any): Promise<{ success: boolean; error?: string }> => {
     return new Promise((resolve) => {
       socketRef.current?.emit('vote_grade', { vote }, (res: { success: boolean; error?: string }) => {
@@ -150,6 +166,8 @@ export function useSocket() {
     startGame,
     placeBid,
     voteSkip,
+    instantSkipAuction,
+    concedeAuction,
     submitGradeVote,
     playMatch,
     executeBattleAction,

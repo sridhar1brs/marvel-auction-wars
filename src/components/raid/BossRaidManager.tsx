@@ -15,11 +15,14 @@ import { soundManager } from '../../audio/soundManager';
 import { playSound } from '../../audio/soundEffects';
 import confetti from 'canvas-confetti';
 
+import { SkillVaultModal } from '../shop/SkillVaultModal';
+import { CharacterSkill } from '../../data/skills/characterSkills';
+
 interface Props {
   onExit: () => void;
 }
 
-export type RaidStage = 'SETUP' | 'COOP_DRAFT' | 'RELIC_VAULT' | 'BOSS_ARENA' | 'VICTORY';
+export type RaidStage = 'SETUP' | 'COOP_DRAFT' | 'SKILL_VAULT' | 'RELIC_VAULT' | 'BOSS_ARENA' | 'VICTORY' | 'DEFEAT';
 
 export interface RaidBossConfig {
   id: string;
@@ -217,9 +220,12 @@ export function BossRaidManager({ onExit }: Props) {
   };
 
   // 2. BUY CURRENT CHARACTER FOR SQUAD
+  const priceMultiplier = Math.max(0.5, combinedMoney / 30);
+  const currentLotCost = draftLotChar ? Math.max(4, Math.round(draftLotChar.startingPrice * priceMultiplier)) : 5;
+
   const handleBuyDraftLot = () => {
     if (!draftLotChar) return;
-    const cost = Math.max(5, Math.round(draftLotChar.startingPrice * 0.8));
+    const cost = currentLotCost;
     if (teamMoney < cost) return;
 
     soundManager.playGavelWon();
@@ -243,7 +249,7 @@ export function BossRaidManager({ onExit }: Props) {
     // Check if team is full based on configured teamCharacterLimit
     if (newSquad.length >= teamCharacterLimit) {
       soundManager.playVictory();
-      setStage('RELIC_VAULT');
+      setStage('SKILL_VAULT');
     } else {
       getNextDraftLot();
     }
@@ -696,7 +702,7 @@ export function BossRaidManager({ onExit }: Props) {
   // STAGE 2: CO-OP TEAM DRAFT AUCTION
   // ==========================================
   if (stage === 'COOP_DRAFT') {
-    const cost = draftLotChar ? Math.max(5, Math.round(draftLotChar.startingPrice * 0.8)) : 10;
+    const cost = currentLotCost;
     const canAfford = teamMoney >= cost;
     const nextPlayerIdx = teamRoster.length % playerCount;
     const nextPlayerName = playerNames[nextPlayerIdx] || `Player ${nextPlayerIdx + 1}`;
@@ -747,7 +753,7 @@ export function BossRaidManager({ onExit }: Props) {
                 character={draftLotChar}
                 size="lg"
                 isSpotlight={true}
-                startingMoney={100}
+                startingMoney={combinedMoney}
               />
             </div>
 
@@ -802,21 +808,22 @@ export function BossRaidManager({ onExit }: Props) {
           </div>
         )}
 
-        {/* Current Squad Bench Dock */}
-        <div className="glass-panel p-5 rounded-3xl border border-white/10 space-y-3">
-          <span className="text-xs font-black uppercase text-slate-300 block">
-            RECRUITED STRIKE SQUAD ({teamRoster.length}/{teamCharacterLimit} HEROES):
-          </span>
-          <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
-            {Array.from({ length: teamCharacterLimit }).map((_, i) => {
-              const item = teamRoster[i];
-              const playerIdx = i % playerCount;
+        {/* Current Recruited Squad Lineup */}
+        <div className="space-y-3">
+          <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5 px-1">
+            <Users className="w-4 h-4 text-cyan-400" />
+            Recruited Squad Slots ({teamRoster.length} / {teamCharacterLimit})
+          </h3>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+            {Array.from({ length: teamCharacterLimit }).map((_, slotIdx) => {
+              const item = teamRoster[slotIdx];
               return (
                 <div
-                  key={i}
-                  className={`p-3 rounded-2xl border flex flex-col items-center gap-2 text-center ${
+                  key={slotIdx}
+                  className={`p-3 rounded-2xl border flex flex-col items-center gap-2 text-center transition-all ${
                     item
-                      ? 'bg-gradient-to-b from-cyan-950/60 to-black border-cyan-500/50 shadow-glow-cosmic'
+                      ? 'bg-cyan-950/40 border-cyan-500/50 shadow-glow-cosmic'
                       : 'bg-black/30 border-dashed border-white/10'
                   }`}
                 >
@@ -839,14 +846,12 @@ export function BossRaidManager({ onExit }: Props) {
                       <div className="w-full min-w-0">
                         <span className="text-[10px] font-black text-cyan-300 block truncate">{playerNames[item.playerIdx]}</span>
                         <span className="text-xs font-black text-white block truncate">{item.character.name}</span>
-                        <span className="text-[10px] text-amber-400 font-bold block">PWR {item.character.overallPower}</span>
                       </div>
                     </>
                   ) : (
                     <div className="h-24 flex flex-col items-center justify-center text-slate-500">
                       <Plus className="w-6 h-6 mb-1 opacity-40" />
-                      <span className="text-[10px] font-bold">{playerNames[playerIdx]}</span>
-                      <span className="text-[9px]">Hero #{i + 1}</span>
+                      <span className="text-[10px] font-bold uppercase">Empty Slot</span>
                     </div>
                   )}
                 </div>
@@ -855,6 +860,50 @@ export function BossRaidManager({ onExit }: Props) {
           </div>
         </div>
       </div>
+    );
+  }
+
+  // ==========================================
+  // STAGE 2.5: SKILL VAULT (BEFORE RELIC VAULT)
+  // ==========================================
+  if (stage === 'SKILL_VAULT') {
+    const dummyPlayer: Player = {
+      id: 'team-squad',
+      name: 'Co-Op Strike Team',
+      avatar: '🛡️',
+      money: teamMoney,
+      isBot: false,
+      isHost: true,
+      isReady: true,
+      collection: teamRoster.map(r => r.character),
+      stats: { battlesWon: 0, moneySpent: 0, highestBid: 0 },
+    };
+
+    return (
+      <SkillVaultModal
+        player={dummyPlayer}
+        teamFunds={teamMoney}
+        onDeductTeamFunds={(amount) => setTeamMoney(prev => Math.max(0, prev - amount))}
+        onEquipSkill={(heroId, skill) => {
+          setTeamRoster(prev => prev.map(r => {
+            if (r.character.id === heroId) {
+              const eq = r.character.equippedSkills || [];
+              return {
+                ...r,
+                character: {
+                  ...r.character,
+                  equippedSkills: [...eq, skill],
+                  overallPower: r.character.overallPower + Math.floor(skill.bonusPower / 2)
+                }
+              };
+            }
+            return r;
+          }));
+        }}
+        onProceedToRelicVault={() => {
+          setStage('RELIC_VAULT');
+        }}
+      />
     );
   }
 
@@ -868,13 +917,13 @@ export function BossRaidManager({ onExit }: Props) {
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950 text-amber-300 text-[11px] font-black uppercase tracking-widest border border-amber-500/40">
               <ShoppingBag className="w-3.5 h-3.5" />
-              <span>CO-OP RELIC VAULT</span>
+              <span>CO-OP RELIC VAULT (STEP 2 OF 2)</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-heading font-black text-white uppercase mt-1">
               ARM YOUR STRIKE SQUAD
             </h1>
             <p className="text-xs text-slate-300">
-              Spend your remaining <strong>${teamMoney}</strong> pooled funds to equip tactical weapons & cosmic artifacts onto your heroes!
+              Spend your remaining <strong>${teamMoney}</strong> pooled funds to equip tactical weapons, revives & cosmic artifacts onto your heroes!
             </p>
           </div>
 
@@ -902,14 +951,14 @@ export function BossRaidManager({ onExit }: Props) {
 
               {item.equippedRelic ? (
                 <div className="p-2.5 bg-amber-950/70 border border-amber-500/50 rounded-xl text-xs space-y-0.5">
-                  <span className="font-black text-amber-300 block">🔮 {item.equippedRelic.name}</span>
+                  <span className="font-black text-amber-300 block">{item.equippedRelic.icon} {item.equippedRelic.name}</span>
                   <span className="text-[10px] text-gray-300 block">+{item.equippedRelic.bonusPower} Power Boost Equipped!</span>
                 </div>
               ) : (
                 <div className="space-y-1.5">
                   <span className="text-[10px] font-black uppercase text-slate-400 block">Available Relics:</span>
                   <div className="grid grid-cols-2 gap-1.5">
-                    {MARVEL_ARTIFACTS.slice(0, 4).map(relic => (
+                    {MARVEL_ARTIFACTS.slice(0, 6).map(relic => (
                       <button
                         key={relic.id}
                         disabled={teamMoney < relic.cost}
@@ -920,7 +969,7 @@ export function BossRaidManager({ onExit }: Props) {
                             : 'bg-black/40 border-white/5 text-gray-500 cursor-not-allowed'
                         }`}
                       >
-                        <span className="font-black block truncate">{relic.name}</span>
+                        <span className="font-black block truncate">{relic.icon} {relic.name}</span>
                         <span className="text-amber-400">${relic.cost} • +{relic.bonusPower} PWR</span>
                       </button>
                     ))}

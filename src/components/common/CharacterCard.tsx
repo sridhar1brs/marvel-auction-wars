@@ -10,6 +10,7 @@ interface Props {
   size?: 'sm' | 'md' | 'lg';
   isSpotlight?: boolean;
   startingMoney?: number;
+  showPrice?: boolean;
 }
 
 export function CharacterCard({ 
@@ -18,6 +19,7 @@ export function CharacterCard({
   size = 'md', 
   isSpotlight = false,
   startingMoney = 30,
+  showPrice = true,
 }: Props) {
   const isMythic = character.grade === 'MYTHIC';
   const isGradeA = character.grade === 'A';
@@ -41,7 +43,7 @@ export function CharacterCard({
   return (
     <div
       className={`relative rounded-2xl overflow-hidden transition-all duration-300 border flex flex-col ${
-        isMythic ? 'cosmic-panel holo-shimmer' : isGradeA ? 'glass-panel holo-shimmer' : 'glass-panel'
+        isMythic ? 'cosmic-panel' : 'glass-panel'
       } ${getCardBorder()} ${className} ${
         isSpotlight ? 'scale-[1.02] shadow-2xl ring-1 ring-white/20' : 'hover:scale-[1.01]'
       }`}
@@ -63,10 +65,12 @@ export function CharacterCard({
           )}
         </div>
 
-        <div className="flex items-center gap-1 bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-0.5 rounded-full text-emerald-300 font-bold text-xs shadow-sm">
-          <DollarSign className="w-3 h-3 text-emerald-400" />
-          <span>START: ${displayStartingPrice}</span>
-        </div>
+        {showPrice && (
+          <div className="flex items-center gap-1 bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-0.5 rounded-full text-emerald-300 font-bold text-xs shadow-sm">
+            <DollarSign className="w-3 h-3 text-emerald-400" />
+            <span>START: ${displayStartingPrice}</span>
+          </div>
+        )}
       </div>
 
       {/* Main Body */}

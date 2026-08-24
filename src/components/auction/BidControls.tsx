@@ -113,140 +113,118 @@ export function BidControls({
         <div className="p-3 bg-emerald-950/80 border border-emerald-500/50 rounded-xl text-center text-xs font-black text-emerald-300 shadow-glow-gold animate-pulse">
           👑 YOU CURRENTLY LEAD THIS AUCTION {isBlindBidding ? '(Sealed Bid Placed)' : `($${auction.currentBid})`}
         </div>
-      ) : !canAffordMin ? (
+      ) : (
         <div className="space-y-3">
-          <div className="p-3 bg-red-950/80 border border-red-500/50 rounded-xl text-center text-xs font-bold text-red-200">
-            ⚠️ Insufficient funds. Next minimum bid is ${minNextBid}, but you have ${activePlayer.money}.
-          </div>
-          {/* Concede Button - ONLY visible if NOT the highest bidder / buyer */}
-          {!isHighestBidder && auction.highestBidderId && auction.highestBidderId !== activePlayer.id && onConcede && (
+          {/* Concede / Give Up Button - Visible to any player who is not the highest bidder */}
+          {auction.highestBidderId && auction.highestBidderId !== activePlayer.id && auction.currentBid > 0 && onConcede && (
             <button
               type="button"
               onClick={() => {
                 soundManager.playClick();
                 onConcede();
               }}
-              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-900/80 to-red-950/80 hover:from-amber-800 hover:to-red-900 border border-amber-500/50 text-amber-200 font-heading font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all"
+              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-950/90 via-red-950/90 to-amber-950/90 hover:from-amber-900 hover:to-red-900 border-2 border-amber-500/70 text-amber-200 hover:text-white font-heading font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-glow-gold transition-all transform hover:scale-[1.01] active:scale-95"
             >
-              <span>🏳️ CONCEDE LOT TO {auction.highestBidderName}</span>
+              <span>🏳️ GIVE UP / CONCEDE LOT TO {auction.highestBidderName?.toUpperCase()} (${auction.currentBid})</span>
             </button>
           )}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {/* Quick Increment Row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <button
-              onClick={() => onPlaceBid(activePlayer.id, minNextBid)}
-              disabled={activePlayer.money < minNextBid}
-              className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 disabled:opacity-40 text-white font-heading font-black text-sm uppercase tracking-wide shadow-glow-red transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-1"
-            >
-              <ArrowUp className="w-3.5 h-3.5" />
-              <span>BID ${minNextBid}</span>
-            </button>
 
-            <button
-              onClick={() => handleQuickBid(2)}
-              disabled={activePlayer.money < currentBid + 2}
-              className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-heading font-black text-xs uppercase tracking-wide border border-white/10 transition-all flex items-center justify-center gap-1"
-            >
-              <DollarSign className="w-3 h-3 text-emerald-400" />
-              <span>+ $2 (${currentBid + 2})</span>
-            </button>
-
-            <button
-              onClick={() => handleQuickBid(5)}
-              disabled={activePlayer.money < currentBid + 5}
-              className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-heading font-black text-xs uppercase tracking-wide border border-white/10 transition-all flex items-center justify-center gap-1"
-            >
-              <DollarSign className="w-3 h-3 text-amber-400" />
-              <span>+ $5 (${currentBid + 5})</span>
-            </button>
-
-            <button
-              onClick={() => onPlaceBid(activePlayer.id, activePlayer.money)}
-              disabled={activePlayer.money < minNextBid}
-              className="py-2.5 px-3 rounded-xl bg-purple-950 hover:bg-purple-900 disabled:opacity-40 text-purple-200 font-heading font-black text-xs uppercase tracking-wide border border-purple-500/50 shadow-glow-cosmic transition-all flex items-center justify-center gap-1"
-            >
-              <FastForward className="w-3 h-3 text-purple-400" />
-              <span>ALL-IN (${activePlayer.money})</span>
-            </button>
-          </div>
-
-          {/* Custom Bid Input Form */}
-          <form onSubmit={handleCustomBidSubmit} className="flex gap-2">
-            <div className="relative flex-1">
-              <span className="absolute left-3 top-2.5 text-slate-500 text-xs font-bold">$</span>
-              <input
-                type="number"
-                min={minNextBid}
-                max={activePlayer.money}
-                value={customBid}
-                onChange={e => setCustomBid(e.target.value)}
-                placeholder={`Secret Custom Bid ($${minNextBid} - $${activePlayer.money})`}
-                className="w-full bg-black/50 border border-white/10 pl-7 pr-3 py-2 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500"
-              />
+          {!canAffordMin ? (
+            <div className="p-3 bg-red-950/80 border border-red-500/50 rounded-xl text-center text-xs font-bold text-red-200">
+              ⚠️ Insufficient funds. Next minimum bid is ${minNextBid}, but you have ${activePlayer.money}.
             </div>
-            <button
-              type="submit"
-              disabled={!customBid || parseInt(customBid, 10) < minNextBid || parseInt(customBid, 10) > activePlayer.money}
-              className="px-5 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-bold text-xs rounded-xl border border-white/10 transition-colors shrink-0 flex items-center gap-1"
-            >
-              {isBlindBidding && <Lock className="w-3 h-3 text-amber-400" />}
-              <span>{isBlindBidding ? 'Seal Bid' : 'Submit Bid'}</span>
-            </button>
-          </form>
+          ) : (
+            <>
+              {/* Quick Increment Row */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <button
+                  onClick={() => onPlaceBid(activePlayer.id, minNextBid)}
+                  disabled={activePlayer.money < minNextBid}
+                  className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 disabled:opacity-40 text-white font-heading font-black text-sm uppercase tracking-wide shadow-glow-red transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-1"
+                >
+                  <ArrowUp className="w-3.5 h-3.5" />
+                  <span>BID ${minNextBid}</span>
+                </button>
+
+                <button
+                  onClick={() => handleQuickBid(2)}
+                  disabled={activePlayer.money < currentBid + 2}
+                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-heading font-black text-xs uppercase tracking-wide border border-white/10 transition-all flex items-center justify-center gap-1"
+                >
+                  <DollarSign className="w-3 h-3 text-emerald-400" />
+                  <span>+ $2 (${currentBid + 2})</span>
+                </button>
+
+                <button
+                  onClick={() => handleQuickBid(5)}
+                  disabled={activePlayer.money < currentBid + 5}
+                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-heading font-black text-xs uppercase tracking-wide border border-white/10 transition-all flex items-center justify-center gap-1"
+                >
+                  <DollarSign className="w-3 h-3 text-amber-400" />
+                  <span>+ $5 (${currentBid + 5})</span>
+                </button>
+
+                <button
+                  onClick={() => onPlaceBid(activePlayer.id, activePlayer.money)}
+                  disabled={activePlayer.money < minNextBid}
+                  className="py-2.5 px-3 rounded-xl bg-purple-950 hover:bg-purple-900 disabled:opacity-40 text-purple-200 font-heading font-black text-xs uppercase tracking-wide border border-purple-500/50 shadow-glow-cosmic transition-all flex items-center justify-center gap-1"
+                >
+                  <FastForward className="w-3 h-3 text-purple-400" />
+                  <span>ALL-IN (${activePlayer.money})</span>
+                </button>
+              </div>
+
+              {/* Custom Bid Input Form */}
+              <form onSubmit={handleCustomBidSubmit} className="flex gap-2">
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-2.5 text-slate-500 text-xs font-bold">$</span>
+                  <input
+                    type="number"
+                    min={minNextBid}
+                    max={activePlayer.money}
+                    value={customBid}
+                    onChange={e => setCustomBid(e.target.value)}
+                    placeholder={`Secret Custom Bid ($${minNextBid} - $${activePlayer.money})`}
+                    className="w-full bg-black/50 border border-white/10 pl-7 pr-3 py-2 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={!customBid || parseInt(customBid, 10) < minNextBid || parseInt(customBid, 10) > activePlayer.money}
+                  className="px-5 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-bold text-xs rounded-xl border border-white/10 transition-colors shrink-0 flex items-center gap-1"
+                >
+                  {isBlindBidding && <Lock className="w-3 h-3 text-amber-400" />}
+                  <span>{isBlindBidding ? 'Seal Bid' : 'Submit Bid'}</span>
+                </button>
+              </form>
+            </>
+          )}
         </div>
       )}
 
-      {/* Skip Actions (Distinct Instant Skip All vs Vote to Skip) */}
-      <div className="pt-3 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-          <FastForward className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+      {/* Clean Vote to Skip Action Bar */}
+      <div className="pt-2.5 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <span className="text-[11px] font-bold text-slate-400 text-center sm:text-left">
+          Pass lot (Unanimous skip to next character):
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            soundManager.playClick();
+            onVoteSkip(activePlayer.id);
+          }}
+          disabled={!auction.isActive}
+          className={`w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all border flex items-center justify-center gap-2 ${
+            hasVotedSkip
+              ? 'bg-purple-950 text-purple-200 border-purple-400 shadow-glow-cosmic'
+              : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-white/10 hover:border-purple-500/50'
+          }`}
+        >
+          <FastForward className="w-3.5 h-3.5 text-purple-400" />
           <span>
-            Skip options: Vote unanimously or instant skip to next character lot.
+            {hasVotedSkip ? '✅ VOTED TO SKIP' : '🗳️ VOTE SKIP LOT'} ({auction.skipVotes.length}/{eligiblePlayersCount})
           </span>
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          {/* 1. Instant Skip All Button */}
-          <button
-            type="button"
-            onClick={() => {
-              soundManager.playClick();
-              if (onInstantSkip) {
-                onInstantSkip();
-              } else {
-                onVoteSkip(activePlayer.id);
-              }
-            }}
-            disabled={!auction.isActive}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-red-950/80 hover:bg-red-900 text-red-200 hover:text-white border border-red-500/50 shadow-sm transition-all"
-          >
-            <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
-            <span>⚡ SKIP ALL</span>
-          </button>
-
-          {/* 2. Vote to Skip Button */}
-          <button
-            type="button"
-            onClick={() => {
-              soundManager.playClick();
-              onVoteSkip(activePlayer.id);
-            }}
-            disabled={!auction.isActive}
-            className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
-              hasVotedSkip
-                ? 'bg-purple-950 text-purple-200 border-purple-400 shadow-glow-cosmic'
-                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-white/10'
-            }`}
-          >
-            <FastForward className="w-3.5 h-3.5 text-purple-300" />
-            <span>
-              {hasVotedSkip ? '✅ VOTED SKIP' : '🗳️ VOTE SKIP'} ({auction.skipVotes.length}/{eligiblePlayersCount})
-            </span>
-          </button>
-        </div>
+        </button>
       </div>
     </div>
   );

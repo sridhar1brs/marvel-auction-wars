@@ -1,5 +1,6 @@
 import { Character, Player, SpecialAbility, BattleRound, BattleActionType } from '../src/types/game';
 import { calculatePlayerSynergies, getSynergyBonusForCharacter } from '../src/engine/synergyEngine';
+import { getSkillsForCharacter } from '../src/data/skills/characterSkills';
 
 export interface CombatClashResult {
   roundNumber: number;
@@ -40,21 +41,54 @@ export function simulateRoundDuel(
   let p1Hp = char1.currentHp !== undefined ? char1.currentHp : p1MaxHp;
   let p2Hp = char2.currentHp !== undefined ? char2.currentHp : p2MaxHp;
 
-  // 1. Tactical Command Modifiers
+  // 1. Tactical Command Modifiers (9 Attack/Defense Types)
+  const p1Skills = getSkillsForCharacter(char1);
+  const p2Skills = getSkillsForCharacter(char2);
+
   if (action1 === 'DEFEND') {
     p1Power += 6;
     log.push(`🛡️ ${char1.name} enters a defensive stance, fortifying armor! (+6 Defense)`);
   } else if (action1 === 'SPECIAL') {
-    p1Power += 4;
-    log.push(`⚡ ${char1.name} charges their signature cosmic/mutant ability!`);
+    p1Power += 5;
+    log.push(`⚡ ${char1.name} charges their signature cosmic superpower! (+5 Power)`);
+  } else if (action1 === 'SKILL_1' && p1Skills[0]) {
+    p1Power += p1Skills[0].bonusPower;
+    log.push(`🌟 ${char1.name} unleashes [${p1Skills[0].name}]! (+${p1Skills[0].bonusPower} Power)`);
+  } else if (action1 === 'SKILL_2' && p1Skills[1]) {
+    p1Power += p1Skills[1].bonusPower;
+    log.push(`🌟 ${char1.name} unleashes [${p1Skills[1].name}]! (+${p1Skills[1].bonusPower} Power)`);
+  } else if (action1 === 'SKILL_3' && p1Skills[2]) {
+    p1Power += p1Skills[2].bonusPower;
+    log.push(`🌟 ${char1.name} unleashes [${p1Skills[2].name}]! (+${p1Skills[2].bonusPower} Power)`);
+  } else if (action1 === 'SKILL_4' && p1Skills[3]) {
+    p1Power += p1Skills[3].bonusPower;
+    log.push(`🌟 ${char1.name} unleashes [${p1Skills[3].name}]! (+${p1Skills[3].bonusPower} Power)`);
+  } else if (action1 === 'SKILL_5' && p1Skills[4]) {
+    p1Power += p1Skills[4].bonusPower;
+    log.push(`🌟 ${char1.name} unleashes [${p1Skills[4].name}]! (+${p1Skills[4].bonusPower} Power)`);
   }
 
   if (action2 === 'DEFEND') {
     p2Power += 6;
     log.push(`🛡️ ${char2.name} enters a defensive stance, fortifying armor! (+6 Defense)`);
   } else if (action2 === 'SPECIAL') {
-    p2Power += 4;
-    log.push(`⚡ ${char2.name} charges their signature cosmic/mutant ability!`);
+    p2Power += 5;
+    log.push(`⚡ ${char2.name} charges their signature cosmic superpower! (+5 Power)`);
+  } else if (action2 === 'SKILL_1' && p2Skills[0]) {
+    p2Power += p2Skills[0].bonusPower;
+    log.push(`🌟 ${char2.name} unleashes [${p2Skills[0].name}]! (+${p2Skills[0].bonusPower} Power)`);
+  } else if (action2 === 'SKILL_2' && p2Skills[1]) {
+    p2Power += p2Skills[1].bonusPower;
+    log.push(`🌟 ${char2.name} unleashes [${p2Skills[1].name}]! (+${p2Skills[1].bonusPower} Power)`);
+  } else if (action2 === 'SKILL_3' && p2Skills[2]) {
+    p2Power += p2Skills[2].bonusPower;
+    log.push(`🌟 ${char2.name} unleashes [${p2Skills[2].name}]! (+${p2Skills[2].bonusPower} Power)`);
+  } else if (action2 === 'SKILL_4' && p2Skills[3]) {
+    p2Power += p2Skills[3].bonusPower;
+    log.push(`🌟 ${char2.name} unleashes [${p2Skills[3].name}]! (+${p2Skills[3].bonusPower} Power)`);
+  } else if (action2 === 'SKILL_5' && p2Skills[4]) {
+    p2Power += p2Skills[4].bonusPower;
+    log.push(`🌟 ${char2.name} unleashes [${p2Skills[4].name}]! (+${p2Skills[4].bonusPower} Power)`);
   }
 
   // 2. Stat Advantages Comparison

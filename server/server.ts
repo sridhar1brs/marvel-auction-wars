@@ -179,6 +179,28 @@ io.on('connection', (socket: Socket) => {
     callback?.(res);
   });
 
+  // 8A-1. Instant Skip Lot (Host / Instant Skip Control)
+  socket.on('instant_skip', (callback) => {
+    const session = socketToRoom.get(socket.id);
+    if (!session) return callback?.({ success: false, error: 'Session not found.' });
+    const room = rooms.get(session.roomId);
+    if (!room) return callback?.({ success: false, error: 'Room not found.' });
+
+    room.instantSkipLot();
+    callback?.({ success: true });
+  });
+
+  // 8A-2. Concede / Give Up Lot
+  socket.on('concede_lot', (callback) => {
+    const session = socketToRoom.get(socket.id);
+    if (!session) return callback?.({ success: false, error: 'Session not found.' });
+    const room = rooms.get(session.roomId);
+    if (!room) return callback?.({ success: false, error: 'Room not found.' });
+
+    room.concedeLot(session.playerId);
+    callback?.({ success: true });
+  });
+
   // 8B. 3-Round Cosmic Grade Vote
   socket.on('vote_grade', (data: { vote: any }, callback) => {
     const session = socketToRoom.get(socket.id);

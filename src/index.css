@@ -135,46 +135,13 @@
   animation: floatUp 2.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-/* Holographic 3D Card Shimmer */
+/* Holographic Card Shimmer - Clean border highlight without obscuring artwork */
 .holo-shimmer {
   position: relative;
-  overflow: hidden;
 }
 
 .holo-shimmer::after {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(
-    60deg,
-    transparent 20%,
-    rgba(255, 255, 255, 0.15) 35%,
-    rgba(236, 72, 153, 0.25) 45%,
-    rgba(59, 130, 246, 0.25) 55%,
-    rgba(234, 179, 8, 0.25) 65%,
-    transparent 80%
-  );
-  transform: rotate(25deg);
-  pointer-events: none;
-  opacity: 0.7;
-  transition: opacity 0.3s ease;
-}
-
-.holo-shimmer:hover::after {
-  opacity: 1;
-  animation: holoSweep 2.5s infinite linear;
-}
-
-@keyframes holoSweep {
-  0% {
-    transform: rotate(25deg) translateY(-100%);
-  }
-  100% {
-    transform: rotate(25deg) translateY(100%);
-  }
+  content: none;
 }
 
 /* Screen Shake & Pulse Animations */
@@ -188,5 +155,245 @@
 
 .animate-shake {
   animation: screenShake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* Moving Cosmic Red & Blue Fog Animations */
+@keyframes nebulaFogRed {
+  0% {
+    transform: translate(-10%, -10%) scale(1);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translate(15%, 15%) scale(1.25);
+    opacity: 0.45;
+  }
+  100% {
+    transform: translate(-10%, -10%) scale(1);
+    opacity: 0.25;
+  }
+}
+
+@keyframes nebulaFogBlue {
+  0% {
+    transform: translate(10%, 15%) scale(1.2);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translate(-15%, -10%) scale(0.95);
+    opacity: 0.45;
+  }
+  100% {
+    transform: translate(10%, 15%) scale(1.2);
+    opacity: 0.25;
+  }
+}
+
+.cosmic-fog-red {
+  background: radial-gradient(circle at 30% 40%, rgba(230, 36, 41, 0.45) 0%, rgba(180, 20, 30, 0.15) 50%, transparent 70%);
+  animation: nebulaFogRed 14s ease-in-out infinite alternate;
+  filter: blur(60px);
+}
+
+.cosmic-fog-blue {
+  background: radial-gradient(circle at 70% 60%, rgba(30, 144, 255, 0.4) 0%, rgba(56, 189, 248, 0.15) 50%, transparent 70%);
+  animation: nebulaFogBlue 16s ease-in-out infinite alternate;
+  filter: blur(60px);
+}
+
+/* Cyber Grid Background */
+.cyber-grid {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+}
+
+/* Metallic 3D Title Styles */
+.marvel-title-3d {
+  text-shadow: 
+    0 1px 0 #ccc,
+    0 2px 0 #c9c9c9,
+    0 3px 0 #bbb,
+    0 4px 0 #b9b9b9,
+    0 5px 0 #aaa,
+    0 6px 1px rgba(0,0,0,.1),
+    0 0 5px rgba(0,0,0,.1),
+    0 1px 3px rgba(0,0,0,.3),
+    0 3px 5px rgba(0,0,0,.2),
+    0 5px 10px rgba(0,0,0,.25),
+    0 10px 10px rgba(0,0,0,.2),
+    0 20px 20px rgba(0,0,0,.15);
+}
+
+/* Floating Damage Popup Animation */
+@keyframes floatDamageUp {
+  0% {
+    opacity: 0;
+    transform: translateY(0px) scale(0.6);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-20px) scale(1.2);
+  }
+  75% {
+    opacity: 1;
+    transform: translateY(-55px) scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-80px) scale(0.9);
+  }
+}
+
+.animate-damage-float {
+  animation: floatDamageUp 1.8s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+}
+
+/* Gavel Strike Animation */
+@keyframes gavelStrike {
+  0% {
+    transform: rotate(-45deg) translateY(-20px) scale(0.9);
+    opacity: 0;
+  }
+  40% {
+    transform: rotate(15deg) translateY(0px) scale(1.15);
+    opacity: 1;
+  }
+  60% {
+    transform: rotate(0deg) translateY(0px) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(0deg) translateY(0px) scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-gavel {
+  animation: gavelStrike 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Expanding Shockwave Ripple */
+@keyframes shockwaveRipple {
+  0% {
+    transform: scale(0.4);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+.animate-shockwave {
+  animation: shockwaveRipple 1.2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+
+/* KO Comic Stamp Slam */
+@keyframes koStampSlam {
+  0% {
+    opacity: 0;
+    transform: scale(3) rotate(-15deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.9) rotate(8deg);
+  }
+  80% {
+    transform: scale(1.05) rotate(-3deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.animate-ko-stamp {
+  animation: koStampSlam 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Rotating Victory Sunburst Rays */
+@keyframes sunburstSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-sunburst {
+  animation: sunburstSpin 25s linear infinite;
+}
+
+/* Energy Shield Pulse */
+@keyframes shieldGlowPulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5), inset 0 0 15px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 45px rgba(59, 130, 246, 0.9), inset 0 0 25px rgba(59, 130, 246, 0.6);
+  }
+}
+
+.animate-shield-pulse {
+  animation: shieldGlowPulse 1.5s ease-in-out infinite;
+}
+
+/* Cosmic Red & Blue Energy Veins / Tendrils Animation */
+@keyframes veinFlow {
+  0% {
+    stroke-dashoffset: 200;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes veinGlowRed {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px #ef4444) drop-shadow(0 0 10px #b91c1c);
+    opacity: 0.75;
+  }
+  50% {
+    filter: drop-shadow(0 0 12px #ff0033) drop-shadow(0 0 24px #ef4444);
+    opacity: 1;
+  }
+}
+
+@keyframes veinGlowBlue {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px #06b6d4) drop-shadow(0 0 10px #3b82f6);
+    opacity: 0.75;
+  }
+  50% {
+    filter: drop-shadow(0 0 12px #00f0ff) drop-shadow(0 0 24px #3b82f6);
+    opacity: 1;
+  }
+}
+
+@keyframes nodeGlowPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 1;
+  }
+}
+
+.animate-vein-red {
+  stroke-dasharray: 20 10;
+  animation: veinFlow 4s linear infinite, veinGlowRed 3s ease-in-out infinite;
+}
+
+.animate-vein-blue {
+  stroke-dasharray: 20 10;
+  animation: veinFlow 4s linear infinite, veinGlowBlue 3s ease-in-out infinite;
+}
+
+.animate-vein-node {
+  animation: nodeGlowPulse 2s ease-in-out infinite;
 }
 

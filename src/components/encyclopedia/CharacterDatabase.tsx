@@ -14,8 +14,10 @@ export function CharacterDatabase({ onBack }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGrade, setSelectedGrade] = useState<string>('ALL');
   const [selectedAlignment, setSelectedAlignment] = useState<string>('ALL');
-  const [sortBy, setSortBy] = useState<'power' | 'price' | 'name'>('power');
+  const [sortBy, setSortBy] = useState<'power' | 'grade' | 'name'>('power');
   const [inspectCharacter, setInspectCharacter] = useState<Character | null>(null);
+
+  const gradeWeights: Record<string, number> = { MYTHIC: 4, A: 3, B: 2, C: 1 };
 
   const filteredCharacters = useMemo(() => {
     return ALL_CHARACTERS.filter(char => {
@@ -30,7 +32,7 @@ export function CharacterDatabase({ onBack }: Props) {
       return matchSearch && matchGrade && matchAlignment;
     }).sort((a, b) => {
       if (sortBy === 'power') return b.overallPower - a.overallPower;
-      if (sortBy === 'price') return b.startingPrice - a.startingPrice;
+      if (sortBy === 'grade') return (gradeWeights[b.grade] || 0) - (gradeWeights[a.grade] || 0);
       if (sortBy === 'name') return a.name.localeCompare(b.name);
       return 0;
     });
@@ -117,11 +119,11 @@ export function CharacterDatabase({ onBack }: Props) {
           <div className="sm:col-span-2">
             <select
               value={sortBy}
-              onChange={e => setSortBy(e.target.value as 'power' | 'price' | 'name')}
+              onChange={e => setSortBy(e.target.value as 'power' | 'grade' | 'name')}
               className="w-full bg-black/50 border border-white/10 px-3 py-2 rounded-xl text-xs text-white focus:outline-none focus:border-red-500 font-bold"
             >
               <option value="power">Sort by Power ↓</option>
-              <option value="price">Sort by Price ↓</option>
+              <option value="grade">Sort by Tier (Mythic → C)</option>
               <option value="name">Sort by Name (A-Z)</option>
             </select>
           </div>
@@ -155,11 +157,10 @@ export function CharacterDatabase({ onBack }: Props) {
               {char.alias || char.alignment}
             </span>
 
-            <div className="mt-auto w-full flex items-center justify-between pt-2 border-t border-white/5 text-[11px] font-extrabold">
-              <span className="text-emerald-400">${char.startingPrice}</span>
-              <span className="text-amber-400 flex items-center gap-0.5">
+            <div className="mt-auto w-full flex items-center justify-center pt-2 border-t border-white/5 text-[11px] font-extrabold">
+              <span className="text-amber-400 flex items-center gap-1 bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-500/30">
                 <Zap className="w-2.5 h-2.5 fill-current" />
-                {char.overallPower}
+                PWR {char.overallPower}
               </span>
             </div>
           </div>
@@ -176,7 +177,7 @@ export function CharacterDatabase({ onBack }: Props) {
             >
               <X className="w-4 h-4" />
             </button>
-            <CharacterCard character={inspectCharacter} size="lg" isSpotlight={true} />
+            <CharacterCard character={inspectCharacter} size="lg" isSpotlight={true} showPrice={false} />
           </div>
         </div>
       )}

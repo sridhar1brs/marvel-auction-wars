@@ -1,6 +1,6 @@
 import { GamePhase } from '../../types/game';
 import { SoundToggle } from './SoundToggle';
-import { BookOpen, HelpCircle, Home, Swords, ShoppingBag } from 'lucide-react';
+import { BookOpen, HelpCircle, Home, Swords, ShoppingBag, Zap, Smartphone, Monitor } from 'lucide-react';
 import { ALL_CHARACTERS } from '../../data/characters/index';
 
 interface Props {
@@ -9,9 +9,19 @@ interface Props {
   isOnline: boolean;
   onNavigate: (phase: GamePhase) => void;
   onHomeClick: () => void;
+  deviceView?: 'pc' | 'phone';
+  onToggleDeviceView?: () => void;
 }
 
-export function Navbar({ phase, roomId, isOnline, onNavigate, onHomeClick }: Props) {
+export function Navbar({ 
+  phase, 
+  roomId, 
+  isOnline, 
+  onNavigate, 
+  onHomeClick,
+  deviceView = 'pc',
+  onToggleDeviceView,
+}: Props) {
   return (
     <header className="sticky top-0 z-40 bg-marvel-darker/90 backdrop-blur-md border-b border-marvel-border px-3 sm:px-6 py-2.5">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
@@ -35,10 +45,24 @@ export function Navbar({ phase, roomId, isOnline, onNavigate, onHomeClick }: Pro
 
         {/* Right: Actions & Sound Toggle */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Skill Vault */}
+          <button
+            onClick={() => onNavigate('SKILL_VAULT')}
+            title="301 Character Skill Mastery Vault"
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+              phase === 'SKILL_VAULT'
+                ? 'bg-cyan-950/90 text-cyan-200 border-cyan-400 shadow-glow-cosmic'
+                : 'bg-marvel-card/80 text-cyan-300 border-cyan-500/40 hover:text-white hover:border-cyan-400'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden sm:inline">Skill Vault</span>
+          </button>
+
           {/* Relic Shop & Weapons */}
           <button
             onClick={() => onNavigate('EQUIPMENT_SHOP')}
-            title="Tactical Artifacts & Weapons Shop"
+            title="Tactical Marvel Relics & Weapons ($1 - $20)"
             className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
               phase === 'EQUIPMENT_SHOP'
                 ? 'bg-purple-950/80 text-purple-200 border-purple-400 shadow-glow-cosmic'
@@ -46,7 +70,7 @@ export function Navbar({ phase, roomId, isOnline, onNavigate, onHomeClick }: Pro
             }`}
           >
             <ShoppingBag className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">Relic Shop</span>
+            <span className="hidden sm:inline">Relic Vault</span>
           </button>
 
           {/* Duel Sandbox */}
@@ -91,6 +115,31 @@ export function Navbar({ phase, roomId, isOnline, onNavigate, onHomeClick }: Pro
             <HelpCircle className="w-3.5 h-3.5 text-cyan-400" />
             <span className="hidden sm:inline">Rules</span>
           </button>
+
+          {/* Phone / PC Mode Switcher Button */}
+          {onToggleDeviceView && (
+            <button
+              onClick={onToggleDeviceView}
+              title={deviceView === 'phone' ? 'Switch to PC Widescreen Mode' : 'Switch to Phone View Mode'}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                deviceView === 'phone'
+                  ? 'bg-emerald-950 text-emerald-300 border-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.4)]'
+                  : 'bg-marvel-card/80 text-slate-300 border-marvel-border hover:text-white hover:border-slate-500'
+              }`}
+            >
+              {deviceView === 'phone' ? (
+                <>
+                  <Smartphone className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                  <span className="hidden sm:inline font-mono text-[11px]">Phone View</span>
+                </>
+              ) : (
+                <>
+                  <Monitor className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="hidden sm:inline font-mono text-[11px]">PC View</span>
+                </>
+              )}
+            </button>
+          )}
 
           {/* Sound Toggle */}
           <SoundToggle />

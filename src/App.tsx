@@ -13,9 +13,11 @@ import { VictoryScreen } from './components/champion/VictoryScreen';
 import { CharacterDatabase } from './components/encyclopedia/CharacterDatabase';
 import { BattleSandbox } from './components/sandbox/BattleSandbox';
 import { EquipmentShop } from './components/shop/EquipmentShop';
+import { SkillVaultPage } from './components/shop/SkillVaultPage';
 import { GradeVotingModal } from './components/auction/GradeVotingModal';
 import { MarvelCinematicIntro } from './components/common/MarvelCinematicIntro';
 import { BossRaidManager } from './components/raid/BossRaidManager';
+import { JarvisChatbot } from './components/common/JarvisChatbot';
 import { GamePhase } from './types/game';
 import { soundManager } from './audio/soundManager';
 import { Sparkles, Swords, Film } from 'lucide-react';
@@ -46,6 +48,7 @@ export function App() {
   const [showBootIntro, setShowBootIntro] = useState(true);
   const [showHowToPlay, setShowHowToPlay] = useState(false);
   const [previousPhaseBeforeBrowse, setPreviousPhaseBeforeBrowse] = useState<GamePhase>('HOME');
+  const [deviceView, setDeviceView] = useState<'pc' | 'phone'>('pc');
 
   const handleNavigate = (targetPhase: GamePhase) => {
     soundManager.playClick();
@@ -84,10 +87,16 @@ export function App() {
         isOnline={isOnlineMode}
         onNavigate={handleNavigate}
         onHomeClick={handleReturnHome}
+        deviceView={deviceView}
+        onToggleDeviceView={() => setDeviceView(prev => prev === 'pc' ? 'phone' : 'pc')}
       />
 
       {/* Main Content Router */}
-      <main className="flex-1 relative z-20">
+      <main className={`flex-1 relative z-20 transition-all duration-300 ${
+        deviceView === 'phone'
+          ? 'max-w-[430px] w-full mx-auto my-3 rounded-[36px] border-4 border-slate-700/80 shadow-[0_0_60px_rgba(0,0,0,0.95)] overflow-x-hidden bg-[#06080E] ring-1 ring-white/10'
+          : 'w-full'
+      }`}>
         {/* 1. HOME SCREEN */}
         {state.phase === 'HOME' && (
           <HomeScreen
@@ -126,6 +135,10 @@ export function App() {
             onOpenRelicShop={() => {
               setPreviousPhaseBeforeBrowse('HOME');
               setPhase('EQUIPMENT_SHOP');
+            }}
+            onOpenSkillVault={() => {
+              setPreviousPhaseBeforeBrowse('HOME');
+              setPhase('SKILL_VAULT');
             }}
             onPlayIntro={() => setShowBootIntro(true)}
           />
@@ -233,6 +246,13 @@ export function App() {
           </div>
         )}
 
+        {/* 7.5 HERO SKILL VAULT (301 CHARACTERS) */}
+        {state.phase === 'SKILL_VAULT' && (
+          <SkillVaultPage
+            onBack={() => setPhase(previousPhaseBeforeBrowse || 'HOME')}
+          />
+        )}
+
         {/* 8. TACTICAL ARTIFACTS & EQUIPMENT SHOP */}
         {state.phase === 'EQUIPMENT_SHOP' && (
           <EquipmentShop
@@ -308,6 +328,9 @@ export function App() {
       {showHowToPlay && (
         <HowToPlayModal onClose={() => setShowHowToPlay(false)} />
       )}
+
+      {/* Global J.A.R.V.I.S. AI Tactical Assistant */}
+      <JarvisChatbot state={state} />
     </div>
   );
 }

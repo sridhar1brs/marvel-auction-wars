@@ -42,10 +42,21 @@ export interface ArtifactItem {
     | 'cosmic_supremacy'
     | 'speed_slow'
     | 'undo_round'
+    | 'revive_hero'
     | 'freeze';
 }
 
-export type BattleActionType = 'ATTACK' | 'SPECIAL' | 'DEFEND' | 'ARTIFACT' | 'DUAL_STRIKE';
+export type BattleActionType = 
+  | 'ATTACK' 
+  | 'SPECIAL' 
+  | 'DEFEND' 
+  | 'ARTIFACT' 
+  | 'SKILL_1' 
+  | 'SKILL_2' 
+  | 'SKILL_3' 
+  | 'SKILL_4' 
+  | 'SKILL_5' 
+  | 'DUAL_STRIKE';
 export type GradeVoteOption = CharacterGrade | 'MYSTERY';
 
 export interface BountyReward {
@@ -77,6 +88,7 @@ export interface Character {
   specialAbilities: SpecialAbility[];
   overallPower: number;  // 50-99 scale
   equippedArtifact?: ArtifactItem | null;
+  equippedSkills?: any[];
   currentHp?: number;    // Default 100
   maxHp?: number;        // Default 100
   isFainted?: boolean;
@@ -150,6 +162,7 @@ export type GamePhase =
   | 'AUCTION_MYSTERY_REVEAL'
   | 'AUCTION_WINNER'
   | 'AUCTION_COMPLETE'
+  | 'SKILL_VAULT'
   | 'EQUIPMENT_SHOP'
   | 'BATTLE_TRANSITION'
   | 'TOURNAMENT_TREE'
