@@ -33,18 +33,6 @@ export function Navbar({ phase, roomId, isOnline, onNavigate, onHomeClick }: Pro
           </div>
         </div>
 
-        {/* Center: Mode Indicator */}
-        <div className="hidden md:flex items-center gap-2 bg-black/40 border border-white/10 px-3 py-1 rounded-full text-xs">
-          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="font-bold text-slate-300">
-            {isOnline ? `ROOM: ${roomId}` : 'LOCAL MODE'}
-          </span>
-          <span className="text-[10px] text-slate-500">•</span>
-          <span className="text-[11px] text-slate-400 font-semibold">
-            {ALL_CHARACTERS.length} Characters
-          </span>
-        </div>
-
         {/* Right: Actions & Sound Toggle */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Relic Shop & Weapons */}
