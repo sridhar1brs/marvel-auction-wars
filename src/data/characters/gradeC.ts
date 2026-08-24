@@ -741,88 +741,58 @@ export const GRADE_C_CHARACTERS: Character[] = [
   },
   {
     "id": "char-c-036",
-    "name": "Anti-Venom",
-    "alias": "Eddie Brock (White Symbiote)",
-    "grade": "C",
-    "alignment": "Anti-Hero",
-    "startingPrice": 5,
-    "powers": "Cleansing white symbiote, power neutralization, regenerative antibodies, immune to fire/sound.",
-    "description": "Mutated white symbiote capable of cleansing impurities, neutralizing powers, and immune to symbiote weaknesses.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/34-anti-venom.jpg",
-    "color": "#E2E8F0",
-    "stats": {
-      "strength": 86,
-      "speed": 82,
-      "durability": 90,
-      "intelligence": 76,
-      "energy": 80,
-      "combat": 86
-    },
-    "specialAbilities": [
-      {
-        "name": "Antibody Power Cleansing",
-        "description": "Envelops the target in burning white antibodies that neutralize power bonuses.",
-        "bonusPower": 4,
-        "triggerRate": 0.55,
-        "type": "tactical"
-      }
-    ],
-    "overallPower": 84
-  },
-  {
-    "id": "char-c-037",
-    "name": "Agent Venom",
-    "alias": "Flash Thompson",
-    "grade": "C",
-    "alignment": "Hero",
-    "startingPrice": 5,
-    "powers": "Symbiote-bonded soldier, multi-gun tactical mastery, military stealth, symbiote tendril weapons.",
-    "description": "Decorated war hero Flash Thompson bonded with the Venom symbiote for covert military spec-ops missions.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/687-venom.jpg",
-    "color": "#1E293B",
-    "stats": {
-      "strength": 82,
-      "speed": 84,
-      "durability": 84,
-      "intelligence": 82,
-      "energy": 65,
-      "combat": 92
-    },
-    "specialAbilities": [
-      {
-        "name": "Symbiote Quad-Weapon Fire",
-        "description": "Extends 4 tendrils each firing military assault rifles in a relentless barrage.",
-        "bonusPower": 4,
-        "triggerRate": 0.55,
-        "type": "attack"
-      }
-    ],
-    "overallPower": 83
-  },
-  {
-    "id": "char-c-038",
-    "name": "Scarlet Spider",
-    "alias": "Ben Reilly",
+    "name": "Silverclaw",
+    "alias": "Maria de Guadalupe Santiago",
     "grade": "C",
     "alignment": "Hero",
     "startingPrice": 4,
-    "powers": "Spider-Man clone powers, impact webbing capsules, stingers, acrobatic combat mastery.",
-    "description": "Beloved Peter Parker clone rocking the iconic blue sleeveless hoodie and impact web shooters.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/577-scarlet-spider.jpg",
-    "color": "#DC2626",
+    "powers": "Shapeshifting into South American sacred animals (jaguar, anaconda, condor), divine volcano strength.",
+    "description": "Honorary Avenger and ward of Edwin Jarvis blessed with the shape-shifting power of the volcano goddess Peliali.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/599-silverclaw.jpg",
+    "color": "#94A3B8",
     "stats": {
-      "strength": 80,
-      "speed": 88,
-      "durability": 78,
-      "intelligence": 88,
-      "energy": 45,
-      "combat": 90
+      "strength": 82,
+      "speed": 82,
+      "durability": 80,
+      "intelligence": 75,
+      "energy": 75,
+      "combat": 82
     },
     "specialAbilities": [
       {
-        "name": "Impact Webbing Burst",
-        "description": "Fires high-pressure impact pellets that encase the opponent upon contact.",
-        "bonusPower": 3,
+        "name": "Jaguar Pounce",
+        "description": "Strikes with ferocious jungle feline speed.",
+        "bonusPower": 4,
+        "triggerRate": 0.5,
+        "type": "attack"
+      }
+    ],
+    "overallPower": 80
+  },
+  {
+    "id": "char-c-037",
+    "name": "Firestar",
+    "alias": "Angelica Jones",
+    "grade": "C",
+    "alignment": "Hero",
+    "startingPrice": 5,
+    "powers": "Ambient microwave radiation conversion, intense heat projection, plasma blasts, flight.",
+    "description": "Mutant heroine and Avenger capable of superheating microwave radiation into searing thermal plasma.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/259-firestar.jpg",
+    "color": "#F97316",
+    "stats": {
+      "strength": 75,
+      "speed": 82,
+      "durability": 78,
+      "intelligence": 78,
+      "energy": 90,
+      "combat": 80
+    },
+    "specialAbilities": [
+      {
+        "name": "Microwave Thermal Blast",
+        "description": "Unleashes superheated microwave radiation incinerating opposing armor.",
+        "bonusPower": 5,
         "triggerRate": 0.55,
         "type": "attack"
       }
@@ -830,34 +800,64 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "overallPower": 82
   },
   {
-    "id": "char-c-039",
-    "name": "Kaine Parker",
-    "alias": "Scarlet Spider II",
+    "id": "char-c-038",
+    "name": "Magma",
+    "alias": "Amara Juliana Olivians Aquilla",
     "grade": "C",
-    "alignment": "Anti-Hero",
-    "startingPrice": 4,
-    "powers": "The Other spider avatar, retractable wrist stingers, organic webbing, stealth camouflage suit.",
-    "description": "Brutal Spider-Man clone who embraces his raw power with lethal wrist stingers and zero hesitation.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/578-scarlet-spider-ii.jpg",
-    "color": "#991B1B",
+    "alignment": "Hero",
+    "startingPrice": 5,
+    "powers": "Geothermal earth manipulation, molten magma form, seismic shockwaves, lava projectile blast.",
+    "description": "Nova Roma mutant who transforms into living molten lava and commands subterranean magma.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/422-magma.jpg",
+    "color": "#EA580C",
     "stats": {
-      "strength": 84,
-      "speed": 86,
-      "durability": 82,
-      "intelligence": 80,
-      "energy": 50,
-      "combat": 92
+      "strength": 78,
+      "speed": 75,
+      "durability": 84,
+      "intelligence": 78,
+      "energy": 90,
+      "combat": 76
     },
     "specialAbilities": [
       {
-        "name": "Retractable Stinger Strike",
-        "description": "Deploys solid bone stingers from his wrists for a lethal close-range impale.",
-        "bonusPower": 4,
-        "triggerRate": 0.55,
+        "name": "Volcanic Eruption",
+        "description": "Erupts molten lava geysers incinerating opponent ranks.",
+        "bonusPower": 5,
+        "triggerRate": 0.5,
         "type": "attack"
       }
     ],
-    "overallPower": 83
+    "overallPower": 81
+  },
+  {
+    "id": "char-c-039",
+    "name": "Spider-Girl",
+    "alias": "May 'Mayday' Parker",
+    "grade": "C",
+    "alignment": "Hero",
+    "startingPrice": 5,
+    "powers": "Superhuman agility, spider-sense, bio-magnetic wall-crawling, repelling shockwave touch.",
+    "description": "Daughter of Peter Parker from Earth-982 continuing the heroic Spider-Man legacy.",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/618-spider-girl.jpg",
+    "color": "#3B82F6",
+    "stats": {
+      "strength": 80,
+      "speed": 88,
+      "durability": 78,
+      "intelligence": 82,
+      "energy": 72,
+      "combat": 84
+    },
+    "specialAbilities": [
+      {
+        "name": "Bio-Magnetic Repel",
+        "description": "Uses bio-magnetism to repel enemies and deflect attacks.",
+        "bonusPower": 4,
+        "triggerRate": 0.5,
+        "type": "attack"
+      }
+    ],
+    "overallPower": 81
   },
   {
     "id": "char-c-040",
