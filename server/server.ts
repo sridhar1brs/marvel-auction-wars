@@ -40,6 +40,17 @@ app.get('/api/characters', (_req, res) => {
   res.json(ALL_CHARACTERS);
 });
 
+// Self-update endpoint to seamlessly pull latest code and reload PM2
+app.post('/api/deploy-update', async (_req, res) => {
+  const { exec } = await import('child_process');
+  console.log('[Server Update] Triggered deploy update...');
+  res.json({ status: 'updating', message: 'Pulling latest code and restarting server...' });
+  exec('git pull && npm run build && pm2 restart all', (error, stdout, stderr) => {
+    console.log('[Server Update] Output:', stdout);
+    if (error) console.error('[Server Update] Error:', error);
+  });
+});
+
 // Real-time Socket.io logic
 io.on('connection', (socket: Socket) => {
   console.log(`[Socket] Connected: ${socket.id}`);
