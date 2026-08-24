@@ -508,7 +508,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 4,
     "powers": "Cartoon physics distortion, giant wooden mallet from pocket dimension, anvil dropping, spider-sense.",
     "description": "Spectacular porcine web-slinger from Earth-8311 who bends reality through cartoon comedy physics.",
-    "imageUrl": "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=800&q=80",
+    "imageUrl": "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=800&q=80",
     "color": "#BE123C",
     "stats": {
       "strength": 75,
@@ -538,7 +538,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 5,
     "powers": "Super Soldier Serum, Union Jack Vibranium Shield mastery, superhuman athleticism, military leadership.",
     "description": "First Avenger of Earth-82111 infused with the Super Soldier Serum wielding the Union Jack Vibranium Shield.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/156-captain-america.jpg",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/149-captain-america.jpg",
     "color": "#1E3A8A",
     "stats": {
       "strength": 80,
@@ -658,7 +658,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 4,
     "powers": "Gutterspace reality manipulation, fourth-wall breaking, comic lore knowledge, dual rocket launchers.",
     "description": "Real-world comic reader transported into the Marvel Universe who steps out of comic panels to alter reality.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/303-gwenpool.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1612036782180-6f0b6cd846fe?auto=format&fit=crop&w=800&q=80",
     "color": "#F472B6",
     "stats": {
       "strength": 68,
@@ -778,7 +778,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 5,
     "powers": "Symbiote-bonded soldier, multi-gun tactical mastery, military stealth, symbiote tendril weapons.",
     "description": "Decorated war hero Flash Thompson bonded with the Venom symbiote for covert military spec-ops missions.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/11-agent-venom.jpg",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/687-venom.jpg",
     "color": "#1E293B",
     "stats": {
       "strength": 82,
@@ -808,7 +808,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 4,
     "powers": "Spider-Man clone powers, impact webbing capsules, stingers, acrobatic combat mastery.",
     "description": "Beloved Peter Parker clone rocking the iconic blue sleeveless hoodie and impact web shooters.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/574-scarlet-spider.jpg",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/577-scarlet-spider.jpg",
     "color": "#DC2626",
     "stats": {
       "strength": 80,
@@ -838,7 +838,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 4,
     "powers": "The Other spider avatar, retractable wrist stingers, organic webbing, stealth camouflage suit.",
     "description": "Brutal Spider-Man clone who embraces his raw power with lethal wrist stingers and zero hesitation.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/575-scarlet-spider-ii.jpg",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/578-scarlet-spider-ii.jpg",
     "color": "#991B1B",
     "stats": {
       "strength": 84,

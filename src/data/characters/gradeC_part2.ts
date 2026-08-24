@@ -130,7 +130,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "War Machine Stark armor painted with skull, shoulder Gatling cannon, micro-missile arrays, laser repulsors.",
     "description": "Frank Castle equipped with a commandeered War Machine armor suit unleashing relentless military firepower.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/536-punisher.jpg",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/530-punisher.jpg",
     "color": "#1E293B",
     "stats": {
       "strength": 85,
@@ -220,7 +220,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Symbiote Hive-Mind Godhood, Necrosword axe, giant draconic necro-wings, cosmic symbiote control.",
     "description": "Eddie Brock after slaying Knull, ascending as the God of the Symbiotes wielding the cosmic hive-mind.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/687-venom.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=800&q=80",
     "color": "#0F172A",
     "stats": {
       "strength": 92,
@@ -310,7 +310,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Earth-65 radioactive spider abilities, interdimensional travel watch, drummer agility, web shooters.",
     "description": "Multiversal rock drummer superheroine Gwen Stacy leaping through dimensions with effortless style.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/622-spider-woman.jpg",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/619-spider-gwen.jpg",
     "color": "#F472B6",
     "stats": {
       "strength": 80,
@@ -340,7 +340,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Half-vampire physiology, titanium katana, silver stakes, UV grenades, vampire immunity.",
     "description": "Legendary half-vampire monster hunter wielding a titanium sword and customized silver arsenal.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/107-blade.jpg",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/95-blade.jpg",
     "color": "#991B1B",
     "stats": {
       "strength": 82,
@@ -370,7 +370,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 4,
     "powers": "Probability alteration (bad luck hex field), retractable claws, grappling hook, master thief gymnastics.",
     "description": "Charming master thief who projects a subconscious field of bad luck onto anyone who attacks her.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/106-black-cat.jpg",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/99-black-cat.jpg",
     "color": "#475569",
     "stats": {
       "strength": 74,
@@ -400,7 +400,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 4,
     "powers": "Pseudo-vampirism, echolocation, superhuman claws & fangs, gliding flight, hypnotic trance.",
     "description": "Nobel prize biochemist transformed into a living vampire with ravenous strength and echolocation.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/470-morbius.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1509248961158-e54f6934749c?auto=format&fit=crop&w=800&q=80",
     "color": "#1E293B",
     "stats": {
       "strength": 82,
@@ -460,7 +460,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 4,
     "powers": "Lycanthrope curse transformation, razor fangs, bone-crushing claws, accelerated healing factor.",
     "description": "Cursed warrior who transforms under the moon into a towering berserk werewolf with feral lethality.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/708-wolfsbane.jpg",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/716-wolfsbane.jpg",
     "color": "#78350F",
     "stats": {
       "strength": 84,
@@ -490,7 +490,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Guardian of the Nexus of All Realities, acid-secreting touch (Whatever Knows Fear Burns), plant regeneration.",
     "description": "Mystic swamp guardian of the dimensional nexus whose touch burns anyone experiencing fear.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/430-man-thing.jpg",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/428-man-thing.jpg",
     "color": "#065F46",
     "stats": {
       "strength": 88,
@@ -580,7 +580,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 4,
     "powers": "Super Soldier strength unaffected by pain or injury, fractured Vibranium shield, ravenous hunger.",
     "description": "Undead super soldier driven by the cosmic hunger, wielding his battle-damaged shield with grim ferocity.",
-    "imageUrl": "https://images.unsplash.com/photo-1509248961158-e54f6934749c?auto=format&fit=crop&w=800&q=80",
+    "imageUrl": "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?auto=format&fit=crop&w=800&q=80",
     "color": "#1E3A8A",
     "stats": {
       "strength": 82,
@@ -610,7 +610,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 4,
     "powers": "Damaged cybernetic armor, flickering repulsor beams, decaying genius intellect, hunger drive.",
     "description": "Decayed Tony Stark piloting a flickering, battle-scarred Iron Man suit powered by dark hunger.",
-    "imageUrl": "https://images.unsplash.com/photo-1519074069444-1ba4fff16def?auto=format&fit=crop&w=800&q=80",
+    "imageUrl": "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=800&q=80",
     "color": "#991B1B",
     "stats": {
       "strength": 84,
@@ -670,7 +670,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 4,
     "powers": "Avatar of Taweret, golden wings with razor flight edges, twin curved scimitar blades, divine shielding.",
     "description": "Egypt superhero avatar of Taweret wielding gleaming golden wings and twin mystical scimitars.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/461-moon-knight.jpg",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/470-moon-knight.jpg",
     "color": "#CA8A04",
     "stats": {
       "strength": 80,
@@ -730,7 +730,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Techno-organic razor wings, neural-toxin flechettes, supersonic aerial combat, Apocalyptic armor.",
     "description": "Warren Worthington transformed by Apocalypse with lethal metallic techno-organic razor wings.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/24-archangel.jpg",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/24-angel.jpg",
     "color": "#3B82F6",
     "stats": {
       "strength": 82,
@@ -790,7 +790,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Houngan voodoo sorcery, spirit brother Daniel Drumm possession, Staff of Legba, flame mastery.",
     "description": "Brother Voodoo, former Sorcerer Supreme who channels ancestral spirits and mystical Staff of Legba.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/227-doctor-voodoo.jpg",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/226-doctor-voodoo.jpg",
     "color": "#065F46",
     "stats": {
       "strength": 75,
@@ -820,7 +820,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Dual hand Adamantium claws + foot claws, hyper-accelerated healing factor, assassin agility.",
     "description": "Laura Kinney wearing the mantle of Wolverine with lightning acrobatic foot and hand claws.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/714-x-23.jpg",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/723-x-23.jpg",
     "color": "#EAB308",
     "stats": {
       "strength": 80,
@@ -880,7 +880,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Grendel ancient symbiote dragon bond, giant spiral spine blades, symbiote hive infection.",
     "description": "Cletus Kasady empowered by Knull symbiote dragon Grendel with massive bone blades and red spiral eyes.",
-    "imageUrl": "https://images.unsplash.com/photo-1579783901460-646700c98f82?auto=format&fit=crop&w=800&q=80",
+    "imageUrl": "https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=800&q=80",
     "color": "#7F1D1D",
     "stats": {
       "strength": 90,
@@ -940,7 +940,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 4,
     "powers": "Flawless lethal marksmanship, dual katana assassination, Hand ninja gymnastics, pressure point strikes.",
     "description": "Deadly assassin inspired by Bullseye who combines pinpoint projectile accuracy with lethal Hand swordplay.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/149-bullseye.jpg",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/141-bullseye.jpg",
     "color": "#E2E8F0",
     "stats": {
       "strength": 70,
@@ -970,7 +970,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "1000th symbiote lineage strength (stronger than Venom and Carnage combined), toxic bite, camouflage.",
     "description": "Spawn of Carnage bonded with NYPD cop Patrick Mulligan, naturally surpassing both Venom and Carnage.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/667-toxin.jpg",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/671-toxin.jpg",
     "color": "#B91C1C",
     "stats": {
       "strength": 88,
@@ -1000,7 +1000,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Tachyon field generator katana (cuts through all matter except Adamantium), samurai armor, shurikens.",
     "description": "Master mutant swordsman charging his katana with a tachyon energy field that slices through any material.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/598-silver-samurai.jpg",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/596-silver-samurai.jpg",
     "color": "#94A3B8",
     "stats": {
       "strength": 80,
@@ -1030,7 +1030,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Hyper-sensitive Silk-sense, fingertip organic webbing spinning, faster than Peter Parker agility.",
     "description": "Bitten by the exact same radioactive spider as Peter Parker, with superior agility and organic webbing.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/597-silk.jpg",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/595-silk.jpg",
     "color": "#E11D48",
     "stats": {
       "strength": 78,
