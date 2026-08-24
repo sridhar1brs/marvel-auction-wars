@@ -189,3 +189,183 @@ export function getSynergyBonusForCharacter(character: Character, synergies: Syn
 
   return totalBonus;
 }
+
+// 12 Iconic Marvel Tag-Team Dual Combos
+export interface TagTeamCombo {
+  id: string;
+  hero1Name: string;
+  hero2Name: string;
+  comboTitle: string;
+  comboDescription: string;
+  bonusDualDamage: number;
+  bannerColor: string;
+  auraType: 'cosmic' | 'lightning' | 'gamma' | 'chaos' | 'symbiote' | 'fire';
+}
+
+export const TAG_TEAM_COMBOS: TagTeamCombo[] = [
+  {
+    id: 'combo-avengers-trinity',
+    hero1Name: 'Iron Man',
+    hero2Name: 'Captain America',
+    comboTitle: 'AVENGERS ASSEMBLE: SHIELD REPULSOR OVERLOAD',
+    comboDescription: 'Iron Man fires unibeams directly off Captain America\'s Vibranium Shield, creating a 360-degree refracted energy super-blast!',
+    bonusDualDamage: 22,
+    bannerColor: '#DC2626',
+    auraType: 'lightning',
+  },
+  {
+    id: 'combo-weapon-x',
+    hero1Name: 'Wolverine',
+    hero2Name: 'Deadpool',
+    comboTitle: 'WEAPON X: MAXIMUM BERSERKER BARRAGE',
+    comboDescription: 'Wolverine and Deadpool unleash an unstoppable whirlwind of dual adamantium katanas and claws with dual healing factors!',
+    bonusDualDamage: 24,
+    bannerColor: '#E11D48',
+    auraType: 'chaos',
+  },
+  {
+    id: 'combo-asgardian-gods',
+    hero1Name: 'Thor',
+    hero2Name: 'Loki',
+    comboTitle: 'ASGARDIAN THUNDER & ILLUSION GOD-STRIKE',
+    comboDescription: 'Loki confuses the foe with 10 mirrored illusions while Thor drops a catastrophic Mjolnir lightning bolt from above!',
+    bonusDualDamage: 22,
+    bannerColor: '#0284C7',
+    auraType: 'lightning',
+  },
+  {
+    id: 'combo-lethal-protectors',
+    hero1Name: 'Spider-Man',
+    hero2Name: 'Venom',
+    comboTitle: 'MAXIMUM CARNAGE: SYMBIOTE WEB LAUNCH',
+    comboDescription: 'Venom catapults Spider-Man wrapped in dense symbiote webbing for a supersonic concussive dropkick!',
+    bonusDualDamage: 20,
+    bannerColor: '#334155',
+    auraType: 'symbiote',
+  },
+  {
+    id: 'combo-chaos-mystics',
+    hero1Name: 'Doctor Strange',
+    hero2Name: 'Scarlet Witch',
+    comboTitle: 'CHAOS MYSTIC REALITY TEAR',
+    comboDescription: 'Doctor Strange opens the Mirror Dimension while Wanda floods it with raw Chaos Magic, warping space-time to crush the target!',
+    bonusDualDamage: 26,
+    bannerColor: '#7C3AED',
+    auraType: 'chaos',
+  },
+  {
+    id: 'combo-cosmic-annihilation',
+    hero1Name: 'Thanos',
+    hero2Name: 'Knull',
+    comboTitle: 'COSMIC MULTIVERSE OBLIVION',
+    comboDescription: 'The Mad Titan channels the Infinity Gauntlet alongside the All-Black Necrosword, severing the fabric of existence!',
+    bonusDualDamage: 30,
+    bannerColor: '#881337',
+    auraType: 'cosmic',
+  },
+  {
+    id: 'combo-gamma-titans',
+    hero1Name: 'Hulk',
+    hero2Name: 'She-Hulk',
+    comboTitle: 'GAMMA WORLD-BREAKER EARTHQUAKE',
+    comboDescription: 'Bruce and Jennifer smash the tectonic plates simultaneously, triggering a Richter-10 gamma shockwave across the arena!',
+    bonusDualDamage: 24,
+    bannerColor: '#15803D',
+    auraType: 'gamma',
+  },
+  {
+    id: 'combo-mutant-genesis',
+    hero1Name: 'Magneto',
+    hero2Name: 'Professor X',
+    comboTitle: 'MUTANT GENESIS: PSY-MAGNETIC PULSE',
+    comboDescription: 'Charles paralyzes the opponent\'s mind while Magneto collapses dense magnetic iron filings into a crushing singularity!',
+    bonusDualDamage: 25,
+    bannerColor: '#9333EA',
+    auraType: 'chaos',
+  },
+  {
+    id: 'combo-guardians-blaster',
+    hero1Name: 'Star-Lord',
+    hero2Name: 'Rocket Raccoon',
+    comboTitle: 'HADRON ENFORCER MOON-SHATTER CANNON',
+    comboDescription: 'Rocket mounts Peter\'s shoulders wielding a customized Hadron Enforcer particle cannon with double plasma yield!',
+    bonusDualDamage: 21,
+    bannerColor: '#EA580C',
+    auraType: 'cosmic',
+  },
+  {
+    id: 'combo-hells-kitchen',
+    hero1Name: 'Daredevil',
+    hero2Name: 'The Punisher',
+    comboTitle: 'HELL\'S KITCHEN SUPREME RETRIBUTION',
+    comboDescription: 'Daredevil disarms the enemy at close quarters while Frank Castle unloads high-caliber armor-piercing artillery!',
+    bonusDualDamage: 18,
+    bannerColor: '#991B1B',
+    auraType: 'fire',
+  },
+  {
+    id: 'combo-wakandan-royalty',
+    hero1Name: 'Black Panther',
+    hero2Name: 'Storm',
+    comboTitle: 'WAKANDAN ROYAL TEMPEST',
+    comboDescription: 'Ororo calls down hurricane gale winds while T\'Challa detonates an overcharged kinetic vibranium energy pulse!',
+    bonusDualDamage: 23,
+    bannerColor: '#6366F1',
+    auraType: 'lightning',
+  },
+  {
+    id: 'combo-midnight-knights',
+    hero1Name: 'Ghost Rider',
+    hero2Name: 'Blade',
+    comboTitle: 'DAMNATION HELLFIRE BLADE',
+    comboDescription: 'Ghost Rider ignites Blade\'s titanium broadsword with eternal Hellfire, delivering an unholy soul-scorching slice!',
+    bonusDualDamage: 22,
+    bannerColor: '#F97316',
+    auraType: 'fire',
+  }
+];
+
+export function getActiveTagTeamCombos(collection: Character[]): TagTeamCombo[] {
+  const active: TagTeamCombo[] = [];
+  if (!collection || !Array.isArray(collection)) return active;
+  const names = collection.filter(Boolean).map(c => (c.name || '').toLowerCase());
+
+  TAG_TEAM_COMBOS.forEach(combo => {
+    const hasH1 = names.some(n => n.includes(combo.hero1Name.toLowerCase()) || combo.hero1Name.toLowerCase().includes(n));
+    const hasH2 = names.some(n => n.includes(combo.hero2Name.toLowerCase()) || combo.hero2Name.toLowerCase().includes(n));
+    if (hasH1 && hasH2) {
+      active.push(combo);
+    }
+  });
+
+  return active;
+}
+
+export function getFighterTagTeamCombo(fighter: Character, team: Character[]): TagTeamCombo | null {
+  if (!fighter || !fighter.name || !team || !Array.isArray(team)) return null;
+  const fighterName = fighter.name.toLowerCase();
+  const teamNames = team.filter(Boolean).map(c => (c.name || '').toLowerCase());
+
+  for (const combo of TAG_TEAM_COMBOS) {
+    const h1 = combo.hero1Name.toLowerCase();
+    const h2 = combo.hero2Name.toLowerCase();
+
+    const isH1 = fighterName.includes(h1) || h1.includes(fighterName);
+    const isH2 = fighterName.includes(h2) || h2.includes(fighterName);
+
+    if (isH1) {
+      // Check if partner h2 is on the team
+      if (teamNames.some(n => n.includes(h2) || h2.includes(n))) {
+        return combo;
+      }
+    } else if (isH2) {
+      // Check if partner h1 is on the team
+      if (teamNames.some(n => n.includes(h1) || h1.includes(n))) {
+        return combo;
+      }
+    }
+  }
+
+  return null;
+}
+

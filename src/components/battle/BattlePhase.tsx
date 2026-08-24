@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
-import { TournamentMatch, GameState, BattleActionType, Character } from '../../types/game';
+import { TournamentMatch, GameState, BattleActionType, Character, ArenaBackgroundId } from '../../types/game';
 import { CombatClash } from './CombatClash';
 import { CharacterPortrait } from '../common/CharacterPortrait';
+import { UltimateAnimationOverlay } from '../common/UltimateAnimationOverlay';
+import { FloatingReactions } from '../common/FloatingReactions';
+import { getFighterTagTeamCombo, TagTeamCombo } from '../../engine/synergyEngine';
 import { 
   Swords, Trophy, ArrowRight, Zap, Shield, Sparkles, Heart, Flame, 
-  Crosshair, ShieldAlert, Cpu, Activity, Skull
+  Crosshair, ShieldAlert, Cpu, Activity, Skull, MapPin, Eye
 } from 'lucide-react';
 import { soundManager } from '../../audio/soundManager';
+import { playSound } from '../../audio/soundEffects';
 
 interface Props {
   state: GameState;
@@ -29,6 +33,23 @@ export function BattlePhase({
   const [p1Action, setP1Action] = useState<BattleActionType>('ATTACK');
   const [p2Action, setP2Action] = useState<BattleActionType>('ATTACK');
   const [isClashing, setIsClashing] = useState(false);
+  const [arenaBg, setArenaBg] = useState<ArenaBackgroundId>('wakanda');
+  const [ultimateOverlay, setUltimateOverlay] = useState<{
+    isOpen: boolean;
+    type: 'special' | 'dual_strike' | 'boss_ultimate' | 'relic';
+    heroName: string;
+    partnerHeroName?: string;
+    abilityTitle: string;
+    description: string;
+    bannerColor?: string;
+    damageBonus?: number;
+  }>({
+    isOpen: false,
+    type: 'special',
+    heroName: '',
+    abilityTitle: '',
+    description: ''
+  });
 
   if (!match || !match.player1 || !match.player2) {
     return (
@@ -125,19 +146,72 @@ export function BattlePhase({
   const p1LivingCount = p1.collection.filter(c => (c.currentHp === undefined || c.currentHp > 0)).length;
   const p2LivingCount = p2.collection.filter(c => (c.currentHp === undefined || c.currentHp > 0)).length;
 
+  const p1Combo = getFighterTagTeamCombo(p1SelectedHero, p1.collection);
+  const p2Combo = getFighterTagTeamCombo(p2SelectedHero, p2.collection);
+
+  const getArenaBackdropClass = () => {
+    switch (arenaBg) {
+      case 'asgard':
+        return 'from-amber-950/80 via-slate-950/95 to-black border-amber-500/40 shadow-glow-gold';
+      case 'quantum':
+        return 'from-indigo-950/80 via-slate-950/95 to-black border-indigo-500/40 shadow-glow-cosmic';
+      case 'avengers':
+        return 'from-slate-900/80 via-slate-950/95 to-black border-red-500/40 shadow-glow-red';
+      case 'knowhere':
+        return 'from-rose-950/80 via-slate-950/95 to-black border-purple-500/40 shadow-glow-cosmic';
+      case 'wakanda':
+      default:
+        return 'from-purple-950/80 via-slate-950/95 to-black border-purple-500/40 shadow-glow-cosmic';
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-3 sm:px-6 py-6 space-y-8 animate-fadeIn">
       
-      {/* 1. ARENA TITAN BANNER & SCOREBOARD */}
-      <div className="relative rounded-3xl p-5 sm:p-7 border border-white/15 bg-gradient-to-r from-red-950/70 via-black/90 to-blue-950/70 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 backdrop-blur-xl">
+      {/* 1. ARENA TITAN BANNER & SCOREBOARD & ARENA SELECTOR */}
+      <div className={`relative rounded-3xl p-5 sm:p-7 border bg-gradient-to-r ${getArenaBackdropClass()} shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 backdrop-blur-xl transition-all duration-500`}>
         <div className="absolute inset-0 scanlines opacity-20 pointer-events-none" />
         
         {/* Left: Tournament & Match Tier */}
         <div className="relative z-10 text-center md:text-left space-y-1">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-red-900/60 border border-red-500/50 text-[11px] font-black uppercase text-red-200 tracking-widest">
-            <Swords className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-            <span>{match.roundName} BATTLE ARENA • DEATHMATCH</span>
+          <div className="flex items-center gap-2 flex-wrap justify-center md:justify-start">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-red-900/60 border border-red-500/50 text-[11px] font-black uppercase text-red-200 tracking-widest">
+              <Swords className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              <span>{match.roundName} BATTLE ARENA • DEATHMATCH</span>
+            </div>
+
+            {/* Arena Switcher */}
+            <div className="flex items-center gap-1 bg-black/60 p-1 rounded-full border border-white/10 text-[10px] font-bold">
+              <span className="text-gray-400 pl-1.5 flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-amber-400" />
+              </span>
+              <button 
+                onClick={() => setArenaBg('wakanda')} 
+                className={`px-2 py-0.5 rounded-full transition-colors ${arenaBg === 'wakanda' ? 'bg-purple-600 text-white font-black' : 'text-gray-400 hover:text-white'}`}
+              >
+                Wakanda
+              </button>
+              <button 
+                onClick={() => setArenaBg('asgard')} 
+                className={`px-2 py-0.5 rounded-full transition-colors ${arenaBg === 'asgard' ? 'bg-amber-600 text-white font-black' : 'text-gray-400 hover:text-white'}`}
+              >
+                Asgard
+              </button>
+              <button 
+                onClick={() => setArenaBg('quantum')} 
+                className={`px-2 py-0.5 rounded-full transition-colors ${arenaBg === 'quantum' ? 'bg-indigo-600 text-white font-black' : 'text-gray-400 hover:text-white'}`}
+              >
+                Quantum
+              </button>
+              <button 
+                onClick={() => setArenaBg('knowhere')} 
+                className={`px-2 py-0.5 rounded-full transition-colors ${arenaBg === 'knowhere' ? 'bg-rose-600 text-white font-black' : 'text-gray-400 hover:text-white'}`}
+              >
+                Knowhere
+              </button>
+            </div>
           </div>
+
           <h1 className="font-heading font-black text-3xl sm:text-4xl text-white tracking-tight drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)]">
             {p1.name} <span className="text-red-500 text-2xl font-mono">VS</span> {p2.name}
           </h1>
@@ -349,6 +423,42 @@ export function BattlePhase({
                     </div>
                     <span className="text-[10px] text-slate-400 block mt-0.5">Equipped artifact & cosmic boost</span>
                   </button>
+
+                  {/* 5. Tag-Team Dual Strike (Unlocked via Synergy) */}
+                  {p1Combo && (
+                    <button
+                      onClick={() => {
+                        soundManager.playClick();
+                        setP1Action('DUAL_STRIKE');
+                        setUltimateOverlay({
+                          isOpen: true,
+                          type: 'dual_strike',
+                          heroName: p1SelectedHero.name,
+                          partnerHeroName: p1Combo.hero2Name === p1SelectedHero.name ? p1Combo.hero1Name : p1Combo.hero2Name,
+                          abilityTitle: p1Combo.comboTitle,
+                          description: p1Combo.comboDescription,
+                          bannerColor: p1Combo.bannerColor,
+                          damageBonus: p1Combo.bonusDualDamage
+                        });
+                      }}
+                      className={`col-span-1 sm:col-span-2 p-3 rounded-xl border text-left transition-all ${
+                        p1Action === 'DUAL_STRIKE'
+                          ? 'bg-gradient-to-r from-red-950 via-amber-900 to-purple-950 border-amber-400 ring-2 ring-amber-400 shadow-glow-gold scale-[1.02]'
+                          : 'bg-gradient-to-r from-red-950/60 to-purple-950/60 border-amber-500/50 hover:border-amber-400 text-amber-200 animate-pulse'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 font-heading font-black text-xs text-amber-300 truncate">
+                          <Flame className="w-4 h-4 text-amber-400 shrink-0 animate-bounce" />
+                          <span className="truncate">🔥 {p1Combo.comboTitle}</span>
+                        </div>
+                        <span className="text-[10px] bg-red-950 text-red-300 font-extrabold px-2 py-0.5 rounded border border-red-500/40 shrink-0">
+                          +{p1Combo.bonusDualDamage} DMG
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-gray-300 block mt-0.5 truncate">{p1Combo.comboDescription}</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -517,6 +627,42 @@ export function BattlePhase({
                     </div>
                     <span className="text-[10px] text-slate-400 block mt-0.5">Equipped artifact & cosmic boost</span>
                   </button>
+
+                  {/* 5. P2 Tag-Team Dual Strike (Unlocked via Synergy) */}
+                  {p2Combo && !p2.isBot && (
+                    <button
+                      onClick={() => {
+                        soundManager.playClick();
+                        setP2Action('DUAL_STRIKE');
+                        setUltimateOverlay({
+                          isOpen: true,
+                          type: 'dual_strike',
+                          heroName: p2SelectedHero.name,
+                          partnerHeroName: p2Combo.hero2Name === p2SelectedHero.name ? p2Combo.hero1Name : p2Combo.hero2Name,
+                          abilityTitle: p2Combo.comboTitle,
+                          description: p2Combo.comboDescription,
+                          bannerColor: p2Combo.bannerColor,
+                          damageBonus: p2Combo.bonusDualDamage
+                        });
+                      }}
+                      className={`col-span-1 sm:col-span-2 p-3 rounded-xl border text-left transition-all ${
+                        p2Action === 'DUAL_STRIKE'
+                          ? 'bg-gradient-to-r from-blue-950 via-purple-900 to-amber-950 border-amber-400 ring-2 ring-amber-400 shadow-glow-gold scale-[1.02]'
+                          : 'bg-gradient-to-r from-blue-950/60 to-purple-950/60 border-amber-500/50 hover:border-amber-400 text-amber-200 animate-pulse'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 font-heading font-black text-xs text-amber-300 truncate">
+                          <Flame className="w-4 h-4 text-amber-400 shrink-0 animate-bounce" />
+                          <span className="truncate">🔥 {p2Combo.comboTitle}</span>
+                        </div>
+                        <span className="text-[10px] bg-red-950 text-red-300 font-extrabold px-2 py-0.5 rounded border border-red-500/40 shrink-0">
+                          +{p2Combo.bonusDualDamage} DMG
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-gray-300 block mt-0.5 truncate">{p2Combo.comboDescription}</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -706,6 +852,22 @@ export function BattlePhase({
           </button>
         </div>
       )}
+
+      {/* 7. Full-Screen Ultimate Animations Overlay */}
+      <UltimateAnimationOverlay
+        isOpen={ultimateOverlay.isOpen}
+        type={ultimateOverlay.type}
+        heroName={ultimateOverlay.heroName}
+        partnerHeroName={ultimateOverlay.partnerHeroName}
+        abilityTitle={ultimateOverlay.abilityTitle}
+        description={ultimateOverlay.description}
+        bannerColor={ultimateOverlay.bannerColor}
+        damageBonus={ultimateOverlay.damageBonus}
+        onComplete={() => setUltimateOverlay(prev => ({ ...prev, isOpen: false }))}
+      />
+
+      {/* 8. Floating Comic Reactions Bar */}
+      <FloatingReactions playerName={isUserP1 ? p1.name : p2.name} />
 
     </div>
   );

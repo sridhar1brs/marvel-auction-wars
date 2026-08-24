@@ -92,18 +92,34 @@ export function VictoryScreen({ champion, state, onPlayAgain }: Props) {
             ))}
           </div>
 
-          {/* MVP Card Callout */}
+          {/* MVP Card Callout & Hall of Fame Spotlight */}
           {mvpChar && (
-            <div className="mt-4 p-3 bg-gradient-to-r from-purple-950/60 to-black/60 border border-purple-500/40 rounded-xl flex items-center gap-3">
-              <CharacterPortrait character={mvpChar} size="sm" showBadge={false} />
-              <div>
-                <span className="text-[10px] font-black uppercase text-purple-300 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-purple-400" />
-                  <span>MATCH MVP HERO</span>
+            <div className="mt-4 p-4 bg-gradient-to-r from-amber-950/70 via-purple-950/70 to-black/80 border-2 border-amber-400/60 rounded-2xl flex flex-col sm:flex-row items-center gap-4 shadow-glow-gold animate-pulse">
+              <div className="shrink-0 relative">
+                <CharacterPortrait character={mvpChar} size="md" showBadge={true} />
+                <span className="absolute -top-2 -right-2 bg-gradient-to-r from-amber-400 to-yellow-300 text-black text-[10px] font-black uppercase px-2 py-0.5 rounded-full shadow border border-white">
+                  👑 MVP
                 </span>
-                <h4 className="font-heading font-black text-sm text-white">
-                  {mvpChar.name} ({mvpChar.grade} Tier • Power {mvpChar.overallPower})
+              </div>
+              <div className="space-y-1 text-center sm:text-left flex-1 min-w-0">
+                <span className="text-[11px] font-black uppercase text-amber-300 flex items-center justify-center sm:justify-start gap-1">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>TOURNAMENT HALL OF FAME MVP CHAMPION</span>
+                </span>
+                <h4 className="font-heading font-black text-xl text-white truncate">
+                  {mvpChar.name}
                 </h4>
+                <p className="text-xs text-gray-300 italic line-clamp-1">
+                  "{mvpChar.alias || mvpChar.description}"
+                </p>
+                <div className="flex flex-wrap gap-2 pt-1 justify-center sm:justify-start">
+                  <span className="text-[10px] bg-amber-500/20 text-amber-300 font-extrabold px-2 py-0.5 rounded border border-amber-500/40">
+                    ⚡ {mvpChar.overallPower} POWER
+                  </span>
+                  <span className="text-[10px] bg-red-500/20 text-red-300 font-extrabold px-2 py-0.5 rounded border border-red-500/40">
+                    🩸 UNDEFEATED CHAMPION
+                  </span>
+                </div>
               </div>
             </div>
           )}

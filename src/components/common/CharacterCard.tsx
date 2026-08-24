@@ -1,6 +1,6 @@
 import { Character } from '../../types/game';
 import { CharacterPortrait } from './CharacterPortrait';
-import { Zap, Shield, Swords, Brain, Flame, DollarSign, Award } from 'lucide-react';
+import { Zap, Shield, Swords, Brain, Flame, DollarSign, Award, Gift, Sparkles } from 'lucide-react';
 import { getGradeBadgeClass } from '../../data/characters/index';
 import { getScaledStartingPrice } from '../../../server/auctionEngine';
 
@@ -20,6 +20,7 @@ export function CharacterCard({
   startingMoney = 30,
 }: Props) {
   const isMythic = character.grade === 'MYTHIC';
+  const isGradeA = character.grade === 'A';
   const displayStartingPrice = getScaledStartingPrice(character.startingPrice, startingMoney);
 
   const getCardBorder = () => {
@@ -40,12 +41,12 @@ export function CharacterCard({
   return (
     <div
       className={`relative rounded-2xl overflow-hidden transition-all duration-300 border flex flex-col ${
-        isMythic ? 'cosmic-panel' : 'glass-panel'
+        isMythic ? 'cosmic-panel holo-shimmer' : isGradeA ? 'glass-panel holo-shimmer' : 'glass-panel'
       } ${getCardBorder()} ${className} ${
         isSpotlight ? 'scale-[1.02] shadow-2xl ring-1 ring-white/20' : 'hover:scale-[1.01]'
       }`}
     >
-      {/* Top Banner with Grade & Price */}
+      {/* Top Banner with Grade & Price & Bounty */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-black/40 border-b border-white/10">
         <div className="flex items-center gap-2">
           <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${getGradeBadgeClass(character.grade)}`}>
@@ -54,6 +55,12 @@ export function CharacterCard({
           <span className="text-xs font-semibold text-slate-400">
             {character.alignment}
           </span>
+          {character.bounty && (
+            <span className="flex items-center gap-1 bg-amber-500/20 text-amber-300 border border-amber-500/50 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase animate-pulse">
+              <Gift className="w-3 h-3 text-amber-400" />
+              {character.bounty.label}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-1 bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-0.5 rounded-full text-emerald-300 font-bold text-xs shadow-sm">

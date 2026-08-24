@@ -45,8 +45,14 @@ export interface ArtifactItem {
     | 'freeze';
 }
 
-export type BattleActionType = 'ATTACK' | 'SPECIAL' | 'DEFEND' | 'ARTIFACT';
+export type BattleActionType = 'ATTACK' | 'SPECIAL' | 'DEFEND' | 'ARTIFACT' | 'DUAL_STRIKE';
 export type GradeVoteOption = CharacterGrade | 'MYSTERY';
+
+export interface BountyReward {
+  type: 'cash' | 'shield' | 'power';
+  value: number;
+  label: string;
+}
 
 export interface Character {
   id: string;
@@ -74,10 +80,26 @@ export interface Character {
   currentHp?: number;    // Default 100
   maxHp?: number;        // Default 100
   isFainted?: boolean;
+  bounty?: BountyReward;
 }
 
 export type BotPersonality = 'Aggressive' | 'Value' | 'Cosmic' | 'Balanced';
-export type GameMode = 'classic' | 'blind_bidding';
+export type GameMode = 'classic' | 'blind_bidding' | 'boss_raid' | 'blitz';
+export type ArenaBackgroundId = 'wakanda' | 'asgard' | 'quantum' | 'avengers' | 'knowhere';
+
+export interface BossRaidState {
+  bossId: 'galactus' | 'infinity_ultron';
+  bossName: string;
+  bossTitle: string;
+  bossHp: number;
+  bossMaxHp: number;
+  bossPhase: number;
+  bossSpecialMeter: number;
+  bossImageUrl: string;
+  combatLog: string[];
+  isDefeated: boolean;
+  isTeamWiped: boolean;
+}
 
 export interface Player {
   id: string;
@@ -136,6 +158,7 @@ export type GamePhase =
   | 'BATTLE_ROUND_RESULT'
   | 'MATCH_RESULT'
   | 'CHAMPION'
+  | 'BOSS_RAID'
   | 'ENCYCLOPEDIA'
   | 'HOW_TO_PLAY'
   | 'SANDBOX';

@@ -33,33 +33,33 @@ export const GRADE_C_PART2: Character[] = [
   },
   {
     "id": "char-c-042",
-    "name": "Infinity Ultron",
-    "alias": "Ultron (6 Infinity Stones)",
+    "name": "Awesome Android",
+    "alias": "Awesome Andy",
     "grade": "C",
-    "alignment": "Villain",
-    "startingPrice": 5,
-    "powers": "All 6 Infinity Stones, Vibranium/Adamantium body, cosmic lance, multiversal perception.",
-    "description": "Ultron bonded with the 6 Infinity Stones inside Vision body, wielding absolute cosmic destruction.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/680-ultron.jpg",
-    "color": "#991B1B",
+    "alignment": "Neutral",
+    "startingPrice": 4,
+    "powers": "Power mimicry through touch, superhuman strength, durable synthetic skin, wind gale generation.",
+    "description": "The Mad Thinker's creation capable of copying the superhuman abilities and powers of any hero he touches.",
+    "imageUrl": "https://images.unsplash.com/photo-1546776310-eef45dd6d63c?auto=format&fit=crop&w=800&q=80",
+    "color": "#64748B",
     "stats": {
-      "strength": 92,
-      "speed": 90,
-      "durability": 95,
-      "intelligence": 99,
-      "energy": 98,
-      "combat": 90
+      "strength": 82,
+      "speed": 60,
+      "durability": 85,
+      "intelligence": 55,
+      "energy": 60,
+      "combat": 70
     },
     "specialAbilities": [
       {
-        "name": "Six-Stone Cosmic Lance",
-        "description": "Channels all 6 Infinity Stones into an unstoppable beam through his double-bladed lance.",
+        "name": "Power Mimicry Touch",
+        "description": "Absorbs nearby superpowers to temporarily boost combat power.",
         "bonusPower": 5,
-        "triggerRate": 0.55,
-        "type": "attack"
+        "triggerRate": 0.5,
+        "type": "tactical"
       }
     ],
-    "overallPower": 87
+    "overallPower": 72
   },
   {
     "id": "char-c-043",
@@ -70,7 +70,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Enigma Force Uni-Power, matter transmutation, cosmic energy blasts, lightspeed flight.",
     "description": "Peter Parker endowed with the cosmic Uni-Power, transforming him into one of the most powerful beings in creation.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/620-spider-man.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=800&q=80",
     "color": "#1E3A8A",
     "stats": {
       "strength": 90,
@@ -100,7 +100,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 4,
     "powers": "Supercharged spider strength, unlimited organic black webbing, wall-crawling, aggressive combat.",
     "description": "Peter Parker bonded with the black alien symbiote, drastically boosting his physical strength and aggressive edge.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/620-spider-man.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1563089145-599997674d42?auto=format&fit=crop&w=800&q=80",
     "color": "#0F172A",
     "stats": {
       "strength": 84,
@@ -250,7 +250,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Futuristic genetic spider powers, talons, venomous fangs, accelerated vision, light-byte web cape.",
     "description": "Futuristic geneticist of Nueva York 2099 leading the Spider-Society with razor talons and light-byte cape.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/620-spider-man.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&w=800&q=80",
     "color": "#1D4ED8",
     "stats": {
       "strength": 84,
@@ -280,7 +280,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Bio-electric Venom Blast (Mega Venom Blast), spider-camouflage invisibility, web-swinging, spider-sense.",
     "description": "Brooklyn young hero equipped with devastating bio-electric venom strikes and optical camouflage.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/620-spider-man.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=800&q=80",
     "color": "#DC2626",
     "stats": {
       "strength": 82,
@@ -430,7 +430,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Centuries of dark magic mastery, Darkhold incantations, magic energy absorption, purple soul fire.",
     "description": "Ancient Salem witch who absorbs the magical energy of rival sorcerers into her purple dark magic spells.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/226-doctor-strange.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=800&q=80",
     "color": "#6B21A8",
     "stats": {
       "strength": 70,
@@ -520,7 +520,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 4,
     "powers": "Bloodstone choker gem (superhuman strength & immunity), customized monster-slaying shotguns, knives.",
     "description": "Charming, cynical English monster hunter wielding the Bloodstone gem and twin modified shotguns.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/107-blade.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80",
     "color": "#EA580C",
     "stats": {
       "strength": 78,
@@ -550,7 +550,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Interdimensional dark matter portals, infinite portal loops, space manipulation, dimensional punches.",
     "description": "Multiversal entity covered in living dark matter portals that redirect incoming attacks across dimensions.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/620-spider-man.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1550684376-efcbd6e3f031?auto=format&fit=crop&w=800&q=80",
     "color": "#0F172A",
     "stats": {
       "strength": 78,
@@ -580,7 +580,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 4,
     "powers": "Super Soldier strength unaffected by pain or injury, fractured Vibranium shield, ravenous hunger.",
     "description": "Undead super soldier driven by the cosmic hunger, wielding his battle-damaged shield with grim ferocity.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/156-captain-america.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1509248961158-e54f6934749c?auto=format&fit=crop&w=800&q=80",
     "color": "#1E3A8A",
     "stats": {
       "strength": 82,
@@ -610,7 +610,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 4,
     "powers": "Damaged cybernetic armor, flickering repulsor beams, decaying genius intellect, hunger drive.",
     "description": "Decayed Tony Stark piloting a flickering, battle-scarred Iron Man suit powered by dark hunger.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/346-iron-man.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1519074069444-1ba4fff16def?auto=format&fit=crop&w=800&q=80",
     "color": "#991B1B",
     "stats": {
       "strength": 84,
@@ -640,7 +640,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Super Soldier mastery, Hydra Vibranium shield, Cosmic Cube armor enhancement, tactical supremacy.",
     "description": "The ruthless Commander of Hydra who took over America with ruthless strategy and an angular shield.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/156-captain-america.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&q=80",
     "color": "#047857",
     "stats": {
       "strength": 84,
@@ -700,7 +700,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 4,
     "powers": "Living shadow physiology, morphing necro-claws, shadowy tendrils, god-hunting resilience.",
     "description": "Terrifying creature spawned from the All-Black Necrosword hunting deities across the cosmos.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/687-venom.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=800&q=80",
     "color": "#0F172A",
     "stats": {
       "strength": 84,
@@ -850,7 +850,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Spirit of Vengeance Hellfire + Galactus Power Cosmic, cosmic hellfire chains, space motorcycle.",
     "description": "Frank Castle endowed with both the Spirit of Vengeance and the Power Cosmic riding through the stars.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/280-ghost-rider.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?auto=format&fit=crop&w=800&q=80",
     "color": "#67E8F9",
     "stats": {
       "strength": 92,
@@ -880,7 +880,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Grendel ancient symbiote dragon bond, giant spiral spine blades, symbiote hive infection.",
     "description": "Cletus Kasady empowered by Knull symbiote dragon Grendel with massive bone blades and red spiral eyes.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/162-carnage.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1579783901460-646700c98f82?auto=format&fit=crop&w=800&q=80",
     "color": "#7F1D1D",
     "stats": {
       "strength": 90,
@@ -910,7 +910,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Toxic gas transmutation, death kinetic charge cards, bo staff mastery, black skin and white hair.",
     "description": "Gambit transformed into the Horseman of Death, charging cards with lethal black toxic transmutation energy.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/274-gambit.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80",
     "color": "#581C87",
     "stats": {
       "strength": 80,

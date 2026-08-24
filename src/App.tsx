@@ -15,6 +15,7 @@ import { BattleSandbox } from './components/sandbox/BattleSandbox';
 import { EquipmentShop } from './components/shop/EquipmentShop';
 import { GradeVotingModal } from './components/auction/GradeVotingModal';
 import { MarvelCinematicIntro } from './components/common/MarvelCinematicIntro';
+import { BossRaidArena } from './components/raid/BossRaidArena';
 import { GamePhase } from './types/game';
 import { soundManager } from './audio/soundManager';
 import { Sparkles, Swords, Film } from 'lucide-react';
@@ -92,13 +93,22 @@ export function App() {
           <HomeScreen
             onPlayLocal={() => {
               setIsOnlineMode(false);
-              updateLocalSettings({ gameMode: 'classic' });
+              updateLocalSettings({ gameMode: 'classic', auctionTimerSeconds: 15 });
               setPhase('LOCAL_SETUP');
             }}
             onPlayBlindBidding={() => {
               setIsOnlineMode(false);
-              updateLocalSettings({ gameMode: 'blind_bidding' });
+              updateLocalSettings({ gameMode: 'blind_bidding', auctionTimerSeconds: 15 });
               setPhase('LOCAL_SETUP');
+            }}
+            onPlayBlitz={() => {
+              setIsOnlineMode(false);
+              updateLocalSettings({ gameMode: 'blitz', auctionTimerSeconds: 5 });
+              setPhase('LOCAL_SETUP');
+            }}
+            onPlayBossRaid={() => {
+              setPreviousPhaseBeforeBrowse('HOME');
+              setPhase('BOSS_RAID');
             }}
             onPlayMultiplayer={() => {
               setIsOnlineMode(true);
@@ -283,6 +293,14 @@ export function App() {
         {state.phase === 'SANDBOX' && (
           <BattleSandbox
             onBack={() => setPhase(previousPhaseBeforeBrowse)}
+          />
+        )}
+
+        {/* 15. CO-OP BOSS RAID ARENA (PVE) */}
+        {state.phase === 'BOSS_RAID' && (
+          <BossRaidArena
+            players={state.players}
+            onExitRaid={() => setPhase('HOME')}
           />
         )}
       </main>

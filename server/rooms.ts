@@ -607,6 +607,8 @@ export class GameRoom {
     if (p1Action === 'SPECIAL' && p1Hero.specialAbilities?.[0]) {
       p1Bonus += p1Hero.specialAbilities[0].bonusPower || 14;
       p1AbilityTriggered = p1Hero.specialAbilities[0];
+    } else if (p1Action === 'DUAL_STRIKE') {
+      p1Bonus += 22; // Tag-Team Dual Strike synergy boost
     } else if (p1Action === 'ARTIFACT' && p1Hero.equippedArtifact) {
       p1Bonus += p1Hero.equippedArtifact.bonusPower || 12;
     }
@@ -614,6 +616,8 @@ export class GameRoom {
     if (p2Action === 'SPECIAL' && p2Hero.specialAbilities?.[0]) {
       p2Bonus += p2Hero.specialAbilities[0].bonusPower || 14;
       p2AbilityTriggered = p2Hero.specialAbilities[0];
+    } else if (p2Action === 'DUAL_STRIKE') {
+      p2Bonus += 22; // Tag-Team Dual Strike synergy boost
     } else if (p2Action === 'ARTIFACT' && p2Hero.equippedArtifact) {
       p2Bonus += p2Hero.equippedArtifact.bonusPower || 12;
     }

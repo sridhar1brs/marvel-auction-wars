@@ -220,12 +220,22 @@ export function simulateRoundDuel(
     }
   }
 
+  if (action1 === 'DUAL_STRIKE') {
+    p1Power += 15;
+    log.push(`🔥 ${char1.name} unleashes a devastating TAG-TEAM DUAL STRIKE! (+15 Power)`);
+  }
+  if (action2 === 'DUAL_STRIKE') {
+    p2Power += 15;
+    log.push(`🔥 ${char2.name} unleashes a devastating TAG-TEAM DUAL STRIKE! (+15 Power)`);
+  }
+
   // 7. Calculate Health Bar (HP) Depletion & Knockouts
   const powerDiff = Math.abs(finalP1 - finalP2);
-  let damageToLoser = Math.max(18, Math.min(42, Math.round(powerDiff * 2.6 + 20)));
+  let damageToLoser = Math.max(18, Math.min(48, Math.round(powerDiff * 2.6 + 20)));
 
   if (winnerId === player1.id) {
     if (action1 === 'SPECIAL') damageToLoser += 8;
+    if (action1 === 'DUAL_STRIKE') damageToLoser += 14;
     if (action2 === 'DEFEND') damageToLoser = Math.max(10, Math.round(damageToLoser * 0.5));
     p2Hp = Math.max(0, p2Hp - damageToLoser);
     char2.currentHp = p2Hp;
@@ -237,6 +247,7 @@ export function simulateRoundDuel(
     }
   } else {
     if (action2 === 'SPECIAL') damageToLoser += 8;
+    if (action2 === 'DUAL_STRIKE') damageToLoser += 14;
     if (action1 === 'DEFEND') damageToLoser = Math.max(10, Math.round(damageToLoser * 0.5));
     p1Hp = Math.max(0, p1Hp - damageToLoser);
     char1.currentHp = p1Hp;

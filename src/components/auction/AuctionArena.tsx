@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GameState, Player } from '../../types/game';
 import { CharacterCard } from '../common/CharacterCard';
 import { MysteryCrateCard } from '../common/MysteryCrateCard';
 import { PlayerHUD } from './PlayerHUD';
 import { AuctionTimer } from './AuctionTimer';
 import { BidControls } from './BidControls';
+import { FloatingReactions } from '../common/FloatingReactions';
 import { soundManager } from '../../audio/soundManager';
-import { Activity, Crown, Clock, ArrowRight, ShieldAlert, Sparkles, Columns, LayoutGrid, Lock, ShoppingBag } from 'lucide-react';
+import { playSound } from '../../audio/soundEffects';
+import { Activity, Crown, Clock, ArrowRight, ShieldAlert, Sparkles, Columns, LayoutGrid, Lock, ShoppingBag, Radio, Zap, Eye } from 'lucide-react';
 
 interface Props {
   state: GameState;
@@ -33,14 +35,39 @@ export function AuctionArena({
     state.players.find(p => !p.isBot)?.id || state.players[0]?.id || ''
   );
   const [isSplitScreen, setIsSplitScreen] = useState<boolean>(false);
+  const [empActiveUntil, setEmpActiveUntil] = useState<number>(0);
+  const [spyDroneActiveUntil, setSpyDroneActiveUntil] = useState<number>(0);
+  const [tacticalMessage, setTacticalMessage] = useState<string | null>(null);
 
   const char = state.auction.currentCharacter;
   const isBlindBidding = state.settings.gameMode === 'blind_bidding';
+  const isBlitz = state.settings.gameMode === 'blitz';
+
+  const isEmpGlitched = Date.now() < empActiveUntil;
+  const isSpyDroneScanning = Date.now() < spyDroneActiveUntil;
 
   // In Local mode, controlling player is chosen via turn or selector
   const controllingPlayer = isLocalMode
     ? (state.players.find(p => p.id === localTurnPlayerId) || state.players[0])
     : (state.players.find(p => p.id === socketId) || state.players[0]);
+
+  const handleTriggerEmp = (player: Player) => {
+    if (player.money < 3) return;
+    player.money -= 3;
+    playSound('clash');
+    setEmpActiveUntil(Date.now() + 2500);
+    setTacticalMessage(`⚡ ${player.name} detonated an EMP BLAST! Bidding systems jammed for 2.5s!`);
+    setTimeout(() => setTacticalMessage(null), 3000);
+  };
+
+  const handleTriggerSpyDrone = (player: Player) => {
+    if (player.money < 2) return;
+    player.money -= 2;
+    playSound('powerUp');
+    setSpyDroneActiveUntil(Date.now() + 5000);
+    setTacticalMessage(`📡 ${player.name} launched a SPY DRONE! Revealing opponent stashes for 5s!`);
+    setTimeout(() => setTacticalMessage(null), 5000);
+  };
 
   const eligiblePlayers = state.players.filter(
     p => p.collection.length < state.settings.characterLimit
@@ -302,6 +329,67 @@ export function AuctionArena({
               eligiblePlayersCount={eligiblePlayers.length}
             />
 
+            {/* Tactical Sabotage Tools (EMP Blast & Spy Drone) */}
+            <div className="glass-panel p-3 rounded-2xl border border-cyan-500/30 bg-slate-900/60 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black text-cyan-300 uppercase tracking-widest flex items-center gap-1">
+                  <Radio className="w-3.5 h-3.5 text-cyan-400" />
+                  Tactical Bidding Sabotage
+                </span>
+                <span className="text-[10px] text-gray-400 font-bold">1-Use Perks</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleTriggerEmp(controllingPlayer)}
+                  disabled={controllingPlayer.money < 3 || isEmpGlitched}
+                  className={`px-2.5 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all ${
+                    controllingPlayer.money >= 3 && !isEmpGlitched
+                      ? 'bg-gradient-to-r from-red-600 to-rose-600 hover:brightness-110 text-white border-red-400 shadow-glow-red'
+                      : 'bg-slate-800/60 text-gray-500 border-slate-700 cursor-not-allowed'
+                  }`}
+                  title="EMP Blast: Freeze opponents bidding buttons for 2.5s"
+                >
+                  <Zap className="w-3.5 h-3.5 text-yellow-300" />
+                  <span>⚡ EMP BLAST ($3)</span>
+                </button>
+
+                <button
+                  onClick={() => handleTriggerSpyDrone(controllingPlayer)}
+                  disabled={controllingPlayer.money < 2 || isSpyDroneScanning}
+                  className={`px-2.5 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all ${
+                    controllingPlayer.money >= 2 && !isSpyDroneScanning
+                      ? 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:brightness-110 text-white border-cyan-400 shadow-glow-blue'
+                      : 'bg-slate-800/60 text-gray-500 border-slate-700 cursor-not-allowed'
+                  }`}
+                  title="Spy Drone: Scan opponent funds & blind bids for 5s"
+                >
+                  <Eye className="w-3.5 h-3.5 text-cyan-300" />
+                  <span>📡 SPY DRONE ($2)</span>
+                </button>
+              </div>
+
+              {tacticalMessage && (
+                <div className="p-2 rounded-lg bg-cyan-950/80 border border-cyan-500/50 text-[11px] text-cyan-200 font-bold text-center animate-pulse">
+                  {tacticalMessage}
+                </div>
+              )}
+
+              {isSpyDroneScanning && (
+                <div className="p-2 rounded-lg bg-black/60 border border-emerald-500/50 text-[10px] space-y-1">
+                  <span className="font-extrabold text-emerald-400 block uppercase tracking-wider">📡 Spy Radar Active:</span>
+                  <div className="grid grid-cols-2 gap-1 text-slate-300">
+                    {state.players.map(p => (
+                      <div key={p.id} className="flex justify-between bg-black/40 px-1.5 py-0.5 rounded">
+                        <span>{p.name}:</span>
+                        <strong className="text-emerald-300">${p.money}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Live Bids History Feed */}
             <div className="glass-panel p-4 rounded-2xl border border-white/10">
               <div className="flex items-center gap-2 border-b border-white/10 pb-2 mb-3">
@@ -322,7 +410,7 @@ export function AuctionArena({
                     >
                       <span className="font-bold text-slate-200">{bid.playerName}</span>
                       <span className="font-extrabold text-emerald-400">
-                        {isBlindBidding && state.auction.isActive ? '[🔒 SEALED BID]' : `$${bid.amount}`}
+                        {isBlindBidding && state.auction.isActive && !isSpyDroneScanning ? '[🔒 SEALED BID]' : `$${bid.amount}`}
                       </span>
                     </div>
                   ))
@@ -332,6 +420,9 @@ export function AuctionArena({
           </div>
         </div>
       )}
+
+      {/* Floating Comic Reactions Drawer */}
+      <FloatingReactions playerName={controllingPlayer.name} />
     </div>
   );
 }

@@ -418,7 +418,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 5,
     "powers": "Radioactive spider physiology, anarchic electric guitar sonic riffs, wall-crawling, spider-sense.",
     "description": "Rockstar spider-anarchist from Earth-138 wielding an electric guitar that unleashes 15,000-volt sonic feedback chords.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/620-spider-man.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=800&q=80",
     "color": "#DC2626",
     "stats": {
       "strength": 78,
@@ -448,7 +448,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 4,
     "powers": "Noir spider abilities, trenchcoat dual revolvers, shadowy stealth, organic webbing.",
     "description": "Gritty 1930s Great Depression private eye wielding twin pistols and fighting mob syndicates in shadows.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/620-spider-man.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1635863138275-d9b33299680b?auto=format&fit=crop&w=800&q=80",
     "color": "#0F172A",
     "stats": {
       "strength": 76,
@@ -478,7 +478,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 4,
     "powers": "High-tech biomechanical SP//dr spider-mech, radioactive spider co-pilot, cyber-web cannons.",
     "description": "Genius teen pilot bonded psychic-link to the high-tech SP//dr armor mech with rapid web thrusters.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/620-spider-man.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80",
     "color": "#EF4444",
     "stats": {
       "strength": 82,
@@ -508,7 +508,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 4,
     "powers": "Cartoon physics distortion, giant wooden mallet from pocket dimension, anvil dropping, spider-sense.",
     "description": "Spectacular porcine web-slinger from Earth-8311 who bends reality through cartoon comedy physics.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/620-spider-man.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=800&q=80",
     "color": "#BE123C",
     "stats": {
       "strength": 75,
@@ -568,7 +568,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 5,
     "powers": "Stark nanotech armor, 4 golden mechanical waldoes, repulsor gliding, HUD tactical AI.",
     "description": "Peter Parker equipped with Tony Stark legendary nano-tech suit featuring 4 deadly golden spider legs.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/620-spider-man.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1604200213928-ba3cf4fc8436?auto=format&fit=crop&w=800&q=80",
     "color": "#B91C1C",
     "stats": {
       "strength": 82,
@@ -688,7 +688,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 5,
     "powers": "Spider-Man powers enhanced by Doc Ock intellect, 4 carbon-steel nano-spider arms, spider-bots network.",
     "description": "Doctor Octopus mind in Peter Parker body, fighting crime with ruthlessness and four mechanical legs.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/620-spider-man.jpg",
+    "imageUrl": "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=800&q=80",
     "color": "#991B1B",
     "stats": {
       "strength": 82,

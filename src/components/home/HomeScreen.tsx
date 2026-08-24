@@ -6,6 +6,8 @@ interface Props {
   onPlayLocal: () => void;
   onPlayBlindBidding: () => void;
   onPlayMultiplayer: () => void;
+  onPlayBossRaid?: () => void;
+  onPlayBlitz?: () => void;
   onOpenEncyclopedia: () => void;
   onOpenHowToPlay: () => void;
   onOpenSandbox: () => void;
@@ -17,13 +19,16 @@ export function HomeScreen({
   onPlayLocal,
   onPlayBlindBidding,
   onPlayMultiplayer,
+  onPlayBossRaid,
+  onPlayBlitz,
   onOpenEncyclopedia,
   onOpenHowToPlay,
   onOpenSandbox,
   onOpenRelicShop,
   onPlayIntro,
 }: Props) {
-  const handleAction = (cb: () => void) => {
+  const handleAction = (cb?: () => void) => {
+    if (!cb) return;
     soundManager.playClick();
     cb();
   };
@@ -57,22 +62,22 @@ export function HomeScreen({
         </p>
 
         <p className="text-xs sm:text-sm text-slate-300 max-w-xl mx-auto mt-4 leading-relaxed">
-          Start with custom funds ($10-$150). Bid against rivals on <strong>300 Marvel Characters</strong> across 4 competitive grades. Forge Team Synergies, equip Tactical Artifacts, and conquer the championship!
+          Start with custom funds ($10-$150). Bid against rivals on <strong>301 Marvel Characters</strong> across 4 competitive grades. Forge Team Synergies, equip Tactical Artifacts, and conquer the championship!
         </p>
       </div>
 
-      {/* Primary Action Buttons: Classic, Blind Bidding, and Multiplayer */}
-      <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl w-full mb-8">
+      {/* Primary Action Buttons: Classic, Blind Bidding, Blitz, Boss Raid, Multiplayer */}
+      <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 max-w-6xl w-full mb-8">
         {/* Play Classic Local */}
         <button
           onClick={() => handleAction(onPlayLocal)}
           className="group relative overflow-hidden bg-gradient-to-br from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white p-4 rounded-2xl border border-red-400/50 shadow-glow-red transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] flex flex-col justify-between text-left"
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="p-2.5 bg-black/40 rounded-xl border border-white/20">
-              <Users className="w-6 h-6 text-white" />
+            <div className="p-2 bg-black/40 rounded-xl border border-white/20">
+              <Users className="w-5 h-5 text-white" />
             </div>
-            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center group-hover:translate-x-0.5 transition-transform text-xs">
+            <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center group-hover:translate-x-0.5 transition-transform text-xs">
               →
             </div>
           </div>
@@ -80,7 +85,7 @@ export function HomeScreen({
             <span className="text-[10px] font-black text-red-200 uppercase tracking-widest block">
               SAME DEVICE / BOTS
             </span>
-            <h2 className="text-xl font-heading font-black tracking-wide text-white">
+            <h2 className="text-lg font-heading font-black tracking-wide text-white">
               CLASSIC MATCH
             </h2>
           </div>
@@ -92,10 +97,10 @@ export function HomeScreen({
           className="group relative overflow-hidden bg-gradient-to-br from-purple-700 to-indigo-900 hover:from-purple-600 hover:to-indigo-800 text-white p-4 rounded-2xl border border-purple-400/50 shadow-glow-cosmic transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] flex flex-col justify-between text-left"
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="p-2.5 bg-black/40 rounded-xl border border-white/20">
-              <Sparkles className="w-6 h-6 text-amber-400 animate-pulse" />
+            <div className="p-2 bg-black/40 rounded-xl border border-white/20">
+              <Sparkles className="w-5 h-5 text-amber-400 animate-pulse" />
             </div>
-            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center group-hover:translate-x-0.5 transition-transform text-xs">
+            <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center group-hover:translate-x-0.5 transition-transform text-xs">
               →
             </div>
           </div>
@@ -103,8 +108,54 @@ export function HomeScreen({
             <span className="text-[10px] font-black text-amber-300 uppercase tracking-widest block">
               100% MYSTERY CRATES
             </span>
-            <h2 className="text-xl font-heading font-black tracking-wide text-white">
+            <h2 className="text-lg font-heading font-black tracking-wide text-white">
               BLIND BIDDING
+            </h2>
+          </div>
+        </button>
+
+        {/* ⚡ Blitz Speed Draft Mode */}
+        <button
+          onClick={() => handleAction(onPlayBlitz)}
+          className="group relative overflow-hidden bg-gradient-to-br from-amber-600 to-yellow-800 hover:from-amber-500 hover:to-yellow-700 text-white p-4 rounded-2xl border border-amber-400/50 shadow-glow-gold transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] flex flex-col justify-between text-left"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="p-2 bg-black/40 rounded-xl border border-white/20">
+              <Zap className="w-5 h-5 text-yellow-300 animate-bounce" />
+            </div>
+            <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center group-hover:translate-x-0.5 transition-transform text-xs">
+              →
+            </div>
+          </div>
+          <div>
+            <span className="text-[10px] font-black text-yellow-200 uppercase tracking-widest block">
+              ⚡ 5-SEC FAST DRAFT
+            </span>
+            <h2 className="text-lg font-heading font-black tracking-wide text-white">
+              BLITZ AUCTION
+            </h2>
+          </div>
+        </button>
+
+        {/* 👹 Co-op Boss Raid Mode (PvE) */}
+        <button
+          onClick={() => handleAction(onPlayBossRaid)}
+          className="group relative overflow-hidden bg-gradient-to-br from-rose-700 to-slate-950 hover:from-rose-600 hover:to-slate-900 text-white p-4 rounded-2xl border border-rose-500/50 shadow-glow-red transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] flex flex-col justify-between text-left"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="p-2 bg-black/40 rounded-xl border border-white/20">
+              <Swords className="w-5 h-5 text-rose-300 animate-spin" />
+            </div>
+            <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center group-hover:translate-x-0.5 transition-transform text-xs">
+              →
+            </div>
+          </div>
+          <div>
+            <span className="text-[10px] font-black text-rose-200 uppercase tracking-widest block">
+              👹 PVE TITAN BATTLE
+            </span>
+            <h2 className="text-lg font-heading font-black tracking-wide text-white">
+              BOSS RAID (PVE)
             </h2>
           </div>
         </button>
@@ -115,10 +166,10 @@ export function HomeScreen({
           className="group relative overflow-hidden bg-gradient-to-br from-blue-700 to-slate-900 hover:from-blue-600 hover:to-slate-800 text-white p-4 rounded-2xl border border-blue-400/50 shadow-glow-blue transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] flex flex-col justify-between text-left"
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="p-2.5 bg-black/40 rounded-xl border border-white/20">
-              <Globe className="w-6 h-6 text-cyan-300" />
+            <div className="p-2 bg-black/40 rounded-xl border border-white/20">
+              <Globe className="w-5 h-5 text-cyan-300" />
             </div>
-            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center group-hover:translate-x-0.5 transition-transform text-xs">
+            <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center group-hover:translate-x-0.5 transition-transform text-xs">
               →
             </div>
           </div>
@@ -126,7 +177,7 @@ export function HomeScreen({
             <span className="text-[10px] font-black text-blue-200 uppercase tracking-widest block">
               2 TO 8 PLAYERS
             </span>
-            <h2 className="text-xl font-heading font-black tracking-wide text-white">
+            <h2 className="text-lg font-heading font-black tracking-wide text-white">
               MULTIPLAYER
             </h2>
           </div>

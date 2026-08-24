@@ -433,5 +433,23 @@ export const MYTHIC_CHARACTERS: Character[] = [
       { name: 'Gutterspace Ambush', description: 'Steps behind the panel to drop an unexpected weapon onto the enemy.', bonusPower: 8, triggerRate: 0.65, type: 'tactical' }
     ],
     overallPower: 92
+  },
+  {
+    id: 'char-m-026',
+    name: 'Infinity Ultron',
+    alias: 'Ultron (6 Infinity Stones)',
+    grade: 'MYTHIC',
+    alignment: 'Cosmic',
+    startingPrice: 32,
+    powers: 'Full 6 Infinity Stones mastery, multiversal awareness, galaxy-devouring energy blasts, synthetic vibranium immortality, instantaneous dimensional phasing.',
+    description: 'The supreme artificial intelligence bonded with Vision synthetic vibranium body and all 6 Infinity Stones, capable of slicing galaxies and threatening the entire Marvel Multiverse.',
+    imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
+    color: '#06B6D4',
+    stats: { strength: 99, speed: 99, durability: 99, intelligence: 100, energy: 100, combat: 98 },
+    specialAbilities: [
+      { name: 'Infinity Stone Omnipotence', description: 'Harnesses all 6 Infinity Stones simultaneously to disintegrate foes and rewrite reality.', bonusPower: 15, triggerRate: 0.8, type: 'cosmic' },
+      { name: 'Multiversal Timeline Cleave', description: 'Fires an energy beam capable of slicing planets, galaxies, and dimensions in half.', bonusPower: 12, triggerRate: 0.65, type: 'attack' }
+    ],
+    overallPower: 99
   }
 ];
