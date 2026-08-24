@@ -638,25 +638,32 @@ export function BattlePhase({
 
           {/* 4. MASSIVE UNLEASH CLASH BUTTON */}
           <div className="pt-6">
-            <button
-              onClick={handleExecuteRound}
-              disabled={isUserLocked}
-              className={`w-full py-5 rounded-3xl font-heading font-black text-lg sm:text-xl uppercase tracking-widest border-2 transition-all transform flex items-center justify-center gap-3 ${
-                isUserLocked
-                  ? 'bg-purple-950/80 border-purple-400/80 text-purple-200 shadow-glow-cosmic cursor-wait'
-                  : 'bg-gradient-to-r from-red-600 via-purple-600 to-rose-600 hover:from-red-500 hover:to-purple-500 text-white shadow-[0_0_40px_rgba(239,68,68,0.7)] border-amber-400 hover:scale-[1.01] active:scale-[0.99] animate-pulse'
-              }`}
-            >
-              <Swords className="w-6 h-6 text-amber-300 animate-spin" />
-              <span>
-                {isOnlineMode
-                  ? isUserLocked
-                    ? '⏳ MOVE LOCKED IN • WAITING FOR OPPONENT...'
-                    : `⚡ LOCK IN ${isUserP1 ? p1SelectedHero?.name : p2SelectedHero?.name}'S MOVE (${isUserP1 ? p1Action : p2Action}) ⚡`
-                  : `⚡ UNLEASH ROUND ${match.rounds.length + 1} CLASH! ⚡`}
-              </span>
-              <Swords className="w-6 h-6 text-amber-300 animate-spin" />
-            </button>
+            {isOnlineMode && !isUserP1 && !isUserP2 ? (
+              <div className="w-full py-5 rounded-3xl font-heading font-black text-sm sm:text-base uppercase tracking-widest bg-black/60 border border-white/20 text-slate-300 flex items-center justify-center gap-3">
+                <Swords className="w-5 h-5 text-amber-400 animate-spin" />
+                <span>👁️ SPECTATING DUEL • AWAITING {p1.name.toUpperCase()} & {p2.name.toUpperCase()} TO LOCK IN...</span>
+              </div>
+            ) : (
+              <button
+                onClick={handleExecuteRound}
+                disabled={isUserLocked}
+                className={`w-full py-5 rounded-3xl font-heading font-black text-lg sm:text-xl uppercase tracking-widest border-2 transition-all transform flex items-center justify-center gap-3 ${
+                  isUserLocked
+                    ? 'bg-purple-950/80 border-purple-400/80 text-purple-200 shadow-glow-cosmic cursor-wait'
+                    : 'bg-gradient-to-r from-red-600 via-purple-600 to-rose-600 hover:from-red-500 hover:to-purple-500 text-white shadow-[0_0_40px_rgba(239,68,68,0.7)] border-amber-400 hover:scale-[1.01] active:scale-[0.99] animate-pulse'
+                }`}
+              >
+                <Swords className="w-6 h-6 text-amber-300 animate-spin" />
+                <span>
+                  {isOnlineMode
+                    ? isUserLocked
+                      ? '⏳ MOVE LOCKED IN • WAITING FOR OPPONENT...'
+                      : `⚡ LOCK IN ${isUserP1 ? p1SelectedHero?.name : p2SelectedHero?.name}'S MOVE (${isUserP1 ? p1Action : p2Action}) ⚡`
+                    : `⚡ UNLEASH ROUND ${match.rounds.length + 1} CLASH! ⚡`}
+                </span>
+                <Swords className="w-6 h-6 text-amber-300 animate-spin" />
+              </button>
+            )}
           </div>
 
         </div>
