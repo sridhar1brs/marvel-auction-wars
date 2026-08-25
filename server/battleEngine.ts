@@ -222,6 +222,16 @@ export function simulateRoundDuel(
     }
   }
 
+  // 6. Dual Tag-Team Merged Fusion Overdrive Multiplier
+  if (char1.id.startsWith('fusion-')) {
+    p1Power += 8.0;
+    log.push(`⚡ DUAL COMBO OVERDRIVE: ${char1.name} executes synchronized tag-team combo strikes! (+8.0 Power)`);
+  }
+  if (char2.id.startsWith('fusion-')) {
+    p2Power += 8.0;
+    log.push(`⚡ DUAL COMBO OVERDRIVE: ${char2.name} executes synchronized tag-team combo strikes! (+8.0 Power)`);
+  }
+
   // 6. Random Roll Variance (0 to 6)
   let roll1 = Math.round((Math.random() * 6) * 10) / 10;
   let roll2 = Math.round((Math.random() * 6) * 10) / 10;

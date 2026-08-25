@@ -16,15 +16,15 @@ export function CharacterPortrait({ character, className = '', size = 'md', show
   const getDimensions = () => {
     switch (size) {
       case 'sm':
-        return 'w-12 h-12 rounded-lg';
+        return 'w-20 h-20 sm:w-24 sm:h-24 rounded-xl';
       case 'md':
-        return 'w-24 h-24 rounded-xl';
+        return 'w-28 h-28 sm:w-36 sm:h-36 rounded-xl';
       case 'lg':
-        return 'w-44 h-44 rounded-2xl';
+        return 'w-36 h-36 sm:w-44 sm:h-44 rounded-2xl';
       case 'xl':
-        return 'w-64 h-64 sm:w-72 sm:h-72 rounded-2xl';
+        return 'w-60 h-60 sm:w-72 sm:h-72 rounded-2xl';
       default:
-        return 'w-24 h-24 rounded-xl';
+        return 'w-28 h-28 sm:w-36 sm:h-36 rounded-xl';
     }
   };
 

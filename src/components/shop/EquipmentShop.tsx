@@ -143,30 +143,32 @@ export function EquipmentShop({
         </p>
 
         {/* Tab Toggle: Skill Vault (Step 1) vs Relic Vault (Step 2) */}
-        <div className="flex items-center justify-center gap-3 pt-3">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 pt-3">
           <button
+            type="button"
             onClick={() => {
               soundManager.playClick();
               setActiveTab('SKILL_VAULT');
             }}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl text-xs font-heading font-black tracking-wider transition-all border ${
+            className={`w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-heading font-black tracking-wider transition-all border cursor-pointer ${
               activeTab === 'SKILL_VAULT'
-                ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white border-cyan-400 shadow-glow-cosmic scale-105'
+                ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white border-cyan-400 shadow-glow-cosmic scale-[1.02]'
                 : 'bg-black/40 text-slate-400 border-white/10 hover:text-white'
             }`}
           >
             <Zap className="w-4 h-4 text-cyan-300" />
-            <span>1. HERO SKILL VAULT (5 SKILLS / HERO)</span>
+            <span>1. HERO SKILL VAULT (5 SKILLS)</span>
           </button>
 
           <button
+            type="button"
             onClick={() => {
               soundManager.playClick();
               setActiveTab('RELIC_VAULT');
             }}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl text-xs font-heading font-black tracking-wider transition-all border ${
+            className={`w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-heading font-black tracking-wider transition-all border cursor-pointer ${
               activeTab === 'RELIC_VAULT'
-                ? 'bg-gradient-to-r from-purple-600 to-amber-600 text-white border-amber-400 shadow-glow-gold scale-105'
+                ? 'bg-gradient-to-r from-purple-600 to-amber-600 text-white border-amber-400 shadow-glow-gold scale-[1.02]'
                 : 'bg-black/40 text-slate-400 border-white/10 hover:text-white'
             }`}
           >

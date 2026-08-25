@@ -21,7 +21,7 @@ export function PlayerHUD({
   isLocalMode,
 }: Props) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 w-full">
       {players.map(player => {
         const isHighestBidder = auction.highestBidderId === player.id;
         const isFull = player.collection.length >= settings.characterLimit;

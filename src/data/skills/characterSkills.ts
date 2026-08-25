@@ -81,6 +81,61 @@ const ICONIC_CHARACTER_SKILLS: Record<string, CharacterSkill[]> = {
 
 // Procedural dynamic skill generator for all 301 characters based on lore, archetype & powers
 export function getSkillsForCharacter(char: Character): CharacterSkill[] {
+  if (char.id.startsWith('fusion-')) {
+    return [
+      {
+        id: `sk-${char.id}-1`,
+        name: `💥 DUAL FINISHER: ${char.alias?.replace('⚡ ', '') || 'Harmonic Clash'}`,
+        description: `Unleashes coordinated dual strike dealing catastrophic amplified critical damage!`,
+        cost: 14,
+        icon: '💥',
+        bonusPower: 20,
+        triggerRate: 0.9,
+        effectType: 'critical'
+      },
+      {
+        id: `sk-${char.id}-2`,
+        name: `🛡️ HARMONIC CROSS-BARRIER`,
+        description: `Overlapping kinetic forcefields absorb incoming attacks and grant invulnerability.`,
+        cost: 12,
+        icon: '🛡️',
+        bonusPower: 16,
+        triggerRate: 0.85,
+        effectType: 'shield'
+      },
+      {
+        id: `sk-${char.id}-3`,
+        name: `⚡ SYNCHRONIZED PINCER BLITZ`,
+        description: `High-velocity duo flanking blitz completely bypassing enemy defense.`,
+        cost: 13,
+        icon: '⚡',
+        bonusPower: 18,
+        triggerRate: 0.85,
+        effectType: 'speed_evasion'
+      },
+      {
+        id: `sk-${char.id}-4`,
+        name: `🩸 DUO VITALITY RESONANCE`,
+        description: `Dual bio-frequency resonance rapidly siphons enemy life force to restore health.`,
+        cost: 14,
+        icon: '🩸',
+        bonusPower: 17,
+        triggerRate: 0.8,
+        effectType: 'lifesteal'
+      },
+      {
+        id: `sk-${char.id}-5`,
+        name: `🌌 OVERDRIVE MULTIVERSE SURGE`,
+        description: `Overclocks combined power outputs for an unstoppable cosmic shockwave!`,
+        cost: 15,
+        icon: '🌌',
+        bonusPower: 25,
+        triggerRate: 0.8,
+        effectType: 'tactical'
+      }
+    ];
+  }
+
   if (ICONIC_CHARACTER_SKILLS[char.id]) {
     return ICONIC_CHARACTER_SKILLS[char.id];
   }

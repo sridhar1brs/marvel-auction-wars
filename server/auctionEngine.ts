@@ -9,7 +9,10 @@ export interface AuctionValidationResult {
   timeRemaining?: number;
 }
 
-export function getScaledStartingPrice(basePrice: number, startingMoney: number = 30): number {
+export function getScaledStartingPrice(basePrice: number, startingMoney: number = 30, characterName?: string): number {
+  if (characterName && characterName.includes('The One-Above-All')) {
+    return startingMoney;
+  }
   const factor = startingMoney / 30;
   return Math.max(1, Math.round(basePrice * factor));
 }

@@ -17,6 +17,9 @@ import { SkillVaultPage } from './components/shop/SkillVaultPage';
 import { GradeVotingModal } from './components/auction/GradeVotingModal';
 import { MarvelCinematicIntro } from './components/common/MarvelCinematicIntro';
 import { BossRaidManager } from './components/raid/BossRaidManager';
+import { DungeonSetupModal } from './components/dungeon/DungeonSetupModal';
+import { DungeonArena } from './components/dungeon/DungeonArena';
+import { DungeonSettings } from './types/dungeon';
 import { GeminiChatbot } from './components/common/GeminiChatbot';
 import { GamePhase } from './types/game';
 import { soundManager } from './audio/soundManager';
@@ -49,6 +52,7 @@ export function App() {
   const [showHowToPlay, setShowHowToPlay] = useState(false);
   const [previousPhaseBeforeBrowse, setPreviousPhaseBeforeBrowse] = useState<GamePhase>('HOME');
   const [deviceView, setDeviceView] = useState<'pc' | 'phone'>('pc');
+  const [dungeonSettings, setDungeonSettings] = useState<DungeonSettings | null>(null);
 
   const handleNavigate = (targetPhase: GamePhase) => {
     soundManager.playClick();
@@ -92,10 +96,10 @@ export function App() {
       />
 
       {/* Main Content Router */}
-      <main className={`flex-1 relative z-20 transition-all duration-300 ${
+      <main className={`flex-1 relative z-20 transition-all duration-300 w-full overflow-x-hidden ${
         deviceView === 'phone'
           ? 'max-w-[430px] w-full mx-auto my-3 rounded-[36px] border-4 border-slate-700/80 shadow-[0_0_60px_rgba(0,0,0,0.95)] overflow-x-hidden bg-[#06080E] ring-1 ring-white/10'
-          : 'w-full'
+          : 'w-full overflow-x-hidden'
       }`}>
         {/* 1. HOME SCREEN */}
         {state.phase === 'HOME' && (
@@ -118,6 +122,11 @@ export function App() {
             onPlayBossRaid={() => {
               setPreviousPhaseBeforeBrowse('HOME');
               setPhase('BOSS_RAID');
+            }}
+            onPlayDungeon={() => {
+              setPreviousPhaseBeforeBrowse('HOME');
+              setDungeonSettings(null);
+              setPhase('DUNGEON');
             }}
             onPlayMultiplayer={() => {
               setIsOnlineMode(true);
@@ -321,6 +330,24 @@ export function App() {
           <BossRaidManager
             onExit={() => setPhase('HOME')}
           />
+        )}
+
+        {/* 16. ANCIENT RUINS DUNGEONS (1-300 WAVES & CONFIGURABLE MILESTONES) */}
+        {state.phase === 'DUNGEON' && (
+          !dungeonSettings ? (
+            <DungeonSetupModal
+              onStartDungeon={(settings) => setDungeonSettings(settings)}
+              onBack={() => setPhase(previousPhaseBeforeBrowse || 'HOME')}
+            />
+          ) : (
+            <DungeonArena
+              settings={dungeonSettings}
+              onExit={() => {
+                setDungeonSettings(null);
+                setPhase('HOME');
+              }}
+            />
+          )
         )}
       </main>
 

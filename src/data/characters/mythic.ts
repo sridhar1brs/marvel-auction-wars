@@ -114,16 +114,16 @@ export const MYTHIC_CHARACTERS: Character[] = [
     alias: 'Judge of the Multiverse',
     grade: 'MYTHIC',
     alignment: 'Cosmic',
-    startingPrice: 30,
+    startingPrice: 26,
     powers: 'Three-faced cosmic judgment, absolute cosmic authority, multiversal equilibrium enforcement.',
     description: 'The supreme arbiter tasked with safeguarding the balance across all parallel universes and timelines.',
     imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/9/98/Living_Tribunal_%28Multiverse%29_from_G.O.D.S._Vol_1_4_Cosmic_Homage_Variant_cover_001.jpg/revision/latest?cb=20231221230906',
     color: '#FBBF24',
-    stats: { strength: 100, speed: 95, durability: 100, intelligence: 100, energy: 100, combat: 95 },
+    stats: { strength: 96, speed: 92, durability: 96, intelligence: 97, energy: 97, combat: 93 },
     specialAbilities: [
-      { name: 'Tri-Face Judgment', description: 'Delivers an indisputable verdict of cosmic defeat.', bonusPower: 11, triggerRate: 0.75, type: 'cosmic' }
+      { name: 'Tri-Face Judgment', description: 'Delivers an authoritative verdict of cosmic discipline.', bonusPower: 8, triggerRate: 0.6, type: 'cosmic' }
     ],
-    overallPower: 99
+    overallPower: 96
   },
   {
     id: 'char-m-008',
@@ -440,16 +440,16 @@ export const MYTHIC_CHARACTERS: Character[] = [
     alias: 'Ultron (6 Infinity Stones)',
     grade: 'MYTHIC',
     alignment: 'Cosmic',
-    startingPrice: 32,
+    startingPrice: 25,
     powers: 'Full 6 Infinity Stones mastery, multiversal awareness, galaxy-devouring energy blasts, synthetic vibranium immortality, instantaneous dimensional phasing.',
     description: 'The supreme artificial intelligence bonded with Vision synthetic vibranium body and all 6 Infinity Stones, capable of slicing galaxies and threatening the entire Marvel Multiverse.',
     imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
     color: '#06B6D4',
-    stats: { strength: 99, speed: 99, durability: 99, intelligence: 100, energy: 100, combat: 98 },
+    stats: { strength: 97, speed: 95, durability: 97, intelligence: 98, energy: 98, combat: 95 },
     specialAbilities: [
-      { name: 'Infinity Stone Omnipotence', description: 'Harnesses all 6 Infinity Stones simultaneously to disintegrate foes and rewrite reality.', bonusPower: 15, triggerRate: 0.8, type: 'cosmic' },
-      { name: 'Multiversal Timeline Cleave', description: 'Fires an energy beam capable of slicing planets, galaxies, and dimensions in half.', bonusPower: 12, triggerRate: 0.65, type: 'attack' }
+      { name: 'Infinity Stone Blast', description: 'Harnesses the Infinity Stones into an overwhelming energy beam.', bonusPower: 8, triggerRate: 0.65, type: 'cosmic' },
+      { name: 'Multiversal Cleave', description: 'Fires a dimensional strike capable of sundering space-time.', bonusPower: 6, triggerRate: 0.5, type: 'attack' }
     ],
-    overallPower: 99
+    overallPower: 96
   }
 ];

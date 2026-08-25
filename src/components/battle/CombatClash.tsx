@@ -1,4 +1,5 @@
 import { BattleRound, Player } from '../../types/game';
+import { CharacterPortrait } from '../common/CharacterPortrait';
 import { Swords, Zap, Shield, Sparkles, Heart, Flame, Skull, Crosshair } from 'lucide-react';
 
 interface Props {
@@ -95,12 +96,7 @@ export function CombatClash({ round, player1, player2 }: Props) {
           {/* Large Hero Portrait & Title */}
           <div className="flex flex-col sm:flex-row items-center gap-5">
             <div className="relative shrink-0">
-              <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl bg-black">
-                <img src={p1.imageUrl} alt={p1.name} className="w-full h-full object-cover" />
-              </div>
-              <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border border-white shadow">
-                {p1.grade}
-              </span>
+              <CharacterPortrait character={p1} size="lg" />
             </div>
 
             <div className="text-center sm:text-left space-y-1 flex-1 min-w-0">
@@ -191,12 +187,7 @@ export function CombatClash({ round, player1, player2 }: Props) {
           {/* Large Hero Portrait & Title */}
           <div className="flex flex-col sm:flex-row items-center gap-5">
             <div className="relative shrink-0">
-              <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl bg-black">
-                <img src={p2.imageUrl} alt={p2.name} className="w-full h-full object-cover" />
-              </div>
-              <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border border-white shadow">
-                {p2.grade}
-              </span>
+              <CharacterPortrait character={p2} size="lg" />
             </div>
 
             <div className="text-center sm:text-left space-y-1 flex-1 min-w-0">

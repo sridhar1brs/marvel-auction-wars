@@ -163,18 +163,18 @@ export function AuctionArena({
       {/* MULTI-PLAYER SPLIT SCREEN VIEW (2, 3, 4+ PLAYERS) */}
       {isSplitScreen && humanPlayers.length >= 2 ? (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-            <div className="md:col-span-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+            <div className="lg:col-span-8">
               {char && (
                 <CharacterCard 
                   character={char} 
-                  size="sm" 
+                  size="lg" 
                   isSpotlight={true} 
                   startingMoney={state.settings.startingMoney} 
                 />
               )}
             </div>
-            <div className="md:col-span-4 glass-panel p-4 rounded-2xl border border-white/10">
+            <div className="lg:col-span-4 glass-panel p-4 sm:p-5 rounded-2xl border border-white/10 flex flex-col justify-center">
               <AuctionTimer
                 timeRemaining={state.auction.timeRemaining}
                 totalTime={state.settings.auctionTimerSeconds}

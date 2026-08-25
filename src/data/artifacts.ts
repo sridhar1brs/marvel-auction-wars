@@ -1,6 +1,25 @@
 import { ArtifactItem } from '../types/game';
 
 export const MARVEL_ARTIFACTS: ArtifactItem[] = [
+  // Healing Potions Category
+  {
+    id: 'art-heal-01',
+    name: 'Super Soldier Healing Serum',
+    cost: 3,
+    icon: '🧪',
+    description: 'Concentrated regenerative serum. Restores +40 HP to any chosen hero in tournament or dungeon battles!',
+    bonusPower: 3,
+    effectType: 'stat_boost',
+  },
+  {
+    id: 'art-heal-02',
+    name: 'Heart-Shaped Herb Elixir',
+    cost: 6,
+    icon: '🍷',
+    description: 'Ancestral Wakandan elixir of the Black Panther. Fully purges fatigue and grants +60 HP healing surge!',
+    bonusPower: 5,
+    effectType: 'stat_boost',
+  },
   // $1 Tier
   {
     id: 'art-001-1',

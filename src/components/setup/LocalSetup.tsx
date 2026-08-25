@@ -27,7 +27,7 @@ export function LocalSetup({
 
   const handleAddHuman = (e: React.FormEvent) => {
     e.preventDefault();
-    if (players.length >= 8) return;
+    if (players.length >= 10) return;
     const name = newPlayerName.trim() || `Player ${players.length + 1}`;
     soundManager.playClick();
     onAddPlayer(name, false, 'Balanced');
@@ -35,7 +35,7 @@ export function LocalSetup({
   };
 
   const handleAddBot = () => {
-    if (players.length >= 8) return;
+    if (players.length >= 10) return;
     soundManager.playClick();
     onAddPlayer('', true, botPersonality);
   };
@@ -57,7 +57,7 @@ export function LocalSetup({
 
         <div className="text-center flex-1 min-w-0">
           <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-red-400 bg-red-950/80 px-2.5 py-0.5 rounded-full border border-red-500/40 inline-block">
-            LOCAL MULTIPLAYER / PASS & PLAY
+            LOCAL MULTIPLAYER / PASS & PLAY (2 TO 10 PLAYERS)
           </span>
           <h1 className="text-xl sm:text-3xl font-heading font-black text-white uppercase tracking-wider mt-0.5 truncate">
             MATCH SETUP
@@ -70,17 +70,17 @@ export function LocalSetup({
       {/* Main Grid: Stacks vertically on Mobile/Phone, 2 columns on Desktop */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 items-start">
         
-        {/* Left Column: Player Roster (2 to 8 Players) */}
+        {/* Left Column: Player Roster (2 to 10 Players) */}
         <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-white/10 space-y-4">
           <div className="flex items-center justify-between border-b border-white/10 pb-3">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-red-500" />
               <h2 className="text-sm sm:text-base font-heading font-black text-white uppercase tracking-wide">
-                PLAYERS ({players.length} / 8)
+                PLAYERS ({players.length} / 10)
               </h2>
             </div>
             <span className="text-[11px] text-slate-400 font-semibold">
-              Min 2 players
+              Min 2 • Max 10 players
             </span>
           </div>
 

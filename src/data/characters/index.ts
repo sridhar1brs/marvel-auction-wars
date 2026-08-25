@@ -7,6 +7,7 @@ import { GRADE_B_PART2 } from './gradeB_part2';
 import { GRADE_C_CHARACTERS } from './gradeC';
 import { GRADE_C_PART2 } from './gradeC_part2';
 import { EXPANSION_50_CHARACTERS } from './expansion50';
+import { EXPANSION_49_CHARACTERS } from './expansion49';
 
 export const ALL_CHARACTERS: Character[] = [
   ...MYTHIC_CHARACTERS,
@@ -17,11 +18,12 @@ export const ALL_CHARACTERS: Character[] = [
   ...GRADE_C_CHARACTERS,
   ...GRADE_C_PART2,
   ...EXPANSION_50_CHARACTERS,
+  ...EXPANSION_49_CHARACTERS,
 ];
 
 // Verify character count during module load
-if (ALL_CHARACTERS.length !== 300) {
-  console.warn(`[MARVEL: AUCTION WARS] Expected 300 characters, found ${ALL_CHARACTERS.length}`);
+if (ALL_CHARACTERS.length !== 350) {
+  console.warn(`[MARVEL: AUCTION WARS] Expected 350 characters, found ${ALL_CHARACTERS.length}`);
 }
 
 export const CHARACTERS_BY_ID: Record<string, Character> = ALL_CHARACTERS.reduce(

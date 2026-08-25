@@ -1,17 +1,38 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TournamentMatch, GameState, BattleActionType, Character, ArenaBackgroundId } from '../../types/game';
 import { CombatClash } from './CombatClash';
 import { CharacterPortrait } from '../common/CharacterPortrait';
 import { UltimateAnimationOverlay } from '../common/UltimateAnimationOverlay';
 import { FloatingReactions } from '../common/FloatingReactions';
-import { getFighterTagTeamCombo, TagTeamCombo } from '../../engine/synergyEngine';
-import { getSkillsForCharacter } from '../../data/skills/characterSkills';
+import { CombatFXOverlay, CombatEffectType, ComicBurst } from './fx/CombatFXOverlay';
+import { Fighter2DSprite } from './fx/Fighter2DSprite';
+import { getSignatureMoveForCharacter } from '../../data/characterMoves';
+import { getFighterTagTeamCombo, TagTeamCombo, findPossibleTagTeamFusions, mergeUltimateCharacter } from '../../engine/synergyEngine';
+import { getSkillsForCharacter, CharacterSkill } from '../../data/skills/characterSkills';
 import { 
   Swords, Trophy, ArrowRight, Zap, Shield, Sparkles, Heart, Flame, 
-  Crosshair, ShieldAlert, Cpu, Activity, Skull, MapPin, Eye, Flag, FastForward
+  Crosshair, ShieldAlert, Cpu, Activity, Skull, MapPin, Eye, Flag, FastForward, CheckCircle2, TestTube2
 } from 'lucide-react';
 import { soundManager } from '../../audio/soundManager';
 import { playSound } from '../../audio/soundEffects';
+
+function detectHeroCombatEffect(hero?: Character): CombatEffectType {
+  if (!hero) return 'melee';
+  const name = (hero.name || '').toLowerCase();
+  const powers = (hero.powers || '').toLowerCase();
+  const desc = (hero.description || '').toLowerCase();
+  const all = `${name} ${powers} ${desc}`;
+
+  if (all.includes('claw') || all.includes('wolverine') || all.includes('blade') || all.includes('panther')) return 'claw';
+  if (all.includes('laser') || all.includes('repulsor') || all.includes('iron man') || all.includes('cyclops') || all.includes('vision')) return 'laser';
+  if (all.includes('lightning') || all.includes('thunder') || all.includes('thor') || all.includes('storm') || all.includes('electro')) return 'lightning';
+  if (all.includes('magic') || all.includes('sorcery') || all.includes('strange') || all.includes('wanda') || all.includes('scarlet')) return 'magic';
+  if (all.includes('cosmic') || all.includes('thanos') || all.includes('tribunal') || all.includes('galactus') || all.includes('surfer') || all.includes('phoenix')) return 'cosmic';
+  if (all.includes('fire') || all.includes('flame') || all.includes('torch') || all.includes('ghost rider')) return 'fire';
+  if (all.includes('symbiote') || all.includes('venom') || all.includes('carnage') || all.includes('knull')) return 'symbiote';
+  if (all.includes('shield') || all.includes('captain america')) return 'shield';
+  return 'melee';
+}
 
 interface Props {
   state: GameState;
@@ -39,6 +60,28 @@ export function BattlePhase({
   const [p2Action, setP2Action] = useState<BattleActionType>('ATTACK');
   const [isClashing, setIsClashing] = useState(false);
   const [arenaBg, setArenaBg] = useState<ArenaBackgroundId>('wakanda');
+  
+  // 2D Combat Animation & FX States
+  const [activeEffectType, setActiveEffectType] = useState<CombatEffectType>('none');
+  const [activeComicBurst, setActiveComicBurst] = useState<ComicBurst | null>(null);
+  const [activeSignatureMoveName, setActiveSignatureMoveName] = useState<string>('');
+  const [isSuperCutIn, setIsSuperCutIn] = useState(false);
+  const [superHeroName, setSuperHeroName] = useState('');
+  const [superHeroImageUrl, setSuperHeroImageUrl] = useState('');
+  const [superAbilityName, setSuperAbilityName] = useState('');
+  const [p1Attacking, setP1Attacking] = useState(false);
+  const [p2Attacking, setP2Attacking] = useState(false);
+  const [p1TakingHit, setP1TakingHit] = useState(false);
+  const [p2TakingHit, setP2TakingHit] = useState(false);
+
+  // Track 1-time skill usages per duel (Classic Match 1-time limit)
+  const [p1UsedSkillIds, setP1UsedSkillIds] = useState<string[]>([]);
+  const [p2UsedSkillIds, setP2UsedSkillIds] = useState<string[]>([]);
+
+  // Healing Potion (1x use per match)
+  const [p1UsedHealingPotion, setP1UsedHealingPotion] = useState(false);
+  const [healingPopup, setHealingPopup] = useState<string | null>(null);
+
   const [ultimateOverlay, setUltimateOverlay] = useState<{
     isOpen: boolean;
     type: 'special' | 'dual_strike' | 'boss_ultimate' | 'relic';
@@ -78,11 +121,11 @@ export function BattlePhase({
   const isUserP1 = isOnlineMode && controllingPlayerId ? (p1.id === controllingPlayerId) : true;
   const isUserP2 = isOnlineMode && controllingPlayerId ? (p2.id === controllingPlayerId) : false;
 
-  const hasP1Locked = !!match.player1Action;
-  const hasP2Locked = !!match.player2Action;
+  const hasP1Locked = !!match.player1Action || !!match.player1Ready;
+  const hasP2Locked = !!match.player2Action || !!match.player2Ready;
   const isUserLocked = isOnlineMode ? (isUserP1 ? hasP1Locked : isUserP2 ? hasP2Locked : false) : false;
 
-  // Automatically select first alive hero if current selection fainted
+  // Authoritative Hero Selection
   const p1SelectedHero: Character = p1.collection[p1HeroIdx] || p1.collection[0];
   const p2SelectedHero: Character = p2.collection[p2HeroIdx] || p2.collection[0];
 
@@ -118,21 +161,52 @@ export function BattlePhase({
       const liveHeroes = p2.collection
         .map((c, i) => ({ c, i }))
         .filter(({ c }) => (c.currentHp === undefined || c.currentHp > 0));
-      
+
       if (liveHeroes.length > 0) {
-        botHeroIdx = liveHeroes[Math.floor(Math.random() * liveHeroes.length)].i;
+        const chosen = liveHeroes[Math.floor(Math.random() * liveHeroes.length)];
+        botHeroIdx = chosen.i;
       }
+
       const actions: BattleActionType[] = ['ATTACK', 'SPECIAL', 'DEFEND', 'ARTIFACT'];
       botAction = actions[Math.floor(Math.random() * actions.length)];
     }
 
+    const move = getSignatureMoveForCharacter(p1SelectedHero);
+
     setIsClashing(true);
-    soundManager.playAttackHit();
+    setP1Attacking(true);
+    setActiveEffectType(move.effectType);
+    setActiveSignatureMoveName(`${p1SelectedHero.name}: ${move.moveName}`);
+    setActiveComicBurst({
+      id: String(Date.now()),
+      word: move.comicBurstWord,
+      x: 50,
+      y: 42,
+      color: move.color,
+      subText: `${p1SelectedHero.name}: ${move.moveName}`
+    });
+
+    if (p1Action === 'SPECIAL' || p1Action.startsWith('SKILL_') || p1SelectedHero.grade === 'MYTHIC') {
+      setIsSuperCutIn(true);
+      setSuperHeroName(p1SelectedHero.name);
+      setSuperHeroImageUrl(`/images/characters/${p1SelectedHero.id}.jpg`);
+      setSuperAbilityName(move.moveName || p1SelectedHero.specialAbilities?.[0]?.name || 'SUPER CRITICAL STRIKE!');
+      setTimeout(() => setIsSuperCutIn(false), 900);
+    }
 
     setTimeout(() => {
-      onExecuteAction(match.id, p1Action, botAction, p1HeroIdx, botHeroIdx);
+      setP1Attacking(false);
+      setP2TakingHit(true);
+      soundManager.playAttackHit();
+      setTimeout(() => setP2TakingHit(false), 350);
+    }, 380);
+
+    setTimeout(() => {
       setIsClashing(false);
-    }, 450);
+      setActiveEffectType('none');
+      setActiveComicBurst(null);
+      onExecuteAction(match.id, p1Action, botAction, p1HeroIdx, botHeroIdx);
+    }, 750);
   };
 
   const getHpPercent = (hero?: Character) => {
@@ -143,114 +217,77 @@ export function BattlePhase({
   };
 
   const getHpGradient = (percent: number) => {
-    if (percent > 55) return 'from-emerald-500 via-teal-400 to-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.7)]';
-    if (percent > 25) return 'from-amber-400 via-yellow-500 to-amber-600 shadow-[0_0_15px_rgba(245,158,11,0.7)]';
-    return 'from-red-600 via-rose-600 to-red-700 shadow-[0_0_20px_rgba(239,68,68,0.9)] animate-pulse';
+    if (percent > 60) return 'from-emerald-500 to-green-400';
+    if (percent > 25) return 'from-amber-500 to-yellow-400';
+    return 'from-red-600 to-rose-500';
   };
 
   const p1LivingCount = p1.collection.filter(c => (c.currentHp === undefined || c.currentHp > 0)).length;
   const p2LivingCount = p2.collection.filter(c => (c.currentHp === undefined || c.currentHp > 0)).length;
 
-  const p1Combo = getFighterTagTeamCombo(p1SelectedHero, p1.collection);
-  const p2Combo = getFighterTagTeamCombo(p2SelectedHero, p2.collection);
+  const p1Combo: TagTeamCombo | null = p1SelectedHero ? getFighterTagTeamCombo(p1SelectedHero, p1.collection) : null;
+  const p2Combo: TagTeamCombo | null = p2SelectedHero ? getFighterTagTeamCombo(p2SelectedHero, p2.collection) : null;
 
-  const getArenaBackdropClass = () => {
-    switch (arenaBg) {
-      case 'asgard':
-        return 'from-amber-950/80 via-slate-950/95 to-black border-amber-500/40 shadow-glow-gold';
-      case 'quantum':
-        return 'from-indigo-950/80 via-slate-950/95 to-black border-indigo-500/40 shadow-glow-cosmic';
-      case 'avengers':
-        return 'from-slate-900/80 via-slate-950/95 to-black border-red-500/40 shadow-glow-red';
-      case 'knowhere':
-        return 'from-rose-950/80 via-slate-950/95 to-black border-purple-500/40 shadow-glow-cosmic';
-      case 'wakanda':
-      default:
-        return 'from-purple-950/80 via-slate-950/95 to-black border-purple-500/40 shadow-glow-cosmic';
-    }
+  const p1Fusions = findPossibleTagTeamFusions(p1.collection);
+
+  const handleUseHealingPotion = () => {
+    if (p1UsedHealingPotion || !p1SelectedHero) return;
+    soundManager.playVictory();
+    const currentHp = p1SelectedHero.currentHp !== undefined ? p1SelectedHero.currentHp : 100;
+    const maxHp = p1SelectedHero.maxHp || 100;
+    const healedHp = Math.min(maxHp, currentHp + 40);
+    p1SelectedHero.currentHp = healedHp;
+    setP1UsedHealingPotion(true);
+    setHealingPopup(`+40 HP RESTORED!`);
+    setTimeout(() => setHealingPopup(null), 2500);
+  };
+
+  const handleUseSkill = (skill: CharacterSkill) => {
+    if (p1UsedSkillIds.includes(skill.id)) return;
+    soundManager.playClick();
+    setP1Action('SPECIAL');
+    setP1UsedSkillIds(prev => [...prev, skill.id]);
+  };
+
+  const handleInBattleMerge = (fusion: { hero1: Character; hero2: Character; combo: TagTeamCombo }) => {
+    soundManager.playMythicReveal();
+    const fusedChar = mergeUltimateCharacter(fusion.hero1, fusion.hero2, fusion.combo);
+    const remaining = p1.collection.filter(c => c.id !== fusion.hero1.id && c.id !== fusion.hero2.id);
+    p1.collection = [fusedChar, ...remaining];
+    setP1HeroIdx(0);
+    
+    setUltimateOverlay({
+      isOpen: true,
+      type: 'dual_strike',
+      heroName: fusion.hero1.name,
+      partnerHeroName: fusion.hero2.name,
+      abilityTitle: fusion.combo.comboTitle,
+      description: fusion.combo.comboDescription,
+      bannerColor: fusion.combo.bannerColor,
+      damageBonus: fusion.combo.bonusDualDamage
+    });
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-3 sm:px-6 py-6 space-y-8 animate-fadeIn">
+    <div className={`max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-6 space-y-6 arena-bg-${arenaBg} rounded-3xl transition-all duration-700`}>
       
-      {/* 1. ARENA TITAN BANNER & SCOREBOARD & ARENA SELECTOR */}
-      <div className={`relative rounded-3xl p-5 sm:p-7 border bg-gradient-to-r ${getArenaBackdropClass()} shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 backdrop-blur-xl transition-all duration-500`}>
-        <div className="absolute inset-0 scanlines opacity-20 pointer-events-none" />
-        
-        {/* Left: Tournament & Match Tier */}
-        <div className="relative z-10 text-center md:text-left space-y-1">
-          <div className="flex items-center gap-2 flex-wrap justify-center md:justify-start">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-red-900/60 border border-red-500/50 text-[11px] font-black uppercase text-red-200 tracking-widest">
-              <Swords className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-              <span>{match.roundName} BATTLE ARENA • DEATHMATCH</span>
-            </div>
-
-{/* Quick Match Action Buttons */}
-            <div className="flex items-center gap-2">
-              {onSkipMatch && (
-                <button
-                  onClick={() => {
-                    soundManager.playClick();
-                    onSkipMatch(match.id);
-                  }}
-                  className="px-3 py-1 rounded-full bg-purple-950/90 hover:bg-purple-900 text-purple-200 border border-purple-500/50 text-[10px] font-heading font-black uppercase tracking-wider flex items-center gap-1 shadow-glow-cosmic transition-all transform hover:scale-105"
-                  title="Fast-forward and auto-resolve this duel"
-                >
-                  <FastForward className="w-3 h-3 text-purple-400" />
-                  <span>FAST-FORWARD</span>
-                </button>
-              )}
-              {onConcedeMatch && (
-                <button
-                  onClick={() => {
-                    if (window.confirm(`Are you sure you want to give up / concede this match to ${isUserP1 ? p2.name : p1.name}?`)) {
-                      soundManager.playClick();
-                      onConcedeMatch(match.id);
-                    }
-                  }}
-                  className="px-3 py-1 rounded-full bg-red-950/90 hover:bg-red-900 text-red-200 border border-red-500/60 text-[10px] font-heading font-black uppercase tracking-wider flex items-center gap-1 shadow-glow-red transition-all transform hover:scale-105"
-                  title="Give up / Concede this tournament match"
-                >
-                  <Flag className="w-3 h-3 text-red-400" />
-                  <span>GIVE UP</span>
-                </button>
-              )}
-            </div>
-
-            {/* Arena Switcher */}
-            <div className="flex items-center gap-1 bg-black/60 p-1 rounded-full border border-white/10 text-[10px] font-bold">
-              <span className="text-gray-400 pl-1.5 flex items-center gap-1">
-                <MapPin className="w-3 h-3 text-amber-400" />
-              </span>
-              <button 
-                onClick={() => setArenaBg('wakanda')} 
-                className={`px-2 py-0.5 rounded-full transition-colors ${arenaBg === 'wakanda' ? 'bg-purple-600 text-white font-black' : 'text-gray-400 hover:text-white'}`}
-              >
-                Wakanda
-              </button>
-              <button 
-                onClick={() => setArenaBg('asgard')} 
-                className={`px-2 py-0.5 rounded-full transition-colors ${arenaBg === 'asgard' ? 'bg-amber-600 text-white font-black' : 'text-gray-400 hover:text-white'}`}
-              >
-                Asgard
-              </button>
-              <button 
-                onClick={() => setArenaBg('quantum')} 
-                className={`px-2 py-0.5 rounded-full transition-colors ${arenaBg === 'quantum' ? 'bg-indigo-600 text-white font-black' : 'text-gray-400 hover:text-white'}`}
-              >
-                Quantum
-              </button>
-              <button 
-                onClick={() => setArenaBg('knowhere')} 
-                className={`px-2 py-0.5 rounded-full transition-colors ${arenaBg === 'knowhere' ? 'bg-rose-600 text-white font-black' : 'text-gray-400 hover:text-white'}`}
-              >
-                Knowhere
-              </button>
-            </div>
+      {/* 1. TOP STATUS BAR: MATCH INFO & ARENA SELECTOR */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 glass-panel p-4 sm:p-5 rounded-3xl border border-white/10 shadow-2xl">
+        <div className="space-y-1 text-center md:text-left">
+          <div className="flex items-center justify-center md:justify-start gap-2 flex-wrap">
+            <button
+              onClick={onReturnToTree}
+              className="px-3.5 py-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/10 text-xs font-bold transition-all"
+            >
+              ← Tournament Tree
+            </button>
+            <span className="px-3 py-1 rounded-full bg-red-950/80 border border-red-500/40 text-red-300 text-xs font-heading font-black tracking-wider uppercase">
+              {match.roundName} • MATCH #{match.id.slice(-4)}
+            </span>
           </div>
 
-          <h1 className="font-heading font-black text-3xl sm:text-4xl text-white tracking-tight drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)]">
-            {p1.name} <span className="text-red-500 text-2xl font-mono">VS</span> {p2.name}
+          <h1 className="font-heading font-black text-2xl sm:text-4xl text-white tracking-tight drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)]">
+            {p1.name} <span className="text-red-500 text-xl sm:text-2xl font-mono">VS</span> {p2.name}
           </h1>
           <p className="text-xs text-slate-300 font-medium">
             Battle continues until an entire team has 0 HP standing!
@@ -258,8 +295,7 @@ export function BattlePhase({
         </div>
 
         {/* Right: Team Life Meter & Score */}
-        <div className="relative z-10 flex items-center gap-6 bg-black/70 px-6 py-3.5 rounded-2xl border border-white/15 shadow-inner">
-          {/* P1 Stats */}
+        <div className="flex items-center gap-6 bg-black/70 px-6 py-3.5 rounded-2xl border border-white/15 shadow-inner">
           <div className="text-center space-y-1">
             <span className="text-xs font-black uppercase text-red-400 flex items-center justify-center gap-1">
               <span>{p1.avatar}</span>
@@ -276,7 +312,6 @@ export function BattlePhase({
 
           <div className="h-12 w-px bg-white/20" />
 
-          {/* P2 Stats */}
           <div className="text-center space-y-1">
             <span className="text-xs font-black uppercase text-blue-400 flex items-center justify-center gap-1">
               <span>{p2.avatar}</span>
@@ -295,27 +330,64 @@ export function BattlePhase({
 
       {/* 2. GRAND HEAD-TO-HEAD SPOTLIGHT DUEL ARENA */}
       {!isMatchComplete && (
-        <div className={`relative rounded-3xl p-6 sm:p-8 border-2 border-purple-500/40 bg-gradient-to-b from-purple-950/40 via-black/90 to-indigo-950/40 shadow-glow-cosmic overflow-hidden transition-all duration-300 ${
+        <div className={`relative rounded-3xl p-4 sm:p-8 border-2 border-purple-500/40 bg-gradient-to-b from-purple-950/40 via-black/90 to-indigo-950/40 shadow-glow-cosmic overflow-hidden transition-all duration-300 ${
           isClashing ? 'scale-[0.99] brightness-150 animate-shake' : ''
         }`}>
+          
+          {/* 2D Combat FX Particle, Laser, Lightning & Slash Overlay */}
+          <CombatFXOverlay
+            effectType={activeEffectType}
+            attackerSide={p1Attacking ? 'left' : 'right'}
+            comicBurst={activeComicBurst}
+            isSuperMove={isSuperCutIn}
+            superHeroName={superHeroName}
+            superHeroImageUrl={superHeroImageUrl}
+            superAbilityName={superAbilityName}
+            signatureMoveName={activeSignatureMoveName}
+          />
+
+          {/* Floating Healing Popup */}
+          {healingPopup && (
+            <div className="absolute top-8 left-1/4 -translate-x-1/2 z-40 animate-bounce">
+              <div className="bg-emerald-500 text-black font-heading font-black text-sm sm:text-base px-4 py-2 rounded-2xl shadow-[0_0_25px_#10B981] border-2 border-white">
+                💚 {healingPopup}
+              </div>
+            </div>
+          )}
+
           {/* Top Clash Bar Title */}
-          <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between border-b border-white/10 pb-4 mb-6 gap-2">
             <div className="flex items-center gap-2">
               <Flame className="w-5 h-5 text-amber-400 animate-bounce" />
-              <h2 className="font-heading font-black text-lg sm:text-xl text-white tracking-wide uppercase">
+              <h2 className="font-heading font-black text-base sm:text-xl text-white tracking-wide uppercase">
                 ACTIVE DUEL SPOTLIGHT • ROUND {match.rounds.length + 1}
               </h2>
             </div>
-            <span className="text-xs font-extrabold text-amber-300 bg-amber-950/80 px-3.5 py-1 rounded-full border border-amber-500/50 shadow-sm animate-pulse">
-              ⚡ LIVE TACTICAL PHASE
-            </span>
+            
+            {/* Ready Statuses */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border ${
+                match.player1Ready 
+                  ? 'bg-emerald-950 text-emerald-300 border-emerald-500/60 shadow-[0_0_10px_rgba(16,185,129,0.4)]' 
+                  : 'bg-stone-900 text-stone-400 border-white/10'
+              }`}>
+                {p1.name}: {match.player1Ready ? '🟢 READY ✓' : '🟡 CHOOSING...'}
+              </span>
+              <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border ${
+                match.player2Ready 
+                  ? 'bg-emerald-950 text-emerald-300 border-emerald-500/60 shadow-[0_0_10px_rgba(16,185,129,0.4)]' 
+                  : 'bg-stone-900 text-stone-400 border-white/10'
+              }`}>
+                {p2.name}: {match.player2Ready ? '🟢 READY ✓' : '🟡 CHOOSING...'}
+              </span>
+            </div>
           </div>
 
           {/* Center Stage: Two Large Heroes Facing Off */}
           <div className="grid grid-cols-1 lg:grid-cols-11 gap-6 items-center">
             
             {/* PLAYER 1 ACTIVE FIGHTER (5 Cols) */}
-            <div className={`lg:col-span-5 rounded-3xl p-5 sm:p-6 bg-gradient-to-b from-red-950/50 to-black/80 border-2 border-red-500/60 shadow-[0_0_30px_rgba(230,36,41,0.25)] space-y-4 relative overflow-hidden transition-all duration-300 ${
+            <div className={`lg:col-span-5 rounded-3xl p-4 sm:p-6 bg-gradient-to-b from-red-950/50 to-black/80 border-2 border-red-500/60 shadow-[0_0_30px_rgba(230,36,41,0.25)] space-y-4 relative overflow-hidden transition-all duration-300 ${
               isClashing ? 'translate-x-6 sm:translate-x-12 scale-[1.02] shadow-[0_0_50px_rgba(230,36,41,0.8)]' : ''
             }`}>
               {/* Defense Energy Shield Overlay */}
@@ -338,8 +410,13 @@ export function BattlePhase({
               )}
 
               <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase text-red-300 bg-red-900/60 px-3 py-1 rounded-full border border-red-500/40">
-                  {p1.name}'S DEPLOYED CHAMPION
+                <span className="text-xs font-black uppercase text-red-300 bg-red-900/60 px-3 py-1 rounded-full border border-red-500/40 flex items-center gap-1.5">
+                  <span>{p1.name}'S CHAMPION</span>
+                  {match.player1Ready && (
+                    <span className="bg-emerald-500 text-black text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase animate-pulse">
+                      READY ✓
+                    </span>
+                  )}
                 </span>
                 <span className="text-xs font-black text-amber-300 bg-black/60 px-2.5 py-1 rounded-lg border border-amber-500/30">
                   ⚡ POWER: {p1SelectedHero?.overallPower || 80}
@@ -347,8 +424,7 @@ export function BattlePhase({
               </div>
 
               {/* Character Portrait & Floating Damage Popups */}
-              <div className="flex flex-col sm:flex-row items-center gap-5 relative">
-                {/* Floating Damage Popup */}
+              <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-5 relative">
                 {latestRound && latestRound.player2DamageDealt !== undefined && latestRound.player2DamageDealt > 0 && (
                   <div className="absolute -top-6 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
                     <div className="animate-damage-float bg-red-600 text-white font-heading font-black text-sm px-3 py-1 rounded-full border-2 border-white shadow-[0_0_20px_rgba(230,36,41,0.9)]">
@@ -358,26 +434,25 @@ export function BattlePhase({
                 )}
 
                 <div className="relative shrink-0">
-                  <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl overflow-hidden border-2 border-red-400 shadow-[0_0_25px_rgba(230,36,41,0.6)] bg-black">
-                    <img 
-                      src={p1SelectedHero?.imageUrl} 
-                      alt={p1SelectedHero?.name} 
-                      className="w-full h-full object-cover transform hover:scale-110 transition-transform duration-500"
-                    />
-                  </div>
-                  <span className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border border-white shadow">
-                    {p1SelectedHero?.grade}
-                  </span>
+                  <Fighter2DSprite
+                    character={p1SelectedHero}
+                    side="p1"
+                    isAttacking={p1Attacking}
+                    isTakingHit={p1TakingHit}
+                    isDefending={p1Action === 'DEFEND'}
+                    isSuperActive={p1Action === 'SPECIAL' || p1Action.startsWith('SKILL_')}
+                    isDefeated={(p1SelectedHero?.currentHp !== undefined && p1SelectedHero.currentHp <= 0)}
+                  />
                 </div>
 
                 <div className="text-center sm:text-left space-y-1.5 flex-1 min-w-0">
-                  <h3 className="font-heading font-black text-2xl text-white leading-tight truncate drop-shadow">
+                  <h3 className="font-heading font-black text-xl sm:text-2xl text-white leading-tight truncate drop-shadow">
                     {p1SelectedHero?.name}
                   </h3>
                   <p className="text-xs text-slate-300 line-clamp-2">
                     {p1SelectedHero?.description}
                   </p>
-                  <div className="flex flex-wrap gap-1.5 pt-1">
+                  <div className="flex flex-wrap gap-1.5 pt-1 justify-center sm:justify-start">
                     <span className="text-[10px] font-bold text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/40">
                       🛡️ {p1SelectedHero?.factions?.[0] || p1SelectedHero?.alignment || 'Marvel'}
                     </span>
@@ -388,8 +463,8 @@ export function BattlePhase({
                 </div>
               </div>
 
-              {/* Health Bar */}
-              <div className="space-y-1 bg-black/50 p-3 rounded-2xl border border-white/10">
+              {/* Health Bar & Healing Potion (1x Match Limit) */}
+              <div className="space-y-2 bg-black/50 p-3 rounded-2xl border border-white/10">
                 <div className="flex justify-between items-center text-xs font-black">
                   <span className="text-slate-300 flex items-center gap-1.5">
                     <Heart className="w-4 h-4 text-red-500 fill-red-500" />
@@ -405,23 +480,36 @@ export function BattlePhase({
                     style={{ width: `${getHpPercent(p1SelectedHero)}%` }}
                   />
                 </div>
+
+                {/* Interactive Healing Potion Button (1x Match Limit) */}
+                <div className="pt-1 flex items-center justify-between">
+                  <button
+                    disabled={p1UsedHealingPotion || (p1SelectedHero?.currentHp ?? 100) >= (p1SelectedHero?.maxHp ?? 100)}
+                    onClick={handleUseHealingPotion}
+                    className={`px-3 py-1 rounded-xl font-heading font-black text-[11px] uppercase tracking-wider transition-all flex items-center gap-1.5 border shadow ${
+                      p1UsedHealingPotion
+                        ? 'bg-slate-900/60 text-slate-500 border-slate-700 cursor-not-allowed opacity-50'
+                        : 'bg-emerald-950/90 text-emerald-300 hover:bg-emerald-900 border-emerald-500/60 shadow-[0_0_15px_rgba(16,185,129,0.35)] animate-pulse'
+                    }`}
+                  >
+                    <TestTube2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>{p1UsedHealingPotion ? '🧪 HEAL POTION (USED 1x)' : '🧪 USE HEALING POTION (+40 HP)'}</span>
+                  </button>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {p1UsedHealingPotion ? '0 Potions Left' : '1 Potion Available'}
+                  </span>
+                </div>
               </div>
 
-              {/* TACTICAL COMBAT COMMANDS (Only shows equipped skills if purchased!) */}
+              {/* TACTICAL COMBAT COMMANDS */}
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-black uppercase text-red-300 block">
                     CHOOSE {p1SelectedHero?.name.toUpperCase()}'S MOVE:
                   </span>
-                  <span className="text-[10px] text-slate-400 font-bold">
-                    {p1SelectedHero?.equippedSkills && p1SelectedHero.equippedSkills.length > 0
-                      ? `⚡ ${p1SelectedHero.equippedSkills.length} Skills Equipped`
-                      : '⚡ Skill Vault (0/5 Equipped)'}
-                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {/* 1. Strike Attack */}
                   <button
                     onClick={() => {
                       soundManager.playClick();
@@ -440,7 +528,6 @@ export function BattlePhase({
                     <span className="text-[9px] text-slate-400 block mt-0.5">Heavy assault + roll</span>
                   </button>
 
-                  {/* 2. Signature Superpower */}
                   <button
                     onClick={() => {
                       soundManager.playClick();
@@ -461,7 +548,6 @@ export function BattlePhase({
                     </span>
                   </button>
 
-                  {/* 3. Defense Guard */}
                   <button
                     onClick={() => {
                       soundManager.playClick();
@@ -480,7 +566,6 @@ export function BattlePhase({
                     <span className="text-[9px] text-slate-400 block mt-0.5">50% Damage Guard</span>
                   </button>
 
-                  {/* 4. Relic Power */}
                   <button
                     onClick={() => {
                       soundManager.playClick();
@@ -500,94 +585,67 @@ export function BattlePhase({
                       {p1SelectedHero?.equippedArtifact ? p1SelectedHero.equippedArtifact.name : 'Equipped Artifact'}
                     </span>
                   </button>
-
-                  {/* 5+. ONLY Render Equipped Skills ACTUALLY Purchased in Skill Vault! */}
-                  {p1SelectedHero?.equippedSkills && p1SelectedHero.equippedSkills.map((sk: any, sIdx: number) => {
-                    const actionKeys: BattleActionType[] = ['SKILL_1', 'SKILL_2', 'SKILL_3', 'SKILL_4', 'SKILL_5'];
-                    const actKey = actionKeys[sIdx] || 'SPECIAL';
-                    const isSelected = p1Action === actKey;
-                    return (
-                      <button
-                        key={sk.id || sIdx}
-                        onClick={() => {
-                          soundManager.playClick();
-                          setP1Action(actKey);
-                        }}
-                        className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
-                          isSelected
-                            ? 'bg-cyan-950/90 border-cyan-400 ring-2 ring-cyan-400 shadow-glow-cosmic scale-[1.02]'
-                            : 'bg-slate-950/80 border-cyan-500/40 hover:border-cyan-400 text-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-1">
-                          <div className="flex items-center gap-1.5 min-w-0 font-heading font-black text-xs text-cyan-200 truncate">
-                            <span>{sk.icon || '🌟'}</span>
-                            <span className="truncate">{sk.name}</span>
-                          </div>
-                          <span className="text-[8px] bg-cyan-950 text-cyan-300 font-bold px-1.5 py-0.5 rounded border border-cyan-500/40 shrink-0">
-                            EQUIPPED
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-[9px] text-slate-400 mt-1">
-                          <span className="text-amber-400 font-bold">+{sk.bonusPower || 10} PWR</span>
-                          <span>{sk.triggerRate ? Math.round(sk.triggerRate * 100) : 60}% Rate</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-
-                  {/* Tag-Team Dual Strike (Bonus if Synergy unlocked) */}
-                  {p1Combo && (
-                    <button
-                      onClick={() => {
-                        soundManager.playClick();
-                        setP1Action('DUAL_STRIKE');
-                        setUltimateOverlay({
-                          isOpen: true,
-                          type: 'dual_strike',
-                          heroName: p1SelectedHero.name,
-                          partnerHeroName: p1Combo.hero2Name === p1SelectedHero.name ? p1Combo.hero1Name : p1Combo.hero2Name,
-                          abilityTitle: p1Combo.comboTitle,
-                          description: p1Combo.comboDescription,
-                          bannerColor: p1Combo.bannerColor,
-                          damageBonus: p1Combo.bonusDualDamage
-                        });
-                      }}
-                      className={`col-span-1 sm:col-span-2 p-3 rounded-xl border text-left transition-all ${
-                        p1Action === 'DUAL_STRIKE'
-                          ? 'bg-gradient-to-r from-red-950 via-amber-900 to-purple-950 border-amber-400 ring-2 ring-amber-400 shadow-glow-gold scale-[1.02]'
-                          : 'bg-gradient-to-r from-red-950/60 to-purple-950/60 border-amber-500/50 hover:border-amber-400 text-amber-200 animate-pulse'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 font-heading font-black text-xs text-amber-300 truncate">
-                          <Flame className="w-4 h-4 text-amber-400 shrink-0 animate-bounce" />
-                          <span className="truncate">🔥 DUAL STRIKE: {p1Combo.comboTitle}</span>
-                        </div>
-                        <span className="text-[10px] bg-red-950 text-red-300 font-extrabold px-2 py-0.5 rounded border border-red-500/40 shrink-0">
-                          +{p1Combo.bonusDualDamage} DMG
-                        </span>
-                      </div>
-                    </button>
-                  )}
                 </div>
+
+                {/* 5 Unique Skills with 1-Time Usage Limit in Classic Matches */}
+                <div className="space-y-1.5 pt-2 border-t border-white/10">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase text-amber-300">
+                      ⚡ 5 SIGNATURE SKILLS (1-TIME USE ONLY PER MATCH):
+                    </span>
+                    <span className="text-[9px] font-mono text-slate-400">
+                      {5 - p1UsedSkillIds.filter(id => id.startsWith(`sk-${p1SelectedHero?.id}`)).length} / 5 Available
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    {getSkillsForCharacter(p1SelectedHero).map((skill) => {
+                      const isUsed = p1UsedSkillIds.includes(skill.id);
+                      return (
+                        <button
+                          key={skill.id}
+                          disabled={isUsed}
+                          onClick={() => handleUseSkill(skill)}
+                          className={`p-2 rounded-xl border text-left transition-all ${
+                            isUsed
+                              ? 'bg-black/30 border-slate-800 opacity-40 text-slate-500 cursor-not-allowed'
+                              : p1Action === 'SPECIAL'
+                              ? 'bg-purple-950/90 border-purple-400 ring-1 ring-purple-400 text-purple-200'
+                              : 'bg-black/60 border-white/10 hover:border-purple-500/50 text-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-heading font-black text-xs text-white truncate flex items-center gap-1">
+                              <span>{skill.icon}</span>
+                              <span className="truncate">{skill.name}</span>
+                            </span>
+                            <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${isUsed ? 'bg-red-950 text-red-400' : 'bg-purple-950 text-purple-300'}`}>
+                              {isUsed ? 'USED (1x)' : `+${skill.bonusPower} PWR`}
+                            </span>
+                          </div>
+                          <span className="text-[9px] text-slate-400 block truncate mt-0.5">{skill.description}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
               </div>
             </div>
 
             {/* CENTER VS EMBLEM (1 Col) */}
             <div className="lg:col-span-1 flex flex-col items-center justify-center py-2 space-y-2">
-              <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-red-600 via-purple-600 to-blue-600 p-0.5 shadow-glow-cosmic flex items-center justify-center transition-transform ${
+              <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-red-600 via-purple-600 to-blue-600 p-0.5 shadow-glow-cosmic flex items-center justify-center transition-transform ${
                 isClashing ? 'scale-125 animate-ping' : 'animate-pulse'
               }`}>
                 <div className="w-full h-full rounded-full bg-black/90 flex items-center justify-center">
-                  <Swords className="w-7 h-7 text-amber-400 animate-spin" />
+                  <Swords className="w-6 h-6 sm:w-7 sm:h-7 text-amber-400 animate-spin" />
                 </div>
               </div>
-              <span className="font-heading font-black text-2xl text-white drop-shadow">VS</span>
+              <span className="font-heading font-black text-xl sm:text-2xl text-white drop-shadow">VS</span>
             </div>
 
             {/* PLAYER 2 ACTIVE FIGHTER (5 Cols) */}
-            <div className={`lg:col-span-5 rounded-3xl p-5 sm:p-6 bg-gradient-to-b from-blue-950/50 to-black/80 border-2 border-blue-500/60 shadow-[0_0_30px_rgba(59,130,246,0.25)] space-y-4 relative overflow-hidden transition-all duration-300 ${
+            <div className={`lg:col-span-5 rounded-3xl p-4 sm:p-6 bg-gradient-to-b from-blue-950/50 to-black/80 border-2 border-blue-500/60 shadow-[0_0_30px_rgba(59,130,246,0.25)] space-y-4 relative overflow-hidden transition-all duration-300 ${
               isClashing ? '-translate-x-6 sm:-translate-x-12 scale-[1.02] shadow-[0_0_50px_rgba(59,130,246,0.8)]' : ''
             }`}>
               {/* Defense Energy Shield Overlay */}
@@ -610,8 +668,13 @@ export function BattlePhase({
               )}
 
               <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase text-blue-300 bg-blue-900/60 px-3 py-1 rounded-full border border-blue-500/40">
-                  {p2.name}'S DEPLOYED CHAMPION {p2.isBot && '🤖 AI'}
+                <span className="text-xs font-black uppercase text-blue-300 bg-blue-900/60 px-3 py-1 rounded-full border border-blue-500/40 flex items-center gap-1.5">
+                  <span>{p2.name}'S CHAMPION {p2.isBot && '🤖 AI'}</span>
+                  {match.player2Ready && (
+                    <span className="bg-emerald-500 text-black text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase animate-pulse">
+                      READY ✓
+                    </span>
+                  )}
                 </span>
                 <span className="text-xs font-black text-cyan-300 bg-black/60 px-2.5 py-1 rounded-lg border border-cyan-500/30">
                   ⚡ POWER: {p2SelectedHero?.overallPower || 85}
@@ -619,8 +682,7 @@ export function BattlePhase({
               </div>
 
               {/* Large Character Portrait & Floating Damage Popups */}
-              <div className="flex flex-col sm:flex-row items-center gap-5 relative">
-                {/* Floating Damage Popup */}
+              <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-5 relative">
                 {latestRound && latestRound.player1DamageDealt !== undefined && latestRound.player1DamageDealt > 0 && (
                   <div className="absolute -top-6 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
                     <div className="animate-damage-float bg-red-600 text-white font-heading font-black text-sm px-3 py-1 rounded-full border-2 border-white shadow-[0_0_20px_rgba(230,36,41,0.9)]">
@@ -630,26 +692,25 @@ export function BattlePhase({
                 )}
 
                 <div className="relative shrink-0">
-                  <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl overflow-hidden border-2 border-blue-400 shadow-[0_0_25px_rgba(59,130,246,0.6)] bg-black">
-                    <img 
-                      src={p2SelectedHero?.imageUrl} 
-                      alt={p2SelectedHero?.name} 
-                      className="w-full h-full object-cover transform hover:scale-110 transition-transform duration-500"
-                    />
-                  </div>
-                  <span className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border border-white shadow">
-                    {p2SelectedHero?.grade}
-                  </span>
+                  <Fighter2DSprite
+                    character={p2SelectedHero}
+                    side="p2"
+                    isAttacking={p2Attacking}
+                    isTakingHit={p2TakingHit}
+                    isDefending={p2Action === 'DEFEND'}
+                    isSuperActive={p2Action === 'SPECIAL' || p2Action.startsWith('SKILL_')}
+                    isDefeated={(p2SelectedHero?.currentHp !== undefined && p2SelectedHero.currentHp <= 0)}
+                  />
                 </div>
 
                 <div className="text-center sm:text-left space-y-1.5 flex-1 min-w-0">
-                  <h3 className="font-heading font-black text-2xl text-white leading-tight truncate drop-shadow">
+                  <h3 className="font-heading font-black text-xl sm:text-2xl text-white leading-tight truncate drop-shadow">
                     {p2SelectedHero?.name}
                   </h3>
                   <p className="text-xs text-slate-300 line-clamp-2">
                     {p2SelectedHero?.description}
                   </p>
-                  <div className="flex flex-wrap gap-1.5 pt-1">
+                  <div className="flex flex-wrap gap-1.5 pt-1 justify-center sm:justify-start">
                     <span className="text-[10px] font-bold text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/40">
                       🛡️ {p2SelectedHero?.factions?.[0] || p2SelectedHero?.alignment || 'Marvel'}
                     </span>
@@ -684,11 +745,6 @@ export function BattlePhase({
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-black uppercase text-blue-300 block">
                     {p2.isBot ? '🤖 AI AUTO-TACTICAL SELECTION' : `CHOOSE ${p2SelectedHero?.name.toUpperCase()}'S MOVE:`}
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-bold">
-                    {p2SelectedHero?.equippedSkills && p2SelectedHero.equippedSkills.length > 0
-                      ? `⚡ ${p2SelectedHero.equippedSkills.length} Skills Equipped`
-                      : '⚡ Skill Vault (0/5 Equipped)'}
                   </span>
                 </div>
 
@@ -780,93 +836,39 @@ export function BattlePhase({
                       {p2SelectedHero?.equippedArtifact ? p2SelectedHero.equippedArtifact.name : 'Equipped Artifact'}
                     </span>
                   </button>
-
-                  {/* P2 Equipped Skills if purchased */}
-                  {p2SelectedHero?.equippedSkills && p2SelectedHero.equippedSkills.map((sk: any, sIdx: number) => {
-                    const actionKeys: BattleActionType[] = ['SKILL_1', 'SKILL_2', 'SKILL_3', 'SKILL_4', 'SKILL_5'];
-                    const actKey = actionKeys[sIdx] || 'SPECIAL';
-                    const isSelected = p2Action === actKey;
-                    return (
-                      <button
-                        key={sk.id || sIdx}
-                        disabled={p2.isBot}
-                        onClick={() => {
-                          if (!p2.isBot) {
-                            soundManager.playClick();
-                            setP2Action(actKey);
-                          }
-                        }}
-                        className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
-                          isSelected
-                            ? 'bg-cyan-950/90 border-cyan-400 ring-2 ring-cyan-400 shadow-glow-cosmic scale-[1.02]'
-                            : 'bg-slate-950/80 border-cyan-500/40 hover:border-cyan-400 text-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-1">
-                          <div className="flex items-center gap-1.5 min-w-0 font-heading font-black text-xs text-cyan-200 truncate">
-                            <span>{sk.icon || '🌟'}</span>
-                            <span className="truncate">{sk.name}</span>
-                          </div>
-                          <span className="text-[8px] bg-cyan-950 text-cyan-300 font-bold px-1.5 py-0.5 rounded border border-cyan-500/40 shrink-0">
-                            EQUIPPED
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-[9px] text-slate-400 mt-1">
-                          <span className="text-amber-400 font-bold">+{sk.bonusPower || 10} PWR</span>
-                          <span>{sk.triggerRate ? Math.round(sk.triggerRate * 100) : 60}% Rate</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-
-                  {/* 5. P2 Tag-Team Dual Strike (Unlocked via Synergy) */}
-                  {p2Combo && !p2.isBot && (
-                    <button
-                      onClick={() => {
-                        soundManager.playClick();
-                        setP2Action('DUAL_STRIKE');
-                        setUltimateOverlay({
-                          isOpen: true,
-                          type: 'dual_strike',
-                          heroName: p2SelectedHero.name,
-                          partnerHeroName: p2Combo.hero2Name === p2SelectedHero.name ? p2Combo.hero1Name : p2Combo.hero2Name,
-                          abilityTitle: p2Combo.comboTitle,
-                          description: p2Combo.comboDescription,
-                          bannerColor: p2Combo.bannerColor,
-                          damageBonus: p2Combo.bonusDualDamage
-                        });
-                      }}
-                      className={`col-span-1 sm:col-span-2 p-3 rounded-xl border text-left transition-all ${
-                        p2Action === 'DUAL_STRIKE'
-                          ? 'bg-gradient-to-r from-blue-950 via-purple-900 to-amber-950 border-amber-400 ring-2 ring-amber-400 shadow-glow-gold scale-[1.02]'
-                          : 'bg-gradient-to-r from-blue-950/60 to-purple-950/60 border-amber-500/50 hover:border-amber-400 text-amber-200 animate-pulse'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 font-heading font-black text-xs text-amber-300 truncate">
-                          <Flame className="w-4 h-4 text-amber-400 shrink-0 animate-bounce" />
-                          <span className="truncate">🔥 DUAL STRIKE: {p2Combo.comboTitle}</span>
-                        </div>
-                        <span className="text-[10px] bg-red-950 text-red-300 font-extrabold px-2 py-0.5 rounded border border-red-500/40 shrink-0">
-                          +{p2Combo.bonusDualDamage} DMG
-                        </span>
-                      </div>
-                    </button>
-                  )}
                 </div>
               </div>
             </div>
 
           </div>
 
-          {/* 3. BIG HEROIC ROSTER DOCKS (Switch Fighter On The Fly) */}
+          {/* 3. HEROIC ROSTER DOCKS (Switch Active Fighter) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-white/10 mt-6">
             
-            {/* Player 1 Roster Dock */}
+            {/* Player 1 Roster Bench */}
             <div className="space-y-2">
+              {/* In-Battle Tag-Team Fusion Banner */}
+              {p1Fusions.length > 0 && (
+                <div className="p-3 rounded-2xl bg-gradient-to-r from-red-950 via-purple-950 to-pink-950 border border-pink-500/70 shadow-[0_0_25px_rgba(236,72,153,0.4)] animate-pulse space-y-1.5 mb-2">
+                  <span className="text-[10px] font-black text-pink-300 uppercase tracking-wider block">
+                    ⚡ IN-BATTLE TAG-TEAM FUSION DETECTED!
+                  </span>
+                  {p1Fusions.map((fusion, fIdx) => (
+                    <button
+                      key={fIdx}
+                      onClick={() => handleInBattleMerge(fusion)}
+                      className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-pink-600 via-purple-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-heading font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transform hover:scale-[1.02] transition-all"
+                    >
+                      <Flame className="w-4 h-4 text-amber-300 animate-bounce" />
+                      <span>🔥 MERGE ULTIMATE HERO: {fusion.hero1.name} + {fusion.hero2.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <span className="text-xs font-black uppercase text-red-300 flex items-center gap-1.5">
                 <Cpu className="w-3.5 h-3.5 text-red-400" />
-                <span>{p1.name}'S TEAM BENCH (CLICK TO SWAP ACTIVE FIGHTER):</span>
+                <span>{p1.name}'S ROSTER BENCH (CLICK TO SWAP ACTIVE FIGHTER):</span>
               </span>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                 {p1.collection.map((c, i) => {
@@ -882,7 +884,7 @@ export function BattlePhase({
                         soundManager.playClick();
                         setP1HeroIdx(i);
                       }}
-                      className={`p-2.5 rounded-2xl border text-left transition-all flex items-center gap-3 ${
+                      className={`p-2.5 rounded-2xl border text-left transition-all flex items-center gap-2.5 ${
                         isDead
                           ? 'bg-red-950/20 border-red-950 opacity-40 grayscale cursor-not-allowed'
                           : isSelected
@@ -890,16 +892,14 @@ export function BattlePhase({
                           : 'bg-black/60 border-white/10 hover:border-red-500/50 opacity-85 hover:opacity-100'
                       }`}
                     >
-                      <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-white/20">
-                        <img src={c.imageUrl} alt={c.name} className="w-full h-full object-cover" />
-                      </div>
+                      <CharacterPortrait character={c} size="sm" />
                       <div className="min-w-0 flex-1 space-y-0.5">
                         <span className="text-xs font-black text-white block truncate leading-tight">{c.name}</span>
                         <span className={`text-[10px] font-black flex items-center gap-1 ${isDead ? 'text-red-500' : 'text-emerald-400'}`}>
                           {isDead ? (
                             <>
                               <Skull className="w-3 h-3 text-red-500" />
-                              <span>FAINTED</span>
+                              <span>KO</span>
                             </>
                           ) : (
                             <>
@@ -915,11 +915,11 @@ export function BattlePhase({
               </div>
             </div>
 
-            {/* Player 2 Roster Dock */}
+            {/* Player 2 Roster Bench */}
             <div className="space-y-2">
               <span className="text-xs font-black uppercase text-blue-300 flex items-center gap-1.5">
                 <Cpu className="w-3.5 h-3.5 text-blue-400" />
-                <span>{p2.name}'S TEAM BENCH:</span>
+                <span>{p2.name}'S ROSTER BENCH:</span>
               </span>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                 {p2.collection.map((c, i) => {
@@ -937,7 +937,7 @@ export function BattlePhase({
                           setP2HeroIdx(i);
                         }
                       }}
-                      className={`p-2.5 rounded-2xl border text-left transition-all flex items-center gap-3 ${
+                      className={`p-2.5 rounded-2xl border text-left transition-all flex items-center gap-2.5 ${
                         isDead
                           ? 'bg-red-950/20 border-red-950 opacity-40 grayscale cursor-not-allowed'
                           : isSelected
@@ -945,16 +945,14 @@ export function BattlePhase({
                           : 'bg-black/60 border-white/10 hover:border-blue-500/50 opacity-85 hover:opacity-100'
                       }`}
                     >
-                      <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-white/20">
-                        <img src={c.imageUrl} alt={c.name} className="w-full h-full object-cover" />
-                      </div>
+                      <CharacterPortrait character={c} size="sm" />
                       <div className="min-w-0 flex-1 space-y-0.5">
                         <span className="text-xs font-black text-white block truncate leading-tight">{c.name}</span>
                         <span className={`text-[10px] font-black flex items-center gap-1 ${isDead ? 'text-red-500' : 'text-emerald-400'}`}>
                           {isDead ? (
                             <>
                               <Skull className="w-3 h-3 text-red-500" />
-                              <span>FAINTED</span>
+                              <span>KO</span>
                             </>
                           ) : (
                             <>
@@ -972,39 +970,6 @@ export function BattlePhase({
 
           </div>
 
-          {/* 4B. BOTTOM TACTICAL MATCH CONTROLS */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3">
-            {onConcedeMatch && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm(`Are you sure you want to give up / concede this match to ${isUserP1 ? p2.name : p1.name}?`)) {
-                    soundManager.playClick();
-                    onConcedeMatch(match.id);
-                  }
-                }}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-gradient-to-r from-red-950/90 via-amber-950/80 to-red-950/90 hover:from-red-900 hover:to-amber-900 border-2 border-red-500/60 text-red-200 hover:text-white font-heading font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-glow-red transition-all transform hover:scale-105 active:scale-95"
-              >
-                <Flag className="w-4 h-4 text-red-400" />
-                <span>GIVE UP / CONCEDE MATCH TO ${(isUserP1 ? p2.name : p1.name).toUpperCase()}</span>
-              </button>
-            )}
-
-            {onSkipMatch && (
-              <button
-                type="button"
-                onClick={() => {
-                  soundManager.playClick();
-                  onSkipMatch(match.id);
-                }}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-purple-950/90 hover:bg-purple-900 border border-purple-500/50 text-purple-200 hover:text-white font-heading font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-glow-cosmic transition-all transform hover:scale-105 active:scale-95"
-              >
-                <FastForward className="w-4 h-4 text-purple-400" />
-                <span>FAST-FORWARD / AUTO-RESOLVE CLASH</span>
-              </button>
-            )}
-          </div>
-
           {/* 4. MASSIVE UNLEASH CLASH BUTTON */}
           <div className="pt-6">
             {isOnlineMode && !isUserP1 && !isUserP2 ? (
@@ -1016,7 +981,7 @@ export function BattlePhase({
               <button
                 onClick={handleExecuteRound}
                 disabled={isUserLocked}
-                className={`w-full py-5 rounded-3xl font-heading font-black text-lg sm:text-xl uppercase tracking-widest border-2 transition-all transform flex items-center justify-center gap-3 ${
+                className={`w-full py-5 rounded-3xl font-heading font-black text-base sm:text-xl uppercase tracking-widest border-2 transition-all transform flex items-center justify-center gap-3 ${
                   isUserLocked
                     ? 'bg-purple-950/80 border-purple-400/80 text-purple-200 shadow-glow-cosmic cursor-wait'
                     : 'bg-gradient-to-r from-red-600 via-purple-600 to-rose-600 hover:from-red-500 hover:to-purple-500 text-white shadow-[0_0_40px_rgba(239,68,68,0.7)] border-amber-400 hover:scale-[1.01] active:scale-[0.99] animate-pulse'
@@ -1095,5 +1060,3 @@ export function BattlePhase({
     </div>
   );
 }
-
-

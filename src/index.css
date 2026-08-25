@@ -1,20 +1,40 @@
 
+/* Mobile & Desktop Viewport Base Optimization */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Mobile Safe Areas Support */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+}
+
 /* Desktop & Wide PC Typography Scaling */
 @media (min-width: 1024px) {
   html {
-    font-size: 16.5px;
+    font-size: 16px;
   }
 }
 
 @media (min-width: 1440px) {
   html {
-    font-size: 17.5px;
+    font-size: 17px;
   }
 }
 
 @media (min-width: 1920px) {
   html {
-    font-size: 18.5px;
+    font-size: 18px;
   }
 }
 
@@ -31,6 +51,7 @@
   body {
     @apply bg-marvel-darker text-slate-100 antialiased selection:bg-marvel-red selection:text-white;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    overflow-x: hidden;
   }
 
   h1, h2, h3, .font-heading {
@@ -421,4 +442,187 @@
 .animate-vein-node {
   animation: nodeGlowPulse 2s ease-in-out infinite;
 }
+
+/* 1-to-1 Cyber HUD & Typography Styling */
+.cyber-circuit-bg {
+  background-color: #04070D;
+  background-image: 
+    radial-gradient(circle at 50% 30%, rgba(20, 35, 60, 0.45) 0%, transparent 70%),
+    linear-gradient(rgba(14, 165, 233, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14, 165, 233, 0.05) 1px, transparent 1px);
+  background-size: 100% 100%, 36px 36px, 36px 36px;
+}
+
+.marvel-3d-box {
+  background: linear-gradient(180deg, #E62429 0%, #B91C1C 60%, #7F1D1D 100%);
+  border: 2px solid #38BDF8;
+  box-shadow: 0 0 25px rgba(230, 36, 41, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+}
+
+.auction-wars-glow-title {
+  background: linear-gradient(180deg, #FFFFFF 0%, #BAE6FD 35%, #38BDF8 70%, #0284C7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.75)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.9));
+}
+
+.hud-cyber-bracket {
+  position: relative;
+  background: rgba(8, 14, 26, 0.7);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 35px rgba(56, 189, 248, 0.12), inset 0 0 25px rgba(56, 189, 248, 0.05);
+}
+
+.hud-cyber-bracket::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 20px;
+  right: 20px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #38BDF8, transparent);
+}
+
+.hud-cyber-bracket::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 20px;
+  right: 20px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #38BDF8, transparent);
+}
+
+.console-rack-chassis {
+  background: linear-gradient(180deg, #182030 0%, #0D1322 40%, #080C16 100%);
+  border: 2px solid rgba(71, 85, 105, 0.7);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), inset 0 1px 2px rgba(255, 255, 255, 0.15);
+}
+
+/* ========================================================
+   2D MARVEL FIGHTING ANIMATIONS & VISUAL FX ENGINE
+   ======================================================== */
+
+@keyframes combat-lunge-p1 {
+  0% { transform: translateX(0) scale(1) rotate(0deg); }
+  18% { transform: translateX(-25px) scale(0.92) rotate(-4deg); }
+  45% { transform: translateX(130px) scale(1.24) rotate(6deg); filter: brightness(1.7) drop-shadow(0 0 25px rgba(245,158,11,0.8)); }
+  65% { transform: translateX(105px) scale(1.15) rotate(3deg); }
+  85% { transform: translateX(30px) scale(1.04); }
+  100% { transform: translateX(0) scale(1) rotate(0deg); }
+}
+
+@keyframes combat-lunge-p2 {
+  0% { transform: translateX(0) scale(1) rotate(0deg); }
+  18% { transform: translateX(25px) scale(0.92) rotate(4deg); }
+  45% { transform: translateX(-130px) scale(1.24) rotate(-6deg); filter: brightness(1.7) drop-shadow(0 0 25px rgba(56,189,248,0.8)); }
+  65% { transform: translateX(-105px) scale(1.15) rotate(-3deg); }
+  85% { transform: translateX(-30px) scale(1.04); }
+  100% { transform: translateX(0) scale(1) rotate(0deg); }
+}
+
+@keyframes combat-recoil {
+  0% { transform: translateX(0) scale(1); filter: brightness(1); }
+  15% { transform: translateX(-40px) scale(0.88) rotate(-7deg); filter: brightness(2.8) contrast(1.4) drop-shadow(0 0 30px rgba(239,68,68,1)); }
+  40% { transform: translateX(20px) scale(0.95) rotate(3deg); filter: brightness(1.3); }
+  65% { transform: translateX(-12px) scale(0.98); }
+  85% { transform: translateX(5px) scale(1.0); }
+  100% { transform: translateX(0) scale(1); filter: brightness(1); }
+}
+
+@keyframes comic-impact-pop {
+  0% { transform: scale(0.1) rotate(-20deg); opacity: 0; }
+  30% { transform: scale(1.45) rotate(8deg); opacity: 1; filter: drop-shadow(0 0 35px #F59E0B) drop-shadow(0 0 15px #EF4444); }
+  60% { transform: scale(1.15) rotate(-4deg); opacity: 1; }
+  100% { transform: scale(1.3) translateY(-30px); opacity: 0; }
+}
+
+@keyframes damage-float-pop {
+  0% { transform: translateY(0) scale(0.5); opacity: 0; }
+  25% { transform: translateY(-20px) scale(1.35); opacity: 1; }
+  60% { transform: translateY(-35px) scale(1.1); opacity: 1; }
+  100% { transform: translateY(-55px) scale(0.9); opacity: 0; }
+}
+
+@keyframes laser-beam-sweep {
+  0% { opacity: 0; transform: scaleY(0.1); }
+  25% { opacity: 1; transform: scaleY(1.5); filter: brightness(3.0) drop-shadow(0 0 45px #EF4444); }
+  65% { opacity: 0.95; transform: scaleY(1.1); }
+  100% { opacity: 0; transform: scaleY(0.05); }
+}
+
+@keyframes claw-slash-arc {
+  0% { stroke-dashoffset: 600; opacity: 0; transform: scale(0.5); }
+  20% { opacity: 1; filter: drop-shadow(0 0 30px #38BDF8); }
+  55% { stroke-dashoffset: 0; opacity: 1; transform: scale(1.2); }
+  100% { opacity: 0; transform: scale(1.4); }
+}
+
+@keyframes speed-lines-anim {
+  0% { background-position: 0 0; }
+  100% { background-position: -400px 0; }
+}
+
+@keyframes shield-hex-pulse {
+  0% { transform: scale(0.92); opacity: 0.4; }
+  50% { transform: scale(1.12); opacity: 1; filter: drop-shadow(0 0 35px #38BDF8); }
+  100% { transform: scale(1.0); opacity: 0.75; }
+}
+
+@keyframes float-idle {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  30% { transform: translateY(-6px) rotate(0.5deg); }
+  60% { transform: translateY(-10px) rotate(-0.5deg); }
+  85% { transform: translateY(-3px) rotate(0.2deg); }
+}
+
+@keyframes aura-fire-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.45; filter: blur(20px); }
+  50% { transform: scale(1.22); opacity: 0.85; filter: blur(26px) drop-shadow(0 0 25px currentColor); }
+}
+
+.animate-combat-p1 {
+  animation: combat-lunge-p1 0.75s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+}
+
+.animate-combat-p2 {
+  animation: combat-lunge-p2 0.75s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+}
+
+.animate-recoil {
+  animation: combat-recoil 0.65s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.animate-comic-pop {
+  animation: comic-impact-pop 0.85s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.animate-damage-pop {
+  animation: damage-float-pop 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-laser-surge {
+  animation: laser-beam-sweep 0.65s ease-out forwards;
+}
+
+.animate-float-idle {
+  animation: float-idle 3.2s ease-in-out infinite;
+}
+
+.animate-aura-fire {
+  animation: aura-fire-pulse 2.2s ease-in-out infinite;
+}
+
+.speed-lines-bg {
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.16) 0px,
+    rgba(255, 255, 255, 0.16) 3px,
+    transparent 3px,
+    transparent 10px
+  );
+  animation: speed-lines-anim 0.25s linear infinite;
+}
+
 

@@ -60,7 +60,7 @@ export class GameRoom {
   }
 
   public addPlayer(player: Player): boolean {
-    if (this.state.players.length >= 8 || this.state.phase !== 'ONLINE_LOBBY') {
+    if (this.state.players.length >= 10 || this.state.phase !== 'ONLINE_LOBBY') {
       return false;
     }
     this.state.players.push(player);
@@ -531,6 +531,10 @@ export class GameRoom {
     match.rounds = [];
     match.player1Score = 0;
     match.player2Score = 0;
+    match.player1Action = undefined;
+    match.player2Action = undefined;
+    match.player1Ready = match.player1.isBot ? true : false;
+    match.player2Ready = match.player2.isBot ? true : false;
 
     // Initialize HP (100 HP) on all fighters in collection
     [match.player1, match.player2].forEach(p => {
@@ -545,12 +549,12 @@ export class GameRoom {
     this.notifyState();
   }
 
-  // Interactive player tactical move execution
+  // Interactive player tactical move execution with READY lock
   public executeBattleAction(
     playerId: string,
     action: BattleActionType,
     fighterIndex?: number
-  ): { success: boolean } {
+  ): { success: boolean; alreadyReady?: boolean } {
     const match = this.state.tournamentMatches.find(m => m.id === this.state.currentMatchId);
     if (!match || !match.player1 || !match.player2 || match.status === 'COMPLETED') {
       return { success: false };
@@ -560,26 +564,38 @@ export class GameRoom {
     const isP2 = match.player2.id === playerId;
     if (!isP1 && !isP2) return { success: false };
 
+    // Idempotent check: if already locked and ready, ignore duplicate clicks
+    if (isP1 && match.player1Ready && match.player1Action) {
+      return { success: true, alreadyReady: true };
+    }
+    if (isP2 && match.player2Ready && match.player2Action) {
+      return { success: true, alreadyReady: true };
+    }
+
     if (isP1) {
       match.player1Action = action;
+      match.player1Ready = true;
       if (fighterIndex !== undefined) match.player1SelectedHeroIndex = fighterIndex;
     } else {
       match.player2Action = action;
+      match.player2Ready = true;
       if (fighterIndex !== undefined) match.player2SelectedHeroIndex = fighterIndex;
     }
 
-    // Auto-choose move for Bot player if present
+    // Auto-choose move and set ready for Bot player if present
     if (match.player1.isBot && !match.player1Action) {
       const actions: BattleActionType[] = ['ATTACK', 'SPECIAL', 'DEFEND', 'ARTIFACT'];
       match.player1Action = actions[Math.floor(Math.random() * actions.length)];
+      match.player1Ready = true;
     }
     if (match.player2.isBot && !match.player2Action) {
       const actions: BattleActionType[] = ['ATTACK', 'SPECIAL', 'DEFEND', 'ARTIFACT'];
       match.player2Action = actions[Math.floor(Math.random() * actions.length)];
+      match.player2Ready = true;
     }
 
-    // If both players have locked in tactical moves -> RESOLVE CLASH!
-    if (match.player1Action && match.player2Action) {
+    // If BOTH players are explicitly READY -> RESOLVE CLASH!
+    if (match.player1Ready && match.player2Ready && match.player1Action && match.player2Action) {
       this.resolveCurrentDuelClash(match);
     } else {
       this.notifyState();
@@ -629,6 +645,8 @@ export class GameRoom {
     // Reset pending action locks for the next turn
     match.player1Action = undefined;
     match.player2Action = undefined;
+    match.player1Ready = p1.isBot ? true : false;
+    match.player2Ready = p2.isBot ? true : false;
 
     // Track knockout scoreboard (total enemy heroes defeated)
     match.player1Score = p2.collection.filter(c => (c.currentHp ?? 100) <= 0).length;

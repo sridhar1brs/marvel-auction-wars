@@ -49,10 +49,10 @@ export function CharacterCard({
       }`}
     >
       {/* Top Banner with Grade & Price & Bounty */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-black/40 border-b border-white/10">
-        <div className="flex items-center gap-2">
-          <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${getGradeBadgeClass(character.grade)}`}>
-            {character.grade === 'MYTHIC' ? '★ MYTHIC COSMIC' : `GRADE ${character.grade}`}
+      <div className="flex flex-wrap items-center justify-between gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 bg-black/40 border-b border-white/10">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          <span className={`text-[10px] font-black uppercase px-2 sm:px-2.5 py-0.5 rounded-full border ${getGradeBadgeClass(character.grade)}`}>
+            {character.grade === 'MYTHIC' ? '★ MYTHIC' : `GRADE ${character.grade}`}
           </span>
           <span className="text-xs font-semibold text-slate-400">
             {character.alignment}
@@ -66,7 +66,7 @@ export function CharacterCard({
         </div>
 
         {showPrice && (
-          <div className="flex items-center gap-1 bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-0.5 rounded-full text-emerald-300 font-bold text-xs shadow-sm">
+          <div className="flex items-center gap-1 bg-emerald-950/80 border border-emerald-500/40 px-2 sm:px-2.5 py-0.5 rounded-full text-emerald-300 font-bold text-xs shadow-sm">
             <DollarSign className="w-3 h-3 text-emerald-400" />
             <span>START: ${displayStartingPrice}</span>
           </div>

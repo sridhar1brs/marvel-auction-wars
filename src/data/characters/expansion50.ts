@@ -827,7 +827,7 @@ export const EXPANSION_50_CHARACTERS: Character[] = [
     startingPrice: 28,
     powers: 'Symbiote hive mind sovereignty, Enigma Force mastery, cosmic battleaxe, flight.',
     description: 'Eddie Brock after defeating Knull and claiming the title of King in Black with cosmic wings.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/e/e5/King_in_Black_Vol_1_1_Darkness_Reigns_Variant_Textless.jpg/revision/latest?cb=20201227201036',
+    imageUrl: '/images/characters/char-exp-049.jpg',
     color: '#A855F7',
     stats: { strength: 97, speed: 94, durability: 98, intelligence: 92, energy: 98, combat: 96 },
     specialAbilities: [

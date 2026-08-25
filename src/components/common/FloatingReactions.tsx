@@ -84,8 +84,8 @@ export const FloatingReactions: React.FC<FloatingReactionsProps> = ({
         ))}
       </div>
 
-      {/* Floating Toggle Button & Drawer */}
-      <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end">
+      {/* Floating Toggle Button & Drawer (Pinned to Bottom-Left Corner - Image 4) */}
+      <div className="fixed bottom-3 left-3 sm:bottom-5 sm:left-5 z-40 flex flex-col items-start">
         {isOpen && (
           <div className="mb-2 p-2 rounded-2xl bg-slate-900/95 border border-slate-700/80 shadow-2xl backdrop-blur-md grid grid-cols-4 gap-1.5 animate-fadeIn">
             {COMIC_REACTIONS.map((r, idx) => (

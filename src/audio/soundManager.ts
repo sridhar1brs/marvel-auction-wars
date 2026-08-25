@@ -11,9 +11,9 @@ class SoundManager {
   private bgmMasterGain: GainNode | null = null;
 
   constructor() {
-    // Setup audio element for Michael Giacchino's Web Letter Days MP3
+    // Setup audio element for Alan Silvestri's Avengers Theme
     if (typeof window !== 'undefined') {
-      this.audioElement = new Audio('/audio/web_letter_days.mp3');
+      this.audioElement = new Audio('/audio/marvel-music/avengers_theme.webm');
       this.audioElement.loop = true;
       this.audioElement.volume = 0.50;
       this.audioElement.preload = 'auto';
@@ -33,7 +33,7 @@ class SoundManager {
   public toggleMute(): boolean {
     this.isMuted = !this.isMuted;
     
-    // Toggle MP3 volume
+    // Toggle Audio volume
     if (this.audioElement) {
       this.audioElement.muted = this.isMuted;
     }
@@ -54,16 +54,15 @@ class SoundManager {
   }
 
   // ==========================================
-  // 🕷️ "WEB LETTER DAYS" · SPIDER-MAN: BRAND NEW DAY SOUNDTRACK
-  // Composed by Michael Giacchino
+  // ⚡ THE AVENGERS MAIN THEME · ALAN SILVESTRI
   // ==========================================
 
-  public startWebLetterDaysTheme() {
+  public startAvengersTheme() {
     this.initContext();
     this.isBgmPlaying = true;
 
     if (!this.audioElement && typeof window !== 'undefined') {
-      this.audioElement = new Audio('/audio/web_letter_days.mp3');
+      this.audioElement = new Audio('/audio/marvel-music/avengers_theme.webm');
       this.audioElement.loop = true;
       this.audioElement.volume = 0.50;
     }
@@ -76,21 +75,13 @@ class SoundManager {
       const playPromise = this.audioElement.play();
       if (playPromise !== undefined) {
         playPromise.catch(err => {
-          console.warn('[SoundManager] MP3 playback notice, falling back to synth:', err);
-          this.playWebLetterDaysSynthLoop();
+          console.warn('[SoundManager] Audio playback notice:', err);
         });
       }
-    } else {
-      this.playWebLetterDaysSynthLoop();
     }
   }
 
-  // Alias for backward compatibility
-  public startAvengersTheme() {
-    this.startWebLetterDaysTheme();
-  }
-
-  public stopWebLetterDaysTheme() {
+  public stopAvengersTheme() {
     this.isBgmPlaying = false;
     
     if (this.audioElement) {
@@ -109,14 +100,10 @@ class SoundManager {
         }
         node.disconnect();
       } catch {
-        // Ignored
+        // already disconnected
       }
     });
     this.activeBgmNodes = [];
-  }
-
-  public stopAvengersTheme() {
-    this.stopWebLetterDaysTheme();
   }
 
   // Frequency mapping for procedural synthesizer
@@ -126,11 +113,11 @@ class SoundManager {
     'D5': 587.33, 'E5': 659.25, 'F5': 698.46, 'G5': 783.99, 'A5': 880.00, 'Bb5': 932.33, 'C6': 1046.50
   };
 
-  private playWebLetterDaysSynthLoop() {
+  private playAvengersSynthLoop() {
     if (!this.isBgmPlaying || !this.ctx) return;
 
     const now = this.ctx.currentTime;
-    const tempo = 116; // Upbeat Spider-Man tempo
+    const tempo = 110;
     const beat = 60 / tempo;
 
     if (!this.bgmMasterGain) {
@@ -139,37 +126,17 @@ class SoundManager {
     }
     this.bgmMasterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.20, now);
 
-    // Michael Giacchino "Web Letter Days" - Main Spider-Man Theme Score
+    // Alan Silvestri Avengers Theme Main Motif
     const melody: { note: string; start: number; duration: number }[] = [
-      // Theme Intro Ostinato
       { note: 'A3', start: 0, duration: beat * 0.75 },
       { note: 'C4', start: beat * 0.75, duration: beat * 0.75 },
       { note: 'D4', start: beat * 1.5, duration: beat * 1.0 },
-      { note: 'E4', start: beat * 2.5, duration: beat * 1.5 },
-
-      // Peter Parker Emotional Ascent
-      { note: 'G4', start: beat * 4.0, duration: beat * 1.0 },
-      { note: 'E4', start: beat * 5.0, duration: beat * 1.0 },
-      { note: 'D4', start: beat * 6.0, duration: beat * 1.0 },
-      { note: 'C4', start: beat * 7.0, duration: beat * 1.0 },
-
-      // Brand New Day Triumphant Horn Motif
-      { note: 'A3', start: beat * 8.0, duration: beat * 0.75 },
-      { note: 'C4', start: beat * 8.75, duration: beat * 0.75 },
-      { note: 'D4', start: beat * 9.5, duration: beat * 1.0 },
-      { note: 'E4', start: beat * 10.5, duration: beat * 1.5 },
-      { note: 'A4', start: beat * 12.0, duration: beat * 2.0 },
-      { note: 'G4', start: beat * 14.0, duration: beat * 1.0 },
-      { note: 'E4', start: beat * 15.0, duration: beat * 1.0 },
-
-      // High Climax
-      { note: 'C5', start: beat * 16.0, duration: beat * 1.0 },
-      { note: 'D5', start: beat * 17.0, duration: beat * 1.0 },
-      { note: 'E5', start: beat * 18.0, duration: beat * 2.0 },
-      { note: 'G5', start: beat * 20.0, duration: beat * 1.5 },
-      { note: 'E5', start: beat * 21.5, duration: beat * 1.5 },
-      { note: 'D5', start: beat * 23.0, duration: beat * 1.0 },
-      { note: 'A4', start: beat * 24.0, duration: beat * 3.5 },
+      { note: 'E4', start: beat * 2.5, duration: beat * 2.0 },
+      { note: 'G4', start: beat * 4.5, duration: beat * 1.0 },
+      { note: 'E4', start: beat * 5.5, duration: beat * 1.0 },
+      { note: 'D4', start: beat * 6.5, duration: beat * 1.0 },
+      { note: 'C4', start: beat * 7.5, duration: beat * 1.5 },
+      { note: 'A4', start: beat * 9.0, duration: beat * 3.0 }
     ];
 
     melody.forEach(({ note, start, duration }) => {
@@ -203,10 +170,10 @@ class SoundManager {
       this.activeBgmNodes.push(oscLead, oscHarmonic, noteGain);
     });
 
-    const totalBeats = 28;
+    const totalBeats = 16;
     const loopDurationMs = totalBeats * beat * 1000;
     this.bgmTimeoutId = setTimeout(() => {
-      this.playWebLetterDaysSynthLoop();
+      this.playAvengersSynthLoop();
     }, loopDurationMs - 120);
   }
 
@@ -464,119 +431,66 @@ class SoundManager {
     osc.stop(now + 0.35);
   }
 
-  // 10. Victory Fanfare (Web Letter Days - Spider-Man: Brand New Day)
+  // 10. Victory Fanfare (Subtle triumph chime - No background song triggered)
   public playVictory() {
-    this.playWebLetterDays();
-  }
-
-  // 11. "Web Letter Days" - Spider-Man: Brand New Day Soundtrack (Michael Giacchino)
-  public playMarvelIntroFanfare() {
-    this.playWebLetterDays();
-  }
-
-  public playWebLetterDays() {
     if (this.isMuted) return;
     this.initContext();
+    if (!this.ctx) return;
 
-    if (typeof window !== 'undefined') {
-      try {
-        const audio = new Audio('/audio/web_letter_days.mp3');
-        audio.volume = 0.65;
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(() => {
-            this.synthesizeWebLetterDays();
-          });
-        }
-      } catch {
-        this.synthesizeWebLetterDays();
-      }
-    } else {
-      this.synthesizeWebLetterDays();
+    try {
+      const now = this.ctx.currentTime;
+      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+      notes.forEach((freq, idx) => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+        gain.gain.setValueAtTime(0.12, now + idx * 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.3);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now + idx * 0.08);
+        osc.stop(now + idx * 0.08 + 0.3);
+      });
+    } catch {
+      // Audio fallback
     }
   }
 
-  private synthesizeWebLetterDays() {
+  // 11. Marvel Intro Fanfare
+  public playMarvelIntroFanfare() {
+    // Kept subtle - No song auto-played
+  }
+
+  public playAvengersFanfare() {
+    // Disabled auto-song to let MCU Sound Engine handle all music
+  }
+
+  private synthesizeAvengersFanfare() {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
 
-    // 1. Cinematic Web-Thwip & Sub-Bass Drop
-    const subOsc = this.ctx.createOscillator();
-    const subGain = this.ctx.createGain();
-    subOsc.type = 'sine';
-    subOsc.frequency.setValueAtTime(95, now);
-    subOsc.frequency.exponentialRampToValueAtTime(32, now + 2.8);
-    subGain.gain.setValueAtTime(0.45, now);
-    subGain.gain.exponentialRampToValueAtTime(0.001, now + 2.8);
-    subOsc.connect(subGain);
-    subGain.connect(this.ctx.destination);
-    subOsc.start(now);
-    subOsc.stop(now + 2.8);
-
-    // 2. High Frequency Web-Shooter Flutter Swoosh
-    const bufferSize = this.ctx.sampleRate * 1.8;
-    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.35));
-    }
-    const noise = this.ctx.createBufferSource();
-    noise.buffer = buffer;
-    const noiseFilter = this.ctx.createBiquadFilter();
-    noiseFilter.type = 'bandpass';
-    noiseFilter.frequency.setValueAtTime(1400, now);
-    noiseFilter.frequency.linearRampToValueAtTime(450, now + 1.4);
-    const noiseGain = this.ctx.createGain();
-    noiseGain.gain.setValueAtTime(0.2, now);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 1.4);
-    noise.connect(noiseFilter);
-    noiseFilter.connect(noiseGain);
-    noiseGain.connect(this.ctx.destination);
-    noise.start(now);
-
-    // 3. Michael Giacchino "Spider-Man: Brand New Day" Main Theme Motif (Web Letter Days)
-    // Notes: [A3] -> [C4] -> [D4] -> [E4] -> [G4] -> [E4] -> [D4] -> [C4] -> [E4] -> [A4]
-    const spiderManMotif = [
-      // Opening ostinato rhythm
-      { f: 220.00, t: 0.10, d: 0.22, type: 'sawtooth' as OscillatorType, vol: 0.16 }, // A3
-      { f: 261.63, t: 0.32, d: 0.22, type: 'sawtooth' as OscillatorType, vol: 0.18 }, // C4
-      { f: 293.66, t: 0.54, d: 0.25, type: 'sawtooth' as OscillatorType, vol: 0.20 }, // D4
-      { f: 329.63, t: 0.80, d: 0.45, type: 'sawtooth' as OscillatorType, vol: 0.26 }, // E4 (Accent)
-
-      // Brand New Day Emotional Lift
-      { f: 392.00, t: 1.15, d: 0.35, type: 'sawtooth' as OscillatorType, vol: 0.28 }, // G4
-      { f: 329.63, t: 1.45, d: 0.35, type: 'sawtooth' as OscillatorType, vol: 0.26 }, // E4
-      { f: 293.66, t: 1.75, d: 0.35, type: 'sawtooth' as OscillatorType, vol: 0.24 }, // D4
-      { f: 261.63, t: 2.05, d: 0.35, type: 'sawtooth' as OscillatorType, vol: 0.24 }, // C4
-
-      // Triumphant Giacchino French Horn Climax at t = 2.35s
-      { f: 110.00, t: 2.35, d: 2.5, type: 'sawtooth' as OscillatorType, vol: 0.28 }, // A2 (Bass Foundation)
-      { f: 220.00, t: 2.35, d: 2.5, type: 'sawtooth' as OscillatorType, vol: 0.30 }, // A3
-      { f: 329.63, t: 2.35, d: 2.5, type: 'sawtooth' as OscillatorType, vol: 0.32 }, // E4
-      { f: 440.00, t: 2.35, d: 2.7, type: 'sawtooth' as OscillatorType, vol: 0.36 }, // A4 (High Heroic Trumpet)
-      { f: 523.25, t: 2.35, d: 2.7, type: 'sawtooth' as OscillatorType, vol: 0.34 }, // C5
-      { f: 659.25, t: 2.35, d: 2.7, type: 'sawtooth' as OscillatorType, vol: 0.32 }, // E5
+    // Alan Silvestri Avengers Motif (A4, C5, D5, E5)
+    const avengersNotes = [
+      { f: 220.00, t: 0.10, d: 0.35, vol: 0.25 },
+      { f: 261.63, t: 0.45, d: 0.35, vol: 0.28 },
+      { f: 293.66, t: 0.80, d: 0.40, vol: 0.30 },
+      { f: 329.63, t: 1.20, d: 1.50, vol: 0.38 },
+      { f: 440.00, t: 1.20, d: 1.50, vol: 0.35 },
+      { f: 523.25, t: 1.20, d: 1.50, vol: 0.32 }
     ];
 
-    spiderManMotif.forEach(({ f, t, d, type, vol }) => {
+    avengersNotes.forEach(({ f, t, d, vol }) => {
       const osc = this.ctx!.createOscillator();
       const gain = this.ctx!.createGain();
-      const filter = this.ctx!.createBiquadFilter();
-
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(2600, now + t);
-
-      osc.type = type;
+      osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(f, now + t);
-
       gain.gain.setValueAtTime(0.001, now + t);
       gain.gain.linearRampToValueAtTime(vol, now + t + 0.08);
       gain.gain.exponentialRampToValueAtTime(0.001, now + t + d);
-
-      osc.connect(filter);
-      filter.connect(gain);
+      osc.connect(gain);
       gain.connect(this.ctx!.destination);
-
       osc.start(now + t);
       osc.stop(now + t + d);
     });

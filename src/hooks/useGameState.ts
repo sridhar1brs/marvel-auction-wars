@@ -276,6 +276,11 @@ export function useGameState() {
           ...nextChar,
           startingPrice: 5,
         };
+      } else if (nextChar.name.includes('The One-Above-All')) {
+        nextChar = {
+          ...nextChar,
+          startingPrice: prev.settings.startingMoney,
+        };
       } else if (nextChar.startingPrice > maxPlayerFunds) {
         nextChar = {
           ...nextChar,
@@ -510,9 +515,9 @@ export function useGameState() {
   };
 
   const addLocalPlayer = (name: string, isBot: boolean = false, personality: BotPersonality = 'Balanced') => {
-    if (localState.players.length >= 8) return;
+    if (localState.players.length >= 10) return;
     const newId = `p-${Date.now()}`;
-    const avatars = ['🦸‍♂️', '🦸‍♀️', '🦹‍♂️', '🦹‍♀️', '⚡', '🔥', '🛡️', '🤖'];
+    const avatars = ['🦸‍♂️', '🦸‍♀️', '🦹‍♂️', '🦹‍♀️', '⚡', '🔥', '🛡️', '🤖', '👑', '🌟'];
     const avatar = isBot ? '🤖' : avatars[localState.players.length % avatars.length];
 
     const newPlayer: Player = {

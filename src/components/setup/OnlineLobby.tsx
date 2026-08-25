@@ -147,7 +147,7 @@ export function OnlineLobby({
 
         <div className="text-center min-w-0">
           <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 block truncate">
-            ROOM LOBBY (2 TO 8 PLAYERS)
+            ROOM LOBBY (2 TO 10 PLAYERS)
           </span>
           <h1 className="text-xl sm:text-3xl font-heading font-black text-white tracking-widest font-mono truncate">
             {state.roomId}
@@ -170,11 +170,11 @@ export function OnlineLobby({
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-blue-400" />
               <h2 className="text-sm sm:text-base font-heading font-black text-white uppercase tracking-wide">
-                PLAYERS ({state.players.length} / 8)
+                PLAYERS ({state.players.length} / 10)
               </h2>
             </div>
             <span className="text-[11px] text-slate-400 font-semibold">
-              Min 2 players
+              Min 2 • Max 10 players
             </span>
           </div>
 
@@ -227,7 +227,7 @@ export function OnlineLobby({
           </div>
 
           {/* Host add AI bot */}
-          {isHost && state.players.length < 8 && (
+          {isHost && state.players.length < 10 && (
             <div className="flex items-center gap-1.5 bg-black/40 p-2 rounded-xl border border-white/5 flex-wrap pt-3 border-t">
               <Bot className="w-3.5 h-3.5 text-purple-400 shrink-0" />
               <span className="text-[11px] font-bold text-slate-300">Add Bot:</span>

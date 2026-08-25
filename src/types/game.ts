@@ -172,6 +172,7 @@ export type GamePhase =
   | 'MATCH_RESULT'
   | 'CHAMPION'
   | 'BOSS_RAID'
+  | 'DUNGEON'
   | 'ENCYCLOPEDIA'
   | 'HOW_TO_PLAY'
   | 'SANDBOX';
@@ -226,7 +227,7 @@ export interface BattleRound {
 
 export interface TournamentMatch {
   id: string;
-  roundName: 'Quarterfinals' | 'Semifinals' | 'Final' | 'Match';
+  roundName: 'Round of 16' | 'Quarterfinals' | 'Semifinals' | 'Final' | 'Match';
   roundIndex: number; // 0, 1, 2...
   matchIndex: number;
   player1: Player | null;
@@ -242,6 +243,8 @@ export interface TournamentMatch {
   player2SelectedHeroIndex?: number;
   player1Action?: BattleActionType;
   player2Action?: BattleActionType;
+  player1Ready?: boolean;
+  player2Ready?: boolean;
 }
 
 export interface GameState {
