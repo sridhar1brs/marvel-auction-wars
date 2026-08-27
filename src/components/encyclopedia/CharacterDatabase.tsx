@@ -7,7 +7,7 @@ import { Search, X, Zap } from 'lucide-react';
 import { soundManager } from '../../audio/soundManager';
 
 interface Props {
-  onBack: () => void;
+  onBack?: () => void;
 }
 
 export function CharacterDatabase({ onBack }: Props) {
@@ -51,15 +51,17 @@ export function CharacterDatabase({ onBack }: Props) {
           </h1>
         </div>
 
-        <button
-          onClick={() => {
-            soundManager.playClick();
-            onBack();
-          }}
-          className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-white/10 transition-colors"
-        >
-          ← Back to Game
-        </button>
+        {onBack && (
+          <button
+            onClick={() => {
+              soundManager.playClick();
+              onBack();
+            }}
+            className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-white/10 transition-colors"
+          >
+            ← Back to Game
+          </button>
+        )}
       </div>
 
       {/* Filter Controls Bar */}
@@ -169,7 +171,7 @@ export function CharacterDatabase({ onBack }: Props) {
 
       {/* Modal Card Inspector */}
       {inspectCharacter && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 animate-fade-in">
           <div className="relative max-w-lg w-full">
             <button
               onClick={() => setInspectCharacter(null)}

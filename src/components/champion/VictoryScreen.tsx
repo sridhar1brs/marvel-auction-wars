@@ -1,338 +1,549 @@
-import { useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Player, GameState } from '../../types/game';
-import { Trophy, Award, DollarSign, Swords, RotateCcw, Sparkles, Crown, Star, Flame, Zap } from 'lucide-react';
+import { 
+  Trophy, Award, DollarSign, Swords, RotateCcw, Sparkles, 
+  Crown, Star, Flame, Zap, PartyPopper, Shield, Target, TrendingUp, Gem, CheckCircle2
+} from 'lucide-react';
 import { CharacterPortrait } from '../common/CharacterPortrait';
 import { soundManager } from '../../audio/soundManager';
+import confetti from 'canvas-confetti';
+import { InfinitySnapVictoryIntro } from './InfinitySnapVictoryIntro';
+import { PlayerProfileModal } from '../common/PlayerProfileModal';
+import { useAuth } from '../../context/AuthContext';
 
 interface Props {
   champion: Player;
   state: GameState;
   onPlayAgain: () => void;
+  onVoteRematch?: () => void;
 }
 
-export function VictoryScreen({ champion, state, onPlayAgain }: Props) {
+export function VictoryScreen({ champion, state, onPlayAgain, onVoteRematch }: Props) {
+  const { user, recordMatchResult, isAuthenticated } = useAuth();
+  const [showSnapIntro, setShowSnapIntro] = useState<boolean>(true);
+  const [selectedProfilePlayer, setSelectedProfilePlayer] = useState<Player | null>(null);
+  const [matchXpBreakdown, setMatchXpBreakdown] = useState<{ total: number; reasons: { label: string; xp: number }[] } | null>(null);
+  const hasRecordedMatch = useRef<boolean>(false);
+
+  // Authoritative Match Outcome Recording on VictoryScreen Mount
   useEffect(() => {
-    soundManager.playVictory();
-  }, []);
+    if (!isAuthenticated || !user || hasRecordedMatch.current) return;
+    hasRecordedMatch.current = true;
+
+    // Find if authenticated user is in match
+    const userInMatch = state.players.find(p => 
+      p.id === user.id || 
+      p.name.toLowerCase() === user.username.toLowerCase() ||
+      p.name.toLowerCase() === (user.displayName || '').toLowerCase()
+    );
+
+    const isChampion = champion.name.toLowerCase() === user.username.toLowerCase() || 
+                       champion.name.toLowerCase() === (user.displayName || '').toLowerCase();
+
+    const battlesWon = userInMatch?.stats?.battlesWon || (isChampion ? 6 : 2);
+    const charsBought = userInMatch?.collection?.length || (isChampion ? champion.collection.length : 3);
+
+    const token = `match-${state.roomId || Date.now()}-${user.id}`;
+
+    recordMatchResult({
+      isWin: isChampion,
+      isTournamentChampion: isChampion,
+      isMvp: isChampion,
+      battlesWon,
+      charactersPurchased: charsBought,
+      matchType: 'tournament'
+    }, token).then((res) => {
+      if (res && res.xpAwarded) {
+        setMatchXpBreakdown(res.xpAwarded);
+      }
+    });
+  }, [isAuthenticated, user?.id, champion.name, state.roomId]);
+
+  useEffect(() => {
+    if (!showSnapIntro) {
+      soundManager.playVictory();
+      
+      // Celebratory entrance confetti cascade
+      try {
+        confetti({
+          particleCount: 180,
+          spread: 120,
+          origin: { y: 0.5 },
+          colors: ['#FFD700', '#FF1744', '#00E5FF', '#A855F7', '#10B981', '#FBBF24']
+        });
+      } catch {
+        // Fallback
+      }
+    }
+  }, [showSnapIntro]);
+
+  const triggerConfettiBlast = () => {
+    soundManager.playAttackHit();
+    try {
+      confetti({
+        particleCount: 160,
+        spread: 140,
+        origin: { y: 0.6 },
+        colors: ['#FFD700', '#FF1744', '#00E5FF', '#A855F7', '#10B981', '#FBBF24', '#FFFFFF']
+      });
+    } catch {
+      // Confetti fallback
+    }
+  };
 
   // Find MVP character in champion roster
-  const mvpChar = [...champion.collection].sort((a, b) => b.overallPower - a.overallPower)[0] || null;
+  const sortedSquad = [...champion.collection].sort((a, b) => b.overallPower - a.overallPower);
+  const mvpChar = sortedSquad[0] || null;
+  const otherHeroes = sortedSquad.slice(1);
+  const totalPower = champion.collection.reduce((sum, c) => sum + c.overallPower, 0);
+
+  if (showSnapIntro) {
+    return (
+      <InfinitySnapVictoryIntro
+        championName={champion.name}
+        championAvatar={champion.avatar}
+        onComplete={() => setShowSnapIntro(false)}
+      />
+    );
+  }
 
   return (
-    <div className="relative max-w-5xl mx-auto px-4 py-8 space-y-8 overflow-hidden">
+    <div className="relative max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-10 space-y-8 overflow-hidden animate-fadeIn select-none">
       
-      {/* COSMIC RED & BLUE ENERGY VEINS / TENDRILS SVG BACKGROUND */}
-      <svg 
-        className="absolute inset-0 w-full h-full pointer-events-none z-0" 
-        xmlns="http://www.w3.org/2000/svg"
-        preserveAspectRatio="none"
-        viewBox="0 0 1000 1000"
-      >
-        <defs>
-          <linearGradient id="redVeinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#ff1744" stopOpacity="0.8" />
-            <stop offset="50%" stopColor="#e62429" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="#ff5252" stopOpacity="0.8" />
-          </linearGradient>
-          <linearGradient id="blueVeinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#00e5ff" stopOpacity="0.8" />
-            <stop offset="50%" stopColor="#2979ff" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.8" />
-          </linearGradient>
-          <filter id="glowFilter" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="6" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
+      {/* 1. HIGH-TECH COSMIC NEBULA & GOD-RAYS BACKGROUND */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-500/15 via-purple-950/20 to-black pointer-events-none" />
 
-        {/* --- CRIMSON RED ENERGY VEINS (Wrapping from Left & Top across Cards) --- */}
-        {/* Vein Red 1: Top Left down to Roster Panel */}
-        <path
-          d="M -20,100 Q 180,120 250,220 T 320,380 Q 200,440 120,540 T 150,720 Q 220,860 450,920"
-          fill="none"
-          stroke="url(#redVeinGrad)"
-          strokeWidth="3.5"
-          className="animate-vein-red"
-        />
-        {/* Vein Red 2: Branch curling around Trophy */}
-        <path
-          d="M 500,20 Q 420,80 430,150 T 380,240 Q 300,280 200,290"
-          fill="none"
-          stroke="url(#redVeinGrad)"
-          strokeWidth="2.5"
-          className="animate-vein-red"
-        />
-        {/* Vein Red 3: Branching toward MVP card & Bottom Play Button */}
-        <path
-          d="M 320,380 Q 450,420 480,560 T 350,760 Q 380,880 500,940"
-          fill="none"
-          stroke="url(#redVeinGrad)"
-          strokeWidth="3"
-          className="animate-vein-red"
-        />
-        {/* Red Vein Minor Offshoots */}
-        <path d="M 250,220 Q 320,200 360,250" fill="none" stroke="#ff1744" strokeWidth="1.5" className="animate-vein-red" />
-        <path d="M 120,540 Q 60,600 40,680" fill="none" stroke="#ff1744" strokeWidth="1.5" className="animate-vein-red" />
-        <path d="M 480,560 Q 560,600 620,580" fill="none" stroke="#ff1744" strokeWidth="1.5" className="animate-vein-red" />
+      {/* Floating Stardust Shimmer */}
+      <div className="absolute inset-0 opacity-30 pointer-events-none bg-[radial-gradient(#ffd700_1px,transparent_1px)] [background-size:32px_32px]" />
 
-        {/* --- ELECTRIC BLUE ENERGY VEINS (Wrapping from Right & Bottom across Cards) --- */}
-        {/* Vein Blue 1: Top Right down around Stats Panel */}
-        <path
-          d="M 1020,80 Q 820,140 750,230 T 680,420 Q 780,520 860,620 T 820,800 Q 750,890 550,940"
-          fill="none"
-          stroke="url(#blueVeinGrad)"
-          strokeWidth="3.5"
-          className="animate-vein-blue"
-        />
-        {/* Vein Blue 2: Branch curling around Trophy from Right */}
-        <path
-          d="M 500,20 Q 580,80 570,150 T 620,240 Q 700,280 800,290"
-          fill="none"
-          stroke="url(#blueVeinGrad)"
-          strokeWidth="2.5"
-          className="animate-vein-blue"
-        />
-        {/* Vein Blue 3: Wrapping across the Bottom Play Button */}
-        <path
-          d="M 680,420 Q 550,460 520,600 T 650,780 Q 600,900 500,950"
-          fill="none"
-          stroke="url(#blueVeinGrad)"
-          strokeWidth="3"
-          className="animate-vein-blue"
-        />
-        {/* Blue Vein Minor Offshoots */}
-        <path d="M 750,230 Q 680,200 640,250" fill="none" stroke="#00e5ff" strokeWidth="1.5" className="animate-vein-blue" />
-        <path d="M 860,620 Q 920,680 950,760" fill="none" stroke="#00e5ff" strokeWidth="1.5" className="animate-vein-blue" />
-        <path d="M 520,600 Q 440,640 380,620" fill="none" stroke="#00e5ff" strokeWidth="1.5" className="animate-vein-blue" />
-
-        {/* --- GLOWING BRANCH INTERSECTION NODES --- */}
-        <circle cx="250" cy="220" r="4.5" fill="#ff1744" filter="url(#glowFilter)" className="animate-vein-node" />
-        <circle cx="320" cy="380" r="5" fill="#ff5252" filter="url(#glowFilter)" className="animate-vein-node" />
-        <circle cx="120" cy="540" r="4" fill="#ff1744" filter="url(#glowFilter)" className="animate-vein-node" />
-        <circle cx="750" cy="230" r="4.5" fill="#00e5ff" filter="url(#glowFilter)" className="animate-vein-node" />
-        <circle cx="680" cy="420" r="5" fill="#2979ff" filter="url(#glowFilter)" className="animate-vein-node" />
-        <circle cx="500" cy="945" r="6" fill="#ffd700" filter="url(#glowFilter)" className="animate-vein-node" />
-        <circle cx="500" cy="20" r="5" fill="#ffd700" filter="url(#glowFilter)" className="animate-vein-node" />
-      </svg>
-
-      {/* 3D FLOATING CHAMPIONSHIP TROPHY & TITLE HEADER */}
-      <div className="relative z-10 text-center space-y-4">
+      {/* 2. GRAND 3D CHAMPIONSHIP TROPHY APEX & TITLE HEADER */}
+      <div className="relative z-10 flex flex-col items-center text-center space-y-4">
         
-        {/* Floating Golden Trophy with Infinity Gems */}
-        <div className="inline-block relative">
-          <div className="w-24 h-24 sm:w-28 sm:h-28 mx-auto rounded-3xl bg-gradient-to-tr from-amber-500 via-yellow-300 to-amber-600 p-1 shadow-[0_0_50px_rgba(255,215,0,0.7)] animate-bounce flex items-center justify-center">
-            <div className="w-full h-full rounded-2xl bg-black/90 flex flex-col items-center justify-center relative overflow-hidden">
-              <Trophy className="w-12 h-12 sm:w-14 sm:h-14 text-amber-400 fill-amber-400 drop-shadow-[0_0_15px_rgba(255,215,0,0.9)]" />
-              <div className="flex items-center gap-1 mt-1">
-                <span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_#3B82F6]" />
-                <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_#EF4444]" />
-                <span className="w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_8px_#A855F7]" />
-                <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10B981]" />
-                <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_#FBBF24]" />
-                <span className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_8px_#F97316]" />
+        {/* Supreme 3D Golden Trophy with Orbiting Infinity Stones */}
+        <div className="relative inline-flex items-center justify-center group cursor-pointer" onClick={triggerConfettiBlast}>
+          
+          {/* Radial Golden Flare */}
+          <div className="absolute -inset-6 rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 blur-2xl opacity-60 group-hover:opacity-100 transition-opacity animate-pulse" />
+
+          {/* 3D Golden Trophy Box Vessel */}
+          <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-3xl bg-gradient-to-br from-amber-300 via-yellow-500 to-amber-700 p-1 shadow-[0_0_60px_rgba(255,215,0,0.8)] border-2 border-amber-200 animate-float-idle flex items-center justify-center">
+            <div className="w-full h-full rounded-2xl bg-black/90 flex flex-col items-center justify-center relative overflow-hidden backdrop-blur-xl">
+              
+              {/* Internal God Rays */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(255,215,0,0.25)_0%,transparent_70%)]" />
+
+              <Trophy className="w-14 h-14 sm:w-18 sm:h-18 text-amber-300 fill-amber-400 drop-shadow-[0_0_20px_rgba(255,215,0,1)] transform group-hover:scale-110 transition-transform duration-300" />
+              
+              {/* 6 Inlaid Infinity Gems Row */}
+              <div className="flex items-center gap-1.5 mt-2 z-10">
+                <span className="w-2.5 h-2.5 rounded-full bg-purple-500 shadow-[0_0_10px_#A855F7] animate-pulse" />
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_10px_#38BDF8] animate-pulse [animation-delay:150ms]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_10px_#EF4444] animate-pulse [animation-delay:300ms]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-[0_0_10px_#F97316] animate-pulse [animation-delay:450ms]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#10B981] animate-pulse [animation-delay:600ms]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 shadow-[0_0_10px_#FBBF24] animate-pulse [animation-delay:750ms]" />
               </div>
             </div>
           </div>
-          <Crown className="w-10 h-10 text-amber-300 fill-amber-400 absolute -top-4 -right-3 animate-pulse drop-shadow-[0_0_12px_rgba(255,215,0,0.9)]" />
+
+          {/* Floating Crown Pinnacle */}
+          <Crown className="w-12 h-12 text-amber-300 fill-amber-400 absolute -top-5 -right-4 animate-bounce drop-shadow-[0_0_15px_rgba(255,215,0,1)] z-20" />
         </div>
 
-        {/* Grand Title Banner */}
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full bg-gradient-to-r from-red-950 via-amber-950 to-blue-950 border border-amber-400/80 shadow-[0_0_20px_rgba(230,36,41,0.5)] text-amber-300 font-extrabold text-xs uppercase tracking-widest">
-            <Flame className="w-3.5 h-3.5 text-red-400 animate-bounce" />
+        {/* Grand Title & Persona Callout */}
+        <div className="space-y-2 max-w-2xl">
+          
+          <div className="inline-flex items-center gap-2 px-6 py-1.5 rounded-full bg-gradient-to-r from-red-950/90 via-amber-950/90 to-purple-950/90 border border-amber-400/80 shadow-[0_0_25px_rgba(245,158,11,0.5)] text-amber-300 font-heading font-black text-xs uppercase tracking-widest">
+            <Flame className="w-4 h-4 text-red-400 animate-bounce" />
             <span>MARVEL AUCTION SUPREMACY</span>
-            <Zap className="w-3.5 h-3.5 text-cyan-400 animate-bounce" />
+            <Zap className="w-4 h-4 text-cyan-400 animate-bounce" />
           </div>
 
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-heading font-black text-gold-gradient tracking-wider uppercase drop-shadow-[0_0_35px_rgba(255,215,0,0.7)]">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl font-heading font-black bg-gradient-to-b from-white via-amber-200 to-amber-500 bg-clip-text text-transparent tracking-wider uppercase drop-shadow-[0_0_40px_rgba(255,215,0,0.6)]">
             TOURNAMENT CHAMPION
           </h1>
 
-          <div className="flex items-center justify-center gap-3 pt-2">
-            <span className="text-4xl">{champion.avatar}</span>
+          <div className="flex items-center justify-center gap-3 pt-1">
+            <span className="text-4xl sm:text-5xl">{champion.avatar}</span>
             <h2 className="text-3xl sm:text-5xl font-heading font-black text-white uppercase tracking-wide drop-shadow-md">
               {champion.name}
             </h2>
+            <span className="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/60 text-emerald-300 text-xs font-mono font-black uppercase">
+              👑 UNDEFEATED
+            </span>
           </div>
         </div>
       </div>
 
-      {/* CHAMPION SHOWCASE & SQUAD SHOWCASE (Wrapped by Tendril Borders) */}
-      <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+      {/* 3. HERO PODIUM & SQUAD HALL OF FAME */}
+      <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* Left: Champion Roster Showcase (7 cols) */}
-        <div className="md:col-span-7 glass-panel p-6 rounded-3xl border-2 border-red-500/50 shadow-[0_0_35px_rgba(230,36,41,0.3)] space-y-4 relative overflow-hidden backdrop-blur-md">
-          <div className="flex items-center justify-between border-b border-white/10 pb-3">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-red-400 animate-pulse" />
-              <span className="text-xs font-black uppercase text-red-300 tracking-wider">
-                VICTORIOUS SQUAD ({champion.collection.length} HEROES)
-              </span>
-            </div>
-            <span className="text-xs font-bold text-slate-400">
-              Total Power: <strong className="text-amber-400 font-black">{champion.collection.reduce((sum, c) => sum + c.overallPower, 0)}</strong>
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {champion.collection.map(char => (
-              <div key={char.id} className="flex flex-col items-center bg-black/60 p-2.5 rounded-2xl border border-red-500/30 text-center hover:border-red-400 transition-all shadow-sm">
-                <CharacterPortrait character={char} size="sm" showBadge={true} />
-                <span className="font-extrabold text-xs text-white mt-2 truncate w-full">
-                  {char.name}
-                </span>
-                <span className="text-[10px] text-amber-400 font-bold">
-                  ⚡ {char.overallPower} PWR
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* MVP Card Callout & Hall of Fame Spotlight */}
+        {/* Left: Squad Hall of Fame & MVP Showcase (7 cols) */}
+        <div className="lg:col-span-7 space-y-6">
+          
+          {/* MVP HERO CENTERPIECE SPOTLIGHT */}
           {mvpChar && (
-            <div className="mt-4 p-5 bg-gradient-to-r from-red-950/90 via-purple-950/80 to-blue-950/90 rounded-3xl border-2 border-amber-400 shadow-[0_0_30px_rgba(255,215,0,0.35)] space-y-4 relative overflow-hidden">
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                <div className="shrink-0 relative">
-                  <CharacterPortrait character={mvpChar} size="lg" showBadge={true} />
-                  <span className="absolute -top-2.5 -right-2.5 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-black text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full shadow-lg border border-white animate-bounce">
-                    👑 MVP
+            <div className="relative rounded-3xl p-6 sm:p-7 bg-gradient-to-br from-amber-950/70 via-purple-950/60 to-black border-2 border-amber-400/90 shadow-[0_0_50px_rgba(255,215,0,0.35)] overflow-hidden backdrop-blur-xl">
+              
+              {/* Background Ambient Glow */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10">
+                
+                {/* MVP Portrait with Crown and Glowing Ring */}
+                <div className="relative shrink-0">
+                  <div className="absolute -inset-3 rounded-full bg-gradient-to-tr from-amber-400 via-yellow-300 to-amber-600 blur-md opacity-80 animate-pulse" />
+                  <CharacterPortrait character={mvpChar} size="xl" showBadge={true} className="relative ring-4 ring-amber-300 shadow-2xl" />
+                  
+                  <span className="absolute -top-3 -right-3 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-black text-xs font-heading font-black uppercase px-3 py-1 rounded-full shadow-xl border-2 border-white animate-bounce flex items-center gap-1">
+                    <Crown className="w-3.5 h-3.5 fill-current" />
+                    <span>MVP</span>
                   </span>
                 </div>
-                <div className="space-y-1 text-center sm:text-left flex-1 min-w-0">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-500/20 border border-amber-400 text-amber-300 text-[10px] font-black uppercase tracking-wider">
-                    <Sparkles className="w-3 h-3 text-amber-400" />
-                    <span>
-                      {champion.stats.battlesWon >= 3 
-                        ? '🏆 IMMORTAL DUEL TITAN' 
-                        : champion.money >= 30 
-                        ? '💰 AUCTION ECONOMY MASTER' 
-                        : mvpChar.overallPower >= 95 
-                        ? '🌌 COSMIC CATACLYSM APEX' 
-                        : '⚔️ CLUTCH TOURNAMENT CONQUEROR'}
-                    </span>
+
+                {/* MVP Info & Stats */}
+                <div className="space-y-2 text-center sm:text-left flex-1 min-w-0">
+                  
+                  <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-500/20 border border-amber-400 text-amber-300 text-xs font-black uppercase tracking-wider">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>TOURNAMENT DOMINATOR</span>
                   </div>
 
-                  <h4 className="font-heading font-black text-2xl text-white truncate">
+                  <h3 className="font-heading font-black text-2xl sm:text-3xl text-white truncate drop-shadow">
                     {mvpChar.name}
-                  </h4>
-                  <p className="text-xs text-gray-300 italic line-clamp-2">
+                  </h3>
+
+                  <p className="text-xs text-slate-300 italic line-clamp-2">
                     "{mvpChar.description}"
                   </p>
+
                   <div className="flex flex-wrap gap-2 pt-1 justify-center sm:justify-start">
-                    <span className="text-[11px] bg-amber-500/20 text-amber-300 font-extrabold px-2.5 py-0.5 rounded-lg border border-amber-500/40">
-                      ⚡ {mvpChar.overallPower} POWER RATING
+                    <span className="text-xs bg-amber-500/20 text-amber-300 font-mono font-black px-3 py-1 rounded-xl border border-amber-500/50 shadow-sm flex items-center gap-1">
+                      <Zap className="w-3.5 h-3.5 text-amber-400" />
+                      <span>{mvpChar.overallPower} PWR</span>
                     </span>
-                    <span className="text-[11px] bg-red-500/20 text-red-300 font-extrabold px-2.5 py-0.5 rounded-lg border border-red-500/40">
-                      🩸 UNDEFEATED FINISHER
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* WHY THEY WON: Victory Analytics Breakdown */}
-              <div className="bg-black/60 p-4 rounded-2xl border border-white/10 space-y-2">
-                <span className="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                  <Award className="w-4 h-4 text-amber-400" />
-                  WHY {champion.name.toUpperCase()} WON THE CHAMPIONSHIP:
-                </span>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-300">
-                  <div className="p-2 bg-slate-900/60 rounded-xl border border-white/5 space-y-0.5">
-                    <strong className="text-white block">💥 Vanguard Superiority</strong>
-                    <span className="text-slate-400 text-[11px]">
-                      {mvpChar.name} led the charge with a peak <strong>{mvpChar.overallPower} Power</strong> rating, overwhelming rival frontlines.
-                    </span>
-                  </div>
-
-                  <div className="p-2 bg-slate-900/60 rounded-xl border border-white/5 space-y-0.5">
-                    <strong className="text-white block">💎 Draft Economy</strong>
-                    <span className="text-slate-400 text-[11px]">
-                      Spent <strong>${champion.stats.moneySpent}</strong> across {champion.collection.length} lots while retaining <strong>${champion.money}</strong> in cash reserves.
-                    </span>
-                  </div>
-
-                  <div className="p-2 bg-slate-900/60 rounded-xl border border-white/5 space-y-0.5">
-                    <strong className="text-white block">🎯 Auction Dominance</strong>
-                    <span className="text-slate-400 text-[11px]">
-                      Secured high-priority targets with a peak winning bid of <strong>${champion.stats.highestBid}</strong>.
-                    </span>
-                  </div>
-
-                  <div className="p-2 bg-slate-900/60 rounded-xl border border-white/5 space-y-0.5">
-                    <strong className="text-white block">⚡ Combat Execution</strong>
-                    <span className="text-slate-400 text-[11px]">
-                      Won <strong>{champion.stats.battlesWon} match duels</strong> to eliminate all competing contenders!
+                    <span className="text-xs bg-red-500/20 text-red-300 font-mono font-black px-3 py-1 rounded-xl border border-red-500/50 shadow-sm flex items-center gap-1">
+                      <Swords className="w-3.5 h-3.5 text-red-400" />
+                      <span>GRADE {mvpChar.grade} APEX</span>
                     </span>
                   </div>
                 </div>
               </div>
             </div>
           )}
-        </div>
 
-        {/* Right: Final Tournament Statistics (5 cols) */}
-        <div className="md:col-span-5 glass-panel p-6 rounded-3xl border-2 border-blue-500/50 shadow-[0_0_35px_rgba(59,130,246,0.3)] space-y-4 backdrop-blur-md">
-          <span className="text-xs font-black uppercase tracking-wider text-blue-300 block border-b border-white/10 pb-2">
-            Final Match Analytics & Records
-          </span>
+          {/* SQUAD ROSTER CARDS */}
+          <div className="rounded-3xl p-5 bg-black/60 border border-white/10 shadow-xl space-y-4 backdrop-blur-md">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-amber-400" />
+                <span className="text-xs font-heading font-black uppercase tracking-wider text-slate-200">
+                  VICTORIOUS SQUAD ({champion.collection.length} HEROES)
+                </span>
+              </div>
+              <span className="text-xs font-bold text-slate-400 font-mono">
+                TOTAL POWER: <strong className="text-amber-400 text-sm font-black">{totalPower} PWR</strong>
+              </span>
+            </div>
 
-          <div className="space-y-3 text-xs">
-            <StatRow
-              icon={<DollarSign className="w-4 h-4 text-emerald-400" />}
-              label="Total Money Invested"
-              value={`$${champion.stats.moneySpent}`}
-            />
-            <StatRow
-              icon={<DollarSign className="w-4 h-4 text-amber-400" />}
-              label="Banked Treasury Cash"
-              value={`$${champion.money}`}
-            />
-            <StatRow
-              icon={<Swords className="w-4 h-4 text-red-400" />}
-              label="Match Duels Won"
-              value={`${champion.stats.battlesWon}`}
-            />
-            <StatRow
-              icon={<Award className="w-4 h-4 text-purple-400" />}
-              label="Peak Winning Bid"
-              value={`$${champion.stats.highestBid}`}
-            />
-            <StatRow
-              icon={<Sparkles className="w-4 h-4 text-cyan-400" />}
-              label="Total Squad Power"
-              value={`${champion.collection.reduce((sum, c) => sum + c.overallPower, 0)} PWR`}
-            />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {champion.collection.map((char, index) => {
+                const isMvp = char.id === mvpChar?.id;
+                return (
+                  <div 
+                    key={char.id} 
+                    className={`flex flex-col items-center p-3 rounded-2xl border text-center transition-all duration-300 ${
+                      isMvp 
+                        ? 'bg-amber-950/40 border-amber-400/80 shadow-[0_0_20px_rgba(245,158,11,0.3)] ring-1 ring-amber-400/60' 
+                        : 'bg-black/50 border-white/10 hover:border-amber-500/40'
+                    }`}
+                  >
+                    <div className="relative">
+                      <CharacterPortrait character={char} size="sm" showBadge={true} />
+                      {isMvp && (
+                        <span className="absolute -top-2 -right-2 bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.2 rounded-full shadow">
+                          ★
+                        </span>
+                      )}
+                    </div>
+                    <span className="font-extrabold text-xs text-white mt-2 truncate w-full">
+                      {char.name}
+                    </span>
+                    <span className="text-[10px] text-amber-400 font-mono font-bold mt-0.5">
+                      ⚡ {char.overallPower} PWR
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="pt-4 relative">
-            <button
-              onClick={() => {
-                soundManager.playClick();
-                onPlayAgain();
-              }}
-              className="w-full py-4 bg-gradient-to-r from-red-600 via-amber-600 to-blue-600 hover:from-red-500 hover:to-blue-500 text-white font-heading font-black text-lg uppercase tracking-wider rounded-2xl shadow-[0_0_30px_rgba(255,215,0,0.6)] border border-amber-400 transition-all transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
-            >
-              <RotateCcw className="w-5 h-5 animate-spin" />
-              <span>PLAY NEW TOURNAMENT</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+          {/* ALL PLAYERS TOURNAMENT LEADERBOARD & DOSSIERS */}
+          <div className="rounded-3xl p-5 bg-black/60 border border-white/10 space-y-3">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+              <span className="text-xs font-heading font-black uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
+                <Trophy className="w-4 h-4 text-amber-400" />
+                <span>TOURNAMENT FINAL STANDINGS</span>
+              </span>
+              <span className="text-[10px] text-cyan-400 font-mono">Click player for Dossier</span>
+            </div>
 
-function StatRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between p-3 bg-black/50 rounded-xl border border-white/10">
-      <div className="flex items-center gap-2 text-slate-300 font-bold text-xs">
-        {icon}
-        <span>{label}</span>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+              {state.players
+                .slice()
+                .sort((a, b) => (b.stats?.battlesWon || 0) - (a.stats?.battlesWon || 0))
+                .map((p, rank) => {
+                  const isChamp = p.id === champion.id;
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => {
+                        soundManager.playClick();
+                        setSelectedProfilePlayer(p);
+                      }}
+                      className={`flex items-center justify-between p-2 rounded-xl border transition-all cursor-pointer hover:border-cyan-400/60 hover:bg-slate-900/80 ${
+                        isChamp ? 'bg-amber-950/40 border-amber-400/60' : 'bg-black/40 border-white/5'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`w-5 h-5 rounded-full flex items-center justify-center font-mono font-black text-[10px] shrink-0 ${
+                          rank === 0 ? 'bg-amber-400 text-black' : rank === 1 ? 'bg-slate-300 text-black' : rank === 2 ? 'bg-amber-700 text-white' : 'bg-slate-800 text-slate-400'
+                        }`}>
+                          {rank + 1}
+                        </span>
+                        <span className="text-base shrink-0">{p.avatar}</span>
+                        <span className="font-extrabold text-xs text-white truncate max-w-[120px] sm:max-w-none">
+                          {p.name} {isChamp && '👑'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3 text-right font-mono text-[11px] shrink-0">
+                        <span className="text-red-400 font-bold">
+                          {p.stats?.battlesWon || 0} Wins
+                        </span>
+                        <span className="text-emerald-400">
+                          ${p.stats?.moneySpent || 0}
+                        </span>
+                        <span className="text-[10px] text-cyan-400 underline">
+                          Profile
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+
+        </div>
+
+        {/* Right: Stark-Tech Combat Telemetry & Actions (5 cols) */}
+        <div className="lg:col-span-5 space-y-6">
+          
+          {/* FINAL MATCH TELEMETRY HOLOCUBES */}
+          <div className="rounded-3xl p-6 bg-black/70 border border-amber-500/30 shadow-[0_0_35px_rgba(0,0,0,0.8)] space-y-4 backdrop-blur-xl">
+            
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <span className="text-xs font-heading font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                <Target className="w-4 h-4 text-amber-400" />
+                <span>CHAMPIONSHIP TELEMETRY</span>
+              </span>
+              <span className="text-[10px] font-mono text-slate-400">FINAL STATS</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              
+              {/* Money Invested */}
+              <div className="p-3.5 bg-slate-950/80 rounded-2xl border border-white/10 space-y-1">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
+                  <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Total Invested</span>
+                </div>
+                <span className="text-xl font-heading font-black text-emerald-400 block">
+                  ${champion.stats.moneySpent}
+                </span>
+              </div>
+
+              {/* Cash Remaining */}
+              <div className="p-3.5 bg-slate-950/80 rounded-2xl border border-white/10 space-y-1">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
+                  <Gem className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Treasury Bank</span>
+                </div>
+                <span className="text-xl font-heading font-black text-amber-400 block">
+                  ${champion.money}
+                </span>
+              </div>
+
+              {/* Duels Won */}
+              <div className="p-3.5 bg-slate-950/80 rounded-2xl border border-white/10 space-y-1">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
+                  <Swords className="w-3.5 h-3.5 text-red-400" />
+                  <span>Duels Conquered</span>
+                </div>
+                <span className="text-xl font-heading font-black text-red-400 block">
+                  {champion.stats.battlesWon} WINS
+                </span>
+              </div>
+
+              {/* Peak Bid */}
+              <div className="p-3.5 bg-slate-950/80 rounded-2xl border border-white/10 space-y-1">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
+                  <TrendingUp className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Peak Auction Bid</span>
+                </div>
+                <span className="text-xl font-heading font-black text-purple-400 block">
+                  ${champion.stats.highestBid}
+                </span>
+              </div>
+
+            </div>
+
+            {/* WHY THEY WON: Tactical Breakdown */}
+            <div className="p-4 bg-slate-950/90 rounded-2xl border border-white/5 space-y-2 text-xs">
+              <span className="text-[11px] font-heading font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                <Award className="w-4 h-4 text-amber-400" />
+                <span>CHAMPIONSHIP DECIDING FACTORS</span>
+              </span>
+              
+              <div className="space-y-1.5 text-[11px] text-slate-300">
+                <div className="flex items-start gap-1.5">
+                  <span className="text-amber-400 font-bold">⚡</span>
+                  <span><strong>Vanguard Power:</strong> {mvpChar?.name} anchored the team with a decisive <strong>{mvpChar?.overallPower} Power</strong> output.</span>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="text-emerald-400 font-bold">💎</span>
+                  <span><strong>Economic Precision:</strong> Retained <strong>${champion.money}</strong> in liquid reserves while locking down key lots.</span>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="text-red-400 font-bold">⚔️</span>
+                  <span><strong>Duel Dominance:</strong> Cleared all tournament brackets to claim the Multiverse title!</span>
+                </div>
+              </div>
+            </div>
+
+            {/* COMMANDER CAREER XP REWARD CARD */}
+            {isAuthenticated && user && (
+              <div className="p-4 bg-gradient-to-r from-purple-950/80 via-[#10162B] to-cyan-950/80 rounded-2xl border border-cyan-500/40 space-y-2.5 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span className="font-heading font-black text-xs text-white uppercase tracking-wider">
+                      COMMANDER PROGRESSION
+                    </span>
+                  </div>
+                  <span className="text-[10px] bg-amber-500 text-black font-black px-2 py-0.5 rounded-full font-mono">
+                    LVL {user.level}
+                  </span>
+                </div>
+
+                {matchXpBreakdown && matchXpBreakdown.total > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {matchXpBreakdown.reasons.map((r, idx) => (
+                      <span key={idx} className="text-[10px] px-2 py-0.5 bg-black/60 border border-white/10 rounded-lg text-cyan-300 font-mono">
+                        {r.label} <strong className="text-amber-300">+{r.xp} XP</strong>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Progress Bar */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[10px] text-slate-300 font-mono">
+                    <span>{user.currentLevelXp?.toLocaleString() || 0} / {user.xpForNextLevel?.toLocaleString() || 100} XP</span>
+                    <span className="text-cyan-300">{user.progressPercent || 0}%</span>
+                  </div>
+                  <div className="relative w-full h-2 bg-black/80 rounded-full overflow-hidden border border-white/10">
+                    <div
+                      className="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-amber-400 rounded-full transition-all duration-700 shadow-glow-cyan"
+                      style={{ width: `${Math.max(4, Math.min(100, user.progressPercent || 0))}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* CELEBRATION ACTION BUTTONS */}
+            <div className="pt-2 space-y-2.5">
+              
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={triggerConfettiBlast}
+                  className="py-3 px-3 bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 text-amber-300 font-heading font-black text-xs uppercase tracking-wider rounded-2xl border border-amber-400/60 shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95 hover:scale-[1.02]"
+                >
+                  <PartyPopper className="w-4 h-4 text-amber-400 animate-bounce" />
+                  <span>CONFETTI BLAST 🎊</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    soundManager.playClick();
+                    setShowSnapIntro(true);
+                  }}
+                  className="py-3 px-3 bg-gradient-to-r from-purple-500/20 via-indigo-500/20 to-purple-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 text-purple-300 font-heading font-black text-xs uppercase tracking-wider rounded-2xl border border-purple-400/60 shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95 hover:scale-[1.02]"
+                >
+                  <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" />
+                  <span>REPLAY SNAP ✨</span>
+                </button>
+              </div>
+
+              {/* MULTIPLAYER REMATCH VOTES TRACKER */}
+              {state.isOnline && (
+                <div className="p-3 bg-black/60 rounded-2xl border border-purple-500/40 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-heading font-black text-purple-300 uppercase">
+                      ⚔️ REMATCH VOTES ({state.rematchVotes?.length || 0}/{state.players.filter(p => !p.isBot).length})
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {state.players.filter(p => !p.isBot).map(p => {
+                      const hasVoted = state.rematchVotes?.includes(p.id);
+                      return (
+                        <span 
+                          key={p.id} 
+                          className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold flex items-center gap-1 border ${
+                            hasVoted ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300' : 'bg-slate-900 border-slate-700 text-slate-400'
+                          }`}
+                        >
+                          <span>{p.name}</span>
+                          <span>{hasVoted ? '✓' : '⏳'}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Master Play Again / Rematch Button */}
+              <button
+                onClick={() => {
+                  soundManager.playClick();
+                  if (state.isOnline && onVoteRematch) {
+                    onVoteRematch();
+                  } else {
+                    onPlayAgain();
+                  }
+                }}
+                className="w-full py-4 bg-gradient-to-r from-red-600 via-amber-600 to-purple-600 hover:from-red-500 hover:to-purple-500 text-white font-heading font-black text-base sm:text-lg uppercase tracking-wider rounded-2xl shadow-[0_0_35px_rgba(255,215,0,0.6)] border-2 border-amber-400 transition-all transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2.5"
+              >
+                <RotateCcw className="w-5 h-5 animate-spin" />
+                <span>{state.isOnline ? 'VOTE TO REMATCH 🔄' : 'COMMENCE NEW TOURNAMENT'}</span>
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
       </div>
-      <span className="font-heading font-black text-sm text-white">{value}</span>
+
+      {/* Player Profile Modal */}
+      {selectedProfilePlayer && (
+        <PlayerProfileModal
+          player={selectedProfilePlayer}
+          onClose={() => setSelectedProfilePlayer(null)}
+        />
+      )}
     </div>
   );
 }

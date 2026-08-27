@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { TournamentMatch, GameState, BattleActionType, Character, ArenaBackgroundId } from '../../types/game';
+import React, { useState, useEffect, useRef } from 'react';
+import { TournamentMatch, GameState, BattleActionType, Character, ArenaBackgroundId, Player } from '../../types/game';
 import { CombatClash } from './CombatClash';
 import { CharacterPortrait } from '../common/CharacterPortrait';
 import { UltimateAnimationOverlay } from '../common/UltimateAnimationOverlay';
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { soundManager } from '../../audio/soundManager';
 import { playSound } from '../../audio/soundEffects';
+import { SpectatorChatDrawer } from './SpectatorChatDrawer';
 
 function detectHeroCombatEffect(hero?: Character): CombatEffectType {
   if (!hero) return 'melee';
@@ -37,9 +38,12 @@ function detectHeroCombatEffect(hero?: Character): CombatEffectType {
 interface Props {
   state: GameState;
   onReturnToTree: () => void;
-  onExecuteAction?: (matchId: string, action1: BattleActionType, action2: BattleActionType, p1HeroIdx: number, p2HeroIdx: number) => void;
+  onExecuteAction?: (matchId: string, action1: BattleActionType, action2: BattleActionType, p1HeroIdx: number, p2HeroIdx: number, p1SkillId?: string, p2SkillId?: string) => void;
   onConcedeMatch?: (matchId?: string) => void;
   onSkipMatch?: (matchId?: string) => void;
+  onUseHealingPotion?: (heroId?: string) => void;
+  onTriggerFlashbang?: (targetId: string) => void;
+  onSendSpectatorChat?: (message: string) => void;
   isOnlineMode?: boolean;
   controllingPlayerId?: string;
 }
@@ -50,6 +54,9 @@ export function BattlePhase({
   onExecuteAction,
   onConcedeMatch,
   onSkipMatch,
+  onUseHealingPotion,
+  onTriggerFlashbang,
+  onSendSpectatorChat,
   isOnlineMode = false,
   controllingPlayerId,
 }: Props) {
@@ -58,6 +65,8 @@ export function BattlePhase({
   const [p2HeroIdx, setP2HeroIdx] = useState(0);
   const [p1Action, setP1Action] = useState<BattleActionType>('ATTACK');
   const [p2Action, setP2Action] = useState<BattleActionType>('ATTACK');
+  const [p1SelectedSkillId, setP1SelectedSkillId] = useState<string | undefined>(undefined);
+  const [p2SelectedSkillId, setP2SelectedSkillId] = useState<string | undefined>(undefined);
   const [isClashing, setIsClashing] = useState(false);
   const [arenaBg, setArenaBg] = useState<ArenaBackgroundId>('wakanda');
   
@@ -74,12 +83,13 @@ export function BattlePhase({
   const [p1TakingHit, setP1TakingHit] = useState(false);
   const [p2TakingHit, setP2TakingHit] = useState(false);
 
-  // Track 1-time skill usages per duel (Classic Match 1-time limit)
+  // Track 1-time skill usages per duel
   const [p1UsedSkillIds, setP1UsedSkillIds] = useState<string[]>([]);
   const [p2UsedSkillIds, setP2UsedSkillIds] = useState<string[]>([]);
 
-  // Healing Potion (1x use per match)
+  // Healing Potion (1x use per match per player)
   const [p1UsedHealingPotion, setP1UsedHealingPotion] = useState(false);
+  const [p2UsedHealingPotion, setP2UsedHealingPotion] = useState(false);
   const [healingPopup, setHealingPopup] = useState<string | null>(null);
 
   const [ultimateOverlay, setUltimateOverlay] = useState<{
@@ -120,14 +130,92 @@ export function BattlePhase({
 
   const isUserP1 = isOnlineMode && controllingPlayerId ? (p1.id === controllingPlayerId) : true;
   const isUserP2 = isOnlineMode && controllingPlayerId ? (p2.id === controllingPlayerId) : false;
+  const isSpectator = isOnlineMode && !isUserP1 && !isUserP2;
+
+  const activeUser = state.players.find(p => p.id === (controllingPlayerId || (isUserP1 ? p1.id : p2.id)));
+  const isFlashbanged = !!(activeUser?.flashbangedUntil && Date.now() < activeUser.flashbangedUntil);
 
   const hasP1Locked = !!match.player1Action || !!match.player1Ready;
   const hasP2Locked = !!match.player2Action || !!match.player2Ready;
   const isUserLocked = isOnlineMode ? (isUserP1 ? hasP1Locked : isUserP2 ? hasP2Locked : false) : false;
 
+  const canControlP1 = isOnlineMode ? (isUserP1 && !hasP1Locked && !isClashing && !isFlashbanged) : (!hasP1Locked && !isClashing && !isFlashbanged);
+  const canControlP2 = isOnlineMode ? (isUserP2 && !hasP2Locked && !isClashing && !p2.isBot && !isFlashbanged) : (!p2.isBot && !hasP2Locked && !isClashing && !isFlashbanged);
+
   // Authoritative Hero Selection
   const p1SelectedHero: Character = p1.collection[p1HeroIdx] || p1.collection[0];
   const p2SelectedHero: Character = p2.collection[p2HeroIdx] || p2.collection[0];
+
+  const prevRoundsCountRef = useRef(match.rounds.length);
+
+  // AUTOMATED 2D COMBAT CLASH ANIMATION (Syncs in Online Multiplayer & Spectator Mode)
+  useEffect(() => {
+    if (match.rounds.length > prevRoundsCountRef.current) {
+      const lastRound = match.rounds[match.rounds.length - 1];
+      prevRoundsCountRef.current = match.rounds.length;
+
+      const f1 = p1SelectedHero;
+      const f2 = p2SelectedHero;
+      const move1 = getSignatureMoveForCharacter(f1);
+      const move2 = getSignatureMoveForCharacter(f2);
+
+      const isP1Attack = lastRound.player1Action === 'ATTACK' || lastRound.player1Action === 'SPECIAL' || lastRound.player1Action?.startsWith('SKILL_');
+      const isP2Attack = lastRound.player2Action === 'ATTACK' || lastRound.player2Action === 'SPECIAL' || lastRound.player2Action?.startsWith('SKILL_');
+
+      setIsClashing(true);
+      if (isP1Attack) setP1Attacking(true);
+      if (isP2Attack) setP2Attacking(true);
+
+      const activeMove = isP1Attack ? move1 : move2;
+      setActiveEffectType(activeMove.effectType || 'melee');
+      setActiveSignatureMoveName(`${isP1Attack ? f1?.name : f2?.name}: ${activeMove.moveName}`);
+
+      setActiveComicBurst({
+        id: String(Date.now()),
+        word: activeMove.comicBurstWord || 'CRASH!',
+        x: 50,
+        y: 42,
+        color: activeMove.color || '#EF4444',
+        subText: `${isP1Attack ? f1?.name : f2?.name}: ${activeMove.moveName}`
+      });
+
+      if (lastRound.player1Action === 'SPECIAL' || lastRound.player2Action === 'SPECIAL' || f1?.grade === 'MYTHIC' || f2?.grade === 'MYTHIC') {
+        const specialHero = (lastRound.player1Action === 'SPECIAL' || f1?.grade === 'MYTHIC') ? f1 : f2;
+        if (specialHero) {
+          setIsSuperCutIn(true);
+          setSuperHeroName(specialHero.name);
+          setSuperHeroImageUrl(`/images/characters/${specialHero.id}.jpg`);
+          setSuperAbilityName(specialHero.specialAbilities?.[0]?.name || 'SUPER CRITICAL STRIKE!');
+          setTimeout(() => setIsSuperCutIn(false), 900);
+        }
+      }
+
+      setTimeout(() => {
+        setP1Attacking(false);
+        setP2Attacking(false);
+        if (isP1Attack) setP2TakingHit(true);
+        if (isP2Attack) setP1TakingHit(true);
+        soundManager.playAttackHit();
+        setTimeout(() => {
+          setP1TakingHit(false);
+          setP2TakingHit(false);
+        }, 300);
+      }, 350);
+
+      setTimeout(() => {
+        setIsClashing(false);
+        setActiveEffectType('none');
+        setActiveComicBurst(null);
+        setIsSuperCutIn(false);
+        setP1Attacking(false);
+        setP2Attacking(false);
+        setP1TakingHit(false);
+        setP2TakingHit(false);
+      }, 700);
+    } else {
+      prevRoundsCountRef.current = match.rounds.length;
+    }
+  }, [match.rounds.length, p1SelectedHero, p2SelectedHero]);
 
   useEffect(() => {
     // If selected hero is dead, auto-switch to first living hero
@@ -146,11 +234,15 @@ export function BattlePhase({
     if (!onExecuteAction) return;
 
     if (isOnlineMode) {
-      if (isUserP2) {
-        onExecuteAction(match.id, p1Action, p2Action, p1HeroIdx, p2HeroIdx);
-      } else {
-        onExecuteAction(match.id, p1Action, p2Action, p1HeroIdx, p2HeroIdx);
+      if (isSpectator) return;
+      if (isUserP1) {
+        setP1Attacking(true);
+        setTimeout(() => setP1Attacking(false), 300);
+      } else if (isUserP2) {
+        setP2Attacking(true);
+        setTimeout(() => setP2Attacking(false), 300);
       }
+      onExecuteAction(match.id, p1Action, p2Action, p1HeroIdx, p2HeroIdx, p1SelectedSkillId, p2SelectedSkillId);
       return;
     }
 
@@ -194,19 +286,47 @@ export function BattlePhase({
       setTimeout(() => setIsSuperCutIn(false), 900);
     }
 
+    if (p1SelectedSkillId) {
+      setP1UsedSkillIds(prev => [...prev, p1SelectedSkillId]);
+      if (p1SelectedHero) {
+        if (!p1SelectedHero.usedSkillIds) p1SelectedHero.usedSkillIds = [];
+        if (!p1SelectedHero.usedSkillIds.includes(p1SelectedSkillId)) {
+          p1SelectedHero.usedSkillIds.push(p1SelectedSkillId);
+        }
+      }
+    }
+    if (p2SelectedSkillId) {
+      setP2UsedSkillIds(prev => [...prev, p2SelectedSkillId]);
+      if (p2SelectedHero) {
+        if (!p2SelectedHero.usedSkillIds) p2SelectedHero.usedSkillIds = [];
+        if (!p2SelectedHero.usedSkillIds.includes(p2SelectedSkillId)) {
+          p2SelectedHero.usedSkillIds.push(p2SelectedSkillId);
+        }
+      }
+    }
+
     setTimeout(() => {
       setP1Attacking(false);
       setP2TakingHit(true);
       soundManager.playAttackHit();
-      setTimeout(() => setP2TakingHit(false), 350);
-    }, 380);
+      setTimeout(() => setP2TakingHit(false), 300);
+    }, 320);
 
     setTimeout(() => {
       setIsClashing(false);
       setActiveEffectType('none');
       setActiveComicBurst(null);
-      onExecuteAction(match.id, p1Action, botAction, p1HeroIdx, botHeroIdx);
-    }, 750);
+      setIsSuperCutIn(false);
+      setP1Attacking(false);
+      setP2Attacking(false);
+      setP1TakingHit(false);
+      setP2TakingHit(false);
+      const usedP1Skill = p1SelectedSkillId;
+      const usedP2Skill = p2SelectedSkillId;
+      setP1SelectedSkillId(undefined);
+      setP2SelectedSkillId(undefined);
+      onExecuteAction(match.id, p1Action, botAction, p1HeroIdx, botHeroIdx, usedP1Skill, usedP2Skill);
+    }, 620);
   };
 
   const getHpPercent = (hero?: Character) => {
@@ -230,23 +350,103 @@ export function BattlePhase({
 
   const p1Fusions = findPossibleTagTeamFusions(p1.collection);
 
-  const handleUseHealingPotion = () => {
-    if (p1UsedHealingPotion || !p1SelectedHero) return;
+  // Healing Potion Ownership verification (Checks hero equipped artifacts, relics, and inventory)
+  const isPotionItem = (item?: any) => {
+    if (!item) return false;
+    const id = (typeof item === 'string' ? item : item.id || '').toLowerCase();
+    const name = (typeof item === 'object' && item.name ? item.name : '').toLowerCase();
+    return (
+      ['art-heal-01', 'art-heal-02', 'art-heal-03', 'art-025', 'relic-health-potion'].includes(id) ||
+      id.includes('heal') ||
+      id.includes('potion') ||
+      id.includes('serum') ||
+      id.includes('elixir') ||
+      name.includes('heal') ||
+      name.includes('potion') ||
+      name.includes('serum') ||
+      name.includes('elixir')
+    );
+  };
+
+  const getPlayerPotionCount = (player: Player) => {
+    const fromRelics = player.relics ? player.relics.filter(isPotionItem).length : 0;
+    const fromInventory = (player as any).inventory ? (player as any).inventory.filter(isPotionItem).length : 0;
+    const fromCollection = player.collection ? player.collection.filter((h: Character) => isPotionItem(h.equippedArtifact)).length : 0;
+    return fromRelics + fromInventory + fromCollection;
+  };
+
+  const p1PotionCount = getPlayerPotionCount(p1);
+  const p1HasPotion = p1PotionCount > 0;
+
+  const p2PotionCount = getPlayerPotionCount(p2);
+  const p2HasPotion = p2PotionCount > 0;
+
+  const handleUseHealingPotionP1 = () => {
+    if (!p1HasPotion || p1UsedHealingPotion || !p1SelectedHero || !canControlP1) return;
     soundManager.playVictory();
+    if (isOnlineMode && onUseHealingPotion) {
+      onUseHealingPotion(p1SelectedHero.id);
+    }
     const currentHp = p1SelectedHero.currentHp !== undefined ? p1SelectedHero.currentHp : 100;
     const maxHp = p1SelectedHero.maxHp || 100;
     const healedHp = Math.min(maxHp, currentHp + 40);
     p1SelectedHero.currentHp = healedHp;
     setP1UsedHealingPotion(true);
-    setHealingPopup(`+40 HP RESTORED!`);
+
+    // Consume from local state
+    if (p1.relics && p1.relics.some(isPotionItem)) {
+      const idx = p1.relics.findIndex(isPotionItem);
+      if (idx !== -1) p1.relics.splice(idx, 1);
+    } else {
+      const heroWithPotion = p1.collection.find(h => isPotionItem(h.equippedArtifact));
+      if (heroWithPotion) heroWithPotion.equippedArtifact = null;
+    }
+
+    setHealingPopup(`${p1.name}'s ${p1SelectedHero.name}: +40 HP RESTORED! 🧪`);
     setTimeout(() => setHealingPopup(null), 2500);
   };
 
-  const handleUseSkill = (skill: CharacterSkill) => {
-    if (p1UsedSkillIds.includes(skill.id)) return;
+  const handleUseHealingPotionP2 = () => {
+    if (!p2HasPotion || p2UsedHealingPotion || !p2SelectedHero || !canControlP2) return;
+    soundManager.playVictory();
+    if (isOnlineMode && onUseHealingPotion) {
+      onUseHealingPotion(p2SelectedHero.id);
+    }
+    const currentHp = p2SelectedHero.currentHp !== undefined ? p2SelectedHero.currentHp : 100;
+    const maxHp = p2SelectedHero.maxHp || 100;
+    const healedHp = Math.min(maxHp, currentHp + 40);
+    p2SelectedHero.currentHp = healedHp;
+    setP2UsedHealingPotion(true);
+
+    // Consume from local state
+    if (p2.relics && p2.relics.some(isPotionItem)) {
+      const idx = p2.relics.findIndex(isPotionItem);
+      if (idx !== -1) p2.relics.splice(idx, 1);
+    } else {
+      const heroWithPotion = p2.collection.find(h => isPotionItem(h.equippedArtifact));
+      if (heroWithPotion) heroWithPotion.equippedArtifact = null;
+    }
+
+    setHealingPopup(`${p2.name}'s ${p2SelectedHero.name}: +40 HP RESTORED! 🧪`);
+    setTimeout(() => setHealingPopup(null), 2500);
+  };
+
+  const handleUseSkillP1 = (skill: CharacterSkill) => {
+    const p1UsedIds = [...(p1SelectedHero?.usedSkillIds || []), ...p1UsedSkillIds];
+    const isUsed = p1UsedIds.includes(skill.id);
+    if (isUsed || !canControlP1) return;
     soundManager.playClick();
     setP1Action('SPECIAL');
-    setP1UsedSkillIds(prev => [...prev, skill.id]);
+    setP1SelectedSkillId(skill.id);
+  };
+
+  const handleUseSkillP2 = (skill: CharacterSkill) => {
+    const p2UsedIds = [...(p2SelectedHero?.usedSkillIds || []), ...p2UsedSkillIds];
+    const isUsed = p2UsedIds.includes(skill.id);
+    if (isUsed || !canControlP2) return;
+    soundManager.playClick();
+    setP2Action('SPECIAL');
+    setP2SelectedSkillId(skill.id);
   };
 
   const handleInBattleMerge = (fusion: { hero1: Character; hero2: Character; combo: TagTeamCombo }) => {
@@ -269,8 +469,18 @@ export function BattlePhase({
   };
 
   return (
-    <div className={`max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-6 space-y-6 arena-bg-${arenaBg} rounded-3xl transition-all duration-700`}>
+    <div className={`max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-6 space-y-6 arena-bg-${arenaBg} rounded-3xl transition-all duration-700 relative`}>
       
+      {/* Floating Animated Healing Potion Banner */}
+      {healingPopup && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 animate-bounce pointer-events-none">
+          <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 text-white font-heading font-black text-sm sm:text-base px-6 py-2.5 rounded-full border-2 border-white shadow-[0_0_40px_rgba(16,185,129,0.95)] flex items-center gap-2.5">
+            <TestTube2 className="w-5 h-5 text-white animate-spin" />
+            <span>{healingPopup}</span>
+          </div>
+        </div>
+      )}
+
       {/* 1. TOP STATUS BAR: MATCH INFO & ARENA SELECTOR */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 glass-panel p-4 sm:p-5 rounded-3xl border border-white/10 shadow-2xl">
         <div className="space-y-1 text-center md:text-left">
@@ -281,13 +491,39 @@ export function BattlePhase({
             >
               ← Tournament Tree
             </button>
+            {onSkipMatch && !isMatchComplete && (
+              <button
+                onClick={() => {
+                  soundManager.playClick();
+                  onSkipMatch(match.id);
+                }}
+                className="px-3.5 py-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-amber-300 hover:text-amber-200 border border-amber-500/40 text-xs font-bold transition-all flex items-center gap-1 shadow-sm"
+              >
+                <span>⚡ Simulate / Skip</span>
+              </button>
+            )}
+            {onConcedeMatch && !isMatchComplete && ((isUserP1 && canControlP1) || (isUserP2 && canControlP2)) && (
+              <button
+                onClick={() => {
+                  soundManager.playClick();
+                  onConcedeMatch(match.id);
+                }}
+                className="px-3.5 py-1.5 rounded-full bg-red-950/80 hover:bg-red-900 text-red-200 border border-red-500/50 text-xs font-bold transition-all flex items-center gap-1 shadow-sm"
+              >
+                <span>🏳️ Concede Match</span>
+              </button>
+            )}
             <span className="px-3 py-1 rounded-full bg-red-950/80 border border-red-500/40 text-red-300 text-xs font-heading font-black tracking-wider uppercase">
               {match.roundName} • MATCH #{match.id.slice(-4)}
             </span>
           </div>
 
-          <h1 className="font-heading font-black text-2xl sm:text-4xl text-white tracking-tight drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)]">
-            {p1.name} <span className="text-red-500 text-xl sm:text-2xl font-mono">VS</span> {p2.name}
+          <h1 className="font-heading font-black text-2xl sm:text-4xl text-white tracking-tight drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)] flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+            <span className="text-[10px] sm:text-xs bg-amber-500 text-black font-black px-1.5 py-0.5 rounded font-mono">LVL {p1.level || p1.profile?.level || 1}</span>
+            <span>{p1.name}</span> 
+            <span className="text-red-500 text-xl sm:text-2xl font-mono">VS</span> 
+            <span className="text-[10px] sm:text-xs bg-amber-500 text-black font-black px-1.5 py-0.5 rounded font-mono">LVL {p2.level || p2.profile?.level || 1}</span>
+            <span>{p2.name}</span>
           </h1>
           <p className="text-xs text-slate-300 font-medium">
             Battle continues until an entire team has 0 HP standing!
@@ -474,6 +710,17 @@ export function BattlePhase({
                     {p1SelectedHero?.currentHp !== undefined ? p1SelectedHero.currentHp : 100} / {p1SelectedHero?.maxHp || 100} HP ({getHpPercent(p1SelectedHero)}%)
                   </span>
                 </div>
+                {/* ⚡ LAST STAND Comeback Mechanic Banner */}
+                {p1SelectedHero && p1SelectedHero.currentHp !== undefined && p1SelectedHero.currentHp <= 25 && p1SelectedHero.currentHp > 0 && (
+                  <div className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-500/30 to-red-500/30 border border-amber-400 text-amber-300 text-[10px] font-heading font-black uppercase tracking-wider shadow-[0_0_15px_rgba(245,158,11,0.5)] animate-pulse flex items-center justify-between">
+                    <span className="flex items-center gap-1">
+                      <Zap className="w-3.5 h-3.5 text-amber-400" />
+                      <span>⚡ LAST STAND OVERDRIVE</span>
+                    </span>
+                    <span className="text-[9px] font-mono text-amber-200">+3 PWR • +15% DEF</span>
+                  </div>
+                )}
+
                 <div className="w-full h-4 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-white/15">
                   <div 
                     className={`h-full rounded-full bg-gradient-to-r transition-all duration-500 ${getHpGradient(getHpPercent(p1SelectedHero))}`}
@@ -481,524 +728,693 @@ export function BattlePhase({
                   />
                 </div>
 
-                {/* Interactive Healing Potion Button (1x Match Limit) */}
-                <div className="pt-1 flex items-center justify-between">
-                  <button
-                    disabled={p1UsedHealingPotion || (p1SelectedHero?.currentHp ?? 100) >= (p1SelectedHero?.maxHp ?? 100)}
-                    onClick={handleUseHealingPotion}
-                    className={`px-3 py-1 rounded-xl font-heading font-black text-[11px] uppercase tracking-wider transition-all flex items-center gap-1.5 border shadow ${
-                      p1UsedHealingPotion
-                        ? 'bg-slate-900/60 text-slate-500 border-slate-700 cursor-not-allowed opacity-50'
-                        : 'bg-emerald-950/90 text-emerald-300 hover:bg-emerald-900 border-emerald-500/60 shadow-[0_0_15px_rgba(16,185,129,0.35)] animate-pulse'
-                    }`}
-                  >
-                    <TestTube2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>{p1UsedHealingPotion ? '🧪 HEAL POTION (USED 1x)' : '🧪 USE HEALING POTION (+40 HP)'}</span>
-                  </button>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    {p1UsedHealingPotion ? '0 Potions Left' : '1 Potion Available'}
-                  </span>
-                </div>
-              </div>
-
-              {/* TACTICAL COMBAT COMMANDS */}
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-black uppercase text-red-300 block">
-                    CHOOSE {p1SelectedHero?.name.toUpperCase()}'S MOVE:
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <button
-                    onClick={() => {
-                      soundManager.playClick();
-                      setP1Action('ATTACK');
-                    }}
-                    className={`p-2.5 rounded-xl border text-left transition-all ${
-                      p1Action === 'ATTACK'
-                        ? 'bg-red-900/80 border-red-400 ring-2 ring-red-400 shadow-glow-red scale-[1.02]'
-                        : 'bg-black/50 border-white/10 hover:border-red-500/50 text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5 font-heading font-black text-xs text-red-200">
-                      <Swords className="w-3.5 h-3.5 text-red-400" />
-                      <span>⚔️ STRIKE ATTACK</span>
-                    </div>
-                    <span className="text-[9px] text-slate-400 block mt-0.5">Heavy assault + roll</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      soundManager.playClick();
-                      setP1Action('SPECIAL');
-                    }}
-                    className={`p-2.5 rounded-xl border text-left transition-all ${
-                      p1Action === 'SPECIAL'
-                        ? 'bg-purple-900/80 border-purple-400 ring-2 ring-purple-400 shadow-glow-cosmic scale-[1.02]'
-                        : 'bg-black/50 border-white/10 hover:border-purple-500/50 text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5 font-heading font-black text-xs text-purple-200 truncate">
-                      <Zap className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                      <span className="truncate">⚡ {p1SelectedHero?.specialAbilities?.[0]?.name.toUpperCase() || 'SIGNATURE MOVE'}</span>
-                    </div>
-                    <span className="text-[9px] text-purple-300 block mt-0.5 truncate">
-                      {p1SelectedHero?.specialAbilities?.[0]?.description || p1SelectedHero?.powers || 'Superpower strike'}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      soundManager.playClick();
-                      setP1Action('DEFEND');
-                    }}
-                    className={`p-2.5 rounded-xl border text-left transition-all ${
-                      p1Action === 'DEFEND'
-                        ? 'bg-blue-900/80 border-blue-400 ring-2 ring-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.6)] scale-[1.02]'
-                        : 'bg-black/50 border-white/10 hover:border-blue-500/50 text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5 font-heading font-black text-xs text-blue-200">
-                      <Shield className="w-3.5 h-3.5 text-blue-400" />
-                      <span>🛡️ DEFENSIVE GUARD</span>
-                    </div>
-                    <span className="text-[9px] text-slate-400 block mt-0.5">50% Damage Guard</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      soundManager.playClick();
-                      setP1Action('ARTIFACT');
-                    }}
-                    className={`p-2.5 rounded-xl border text-left transition-all ${
-                      p1Action === 'ARTIFACT'
-                        ? 'bg-amber-900/80 border-amber-400 ring-2 ring-amber-400 shadow-glow-gold scale-[1.02]'
-                        : 'bg-black/50 border-white/10 hover:border-amber-500/50 text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5 font-heading font-black text-xs text-amber-200">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                      <span>🔮 RELIC SURGE</span>
-                    </div>
-                    <span className="text-[9px] text-slate-400 block mt-0.5">
-                      {p1SelectedHero?.equippedArtifact ? p1SelectedHero.equippedArtifact.name : 'Equipped Artifact'}
-                    </span>
-                  </button>
-                </div>
-
-                {/* 5 Unique Skills with 1-Time Usage Limit in Classic Matches */}
-                <div className="space-y-1.5 pt-2 border-t border-white/10">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase text-amber-300">
-                      ⚡ 5 SIGNATURE SKILLS (1-TIME USE ONLY PER MATCH):
-                    </span>
-                    <span className="text-[9px] font-mono text-slate-400">
-                      {5 - p1UsedSkillIds.filter(id => id.startsWith(`sk-${p1SelectedHero?.id}`)).length} / 5 Available
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                    {getSkillsForCharacter(p1SelectedHero).map((skill) => {
-                      const isUsed = p1UsedSkillIds.includes(skill.id);
-                      return (
-                        <button
-                          key={skill.id}
-                          disabled={isUsed}
-                          onClick={() => handleUseSkill(skill)}
-                          className={`p-2 rounded-xl border text-left transition-all ${
-                            isUsed
-                              ? 'bg-black/30 border-slate-800 opacity-40 text-slate-500 cursor-not-allowed'
-                              : p1Action === 'SPECIAL'
-                              ? 'bg-purple-950/90 border-purple-400 ring-1 ring-purple-400 text-purple-200'
-                              : 'bg-black/60 border-white/10 hover:border-purple-500/50 text-slate-300'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-heading font-black text-xs text-white truncate flex items-center gap-1">
-                              <span>{skill.icon}</span>
-                              <span className="truncate">{skill.name}</span>
-                            </span>
-                            <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${isUsed ? 'bg-red-950 text-red-400' : 'bg-purple-950 text-purple-300'}`}>
-                              {isUsed ? 'USED (1x)' : `+${skill.bonusPower} PWR`}
-                            </span>
-                          </div>
-                          <span className="text-[9px] text-slate-400 block truncate mt-0.5">{skill.description}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-            {/* CENTER VS EMBLEM (1 Col) */}
-            <div className="lg:col-span-1 flex flex-col items-center justify-center py-2 space-y-2">
-              <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-red-600 via-purple-600 to-blue-600 p-0.5 shadow-glow-cosmic flex items-center justify-center transition-transform ${
-                isClashing ? 'scale-125 animate-ping' : 'animate-pulse'
-              }`}>
-                <div className="w-full h-full rounded-full bg-black/90 flex items-center justify-center">
-                  <Swords className="w-6 h-6 sm:w-7 sm:h-7 text-amber-400 animate-spin" />
-                </div>
-              </div>
-              <span className="font-heading font-black text-xl sm:text-2xl text-white drop-shadow">VS</span>
-            </div>
-
-            {/* PLAYER 2 ACTIVE FIGHTER (5 Cols) */}
-            <div className={`lg:col-span-5 rounded-3xl p-4 sm:p-6 bg-gradient-to-b from-blue-950/50 to-black/80 border-2 border-blue-500/60 shadow-[0_0_30px_rgba(59,130,246,0.25)] space-y-4 relative overflow-hidden transition-all duration-300 ${
-              isClashing ? '-translate-x-6 sm:-translate-x-12 scale-[1.02] shadow-[0_0_50px_rgba(59,130,246,0.8)]' : ''
-            }`}>
-              {/* Defense Energy Shield Overlay */}
-              {p2Action === 'DEFEND' && (
-                <div className="absolute inset-0 bg-blue-500/15 border-2 border-blue-400 rounded-3xl pointer-events-none z-20 animate-shield-pulse flex items-center justify-center">
-                  <div className="bg-blue-950/90 text-blue-300 font-heading font-black text-xs px-3 py-1 rounded-full border border-blue-400 shadow-lg flex items-center gap-1.5 animate-bounce">
-                    <Shield className="w-3.5 h-3.5 text-blue-400" />
-                    <span>DEFENSIVE SHIELD ACTIVE (50% GUARD)</span>
-                  </div>
-                </div>
-              )}
-
-              {/* K.O. Stamp Overlay if fainted */}
-              {(p2SelectedHero?.currentHp !== undefined && p2SelectedHero.currentHp <= 0) && (
-                <div className="absolute inset-0 bg-black/70 backdrop-blur-sm rounded-3xl flex items-center justify-center z-30 pointer-events-none">
-                  <div className="animate-ko-stamp bg-red-600 text-white font-heading font-black text-3xl sm:text-4xl px-6 py-2 rounded-2xl border-4 border-white shadow-[0_0_40px_rgba(230,36,41,0.9)] rotate-[-8deg]">
-                    💥 K.O.
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase text-blue-300 bg-blue-900/60 px-3 py-1 rounded-full border border-blue-500/40 flex items-center gap-1.5">
-                  <span>{p2.name}'S CHAMPION {p2.isBot && '🤖 AI'}</span>
-                  {match.player2Ready && (
-                    <span className="bg-emerald-500 text-black text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase animate-pulse">
-                      READY ✓
-                    </span>
-                  )}
-                </span>
-                <span className="text-xs font-black text-cyan-300 bg-black/60 px-2.5 py-1 rounded-lg border border-cyan-500/30">
-                  ⚡ POWER: {p2SelectedHero?.overallPower || 85}
-                </span>
-              </div>
-
-              {/* Large Character Portrait & Floating Damage Popups */}
-              <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-5 relative">
-                {latestRound && latestRound.player1DamageDealt !== undefined && latestRound.player1DamageDealt > 0 && (
-                  <div className="absolute -top-6 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-                    <div className="animate-damage-float bg-red-600 text-white font-heading font-black text-sm px-3 py-1 rounded-full border-2 border-white shadow-[0_0_20px_rgba(230,36,41,0.9)]">
-                      💥 -{latestRound.player1DamageDealt} HP!
-                    </div>
-                  </div>
-                )}
-
-                <div className="relative shrink-0">
-                  <Fighter2DSprite
-                    character={p2SelectedHero}
-                    side="p2"
-                    isAttacking={p2Attacking}
-                    isTakingHit={p2TakingHit}
-                    isDefending={p2Action === 'DEFEND'}
-                    isSuperActive={p2Action === 'SPECIAL' || p2Action.startsWith('SKILL_')}
-                    isDefeated={(p2SelectedHero?.currentHp !== undefined && p2SelectedHero.currentHp <= 0)}
-                  />
-                </div>
-
-                <div className="text-center sm:text-left space-y-1.5 flex-1 min-w-0">
-                  <h3 className="font-heading font-black text-xl sm:text-2xl text-white leading-tight truncate drop-shadow">
-                    {p2SelectedHero?.name}
-                  </h3>
-                  <p className="text-xs text-slate-300 line-clamp-2">
-                    {p2SelectedHero?.description}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5 pt-1 justify-center sm:justify-start">
-                    <span className="text-[10px] font-bold text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/40">
-                      🛡️ {p2SelectedHero?.factions?.[0] || p2SelectedHero?.alignment || 'Marvel'}
-                    </span>
-                    <span className="text-[10px] font-bold text-purple-300 bg-purple-950/80 px-2 py-0.5 rounded border border-purple-500/40 truncate max-w-[140px]">
-                      ✨ {p2SelectedHero?.specialAbilities?.[0]?.name || p2SelectedHero?.powers || 'Cosmic Surge'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Health Bar */}
-              <div className="space-y-1 bg-black/50 p-3 rounded-2xl border border-white/10">
-                <div className="flex justify-between items-center text-xs font-black">
-                  <span className="text-slate-300 flex items-center gap-1.5">
-                    <Heart className="w-4 h-4 text-blue-500 fill-blue-500" />
-                    <span>CHAMPION HEALTH</span>
-                  </span>
-                  <span className="text-sm font-mono text-cyan-400">
-                    {p2SelectedHero?.currentHp !== undefined ? p2SelectedHero.currentHp : 100} / {p2SelectedHero?.maxHp || 100} HP ({getHpPercent(p2SelectedHero)}%)
-                  </span>
-                </div>
-                <div className="w-full h-4 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-white/15">
-                  <div 
-                    className={`h-full rounded-full bg-gradient-to-r transition-all duration-500 ${getHpGradient(getHpPercent(p2SelectedHero))}`}
-                    style={{ width: `${getHpPercent(p2SelectedHero)}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* P2 COMBAT MOVES */}
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-black uppercase text-blue-300 block">
-                    {p2.isBot ? '🤖 AI AUTO-TACTICAL SELECTION' : `CHOOSE ${p2SelectedHero?.name.toUpperCase()}'S MOVE:`}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <button
-                    disabled={p2.isBot}
-                    onClick={() => {
-                      if (!p2.isBot) {
-                        soundManager.playClick();
-                        setP2Action('ATTACK');
-                      }
-                    }}
-                    className={`p-2.5 rounded-xl border text-left transition-all ${
-                      p2Action === 'ATTACK'
-                        ? 'bg-blue-900/80 border-blue-400 ring-2 ring-blue-400 shadow-glow-blue scale-[1.02]'
-                        : 'bg-black/50 border-white/10 hover:border-blue-500/50 text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5 font-heading font-black text-xs text-blue-200">
-                      <Swords className="w-3.5 h-3.5 text-blue-400" />
-                      <span>⚔️ STRIKE ATTACK</span>
-                    </div>
-                    <span className="text-[9px] text-slate-400 block mt-0.5">Heavy assault + roll</span>
-                  </button>
-
-                  <button
-                    disabled={p2.isBot}
-                    onClick={() => {
-                      if (!p2.isBot) {
-                        soundManager.playClick();
-                        setP2Action('SPECIAL');
-                      }
-                    }}
-                    className={`p-2.5 rounded-xl border text-left transition-all ${
-                      p2Action === 'SPECIAL'
-                        ? 'bg-purple-900/80 border-purple-400 ring-2 ring-purple-400 shadow-glow-cosmic scale-[1.02]'
-                        : 'bg-black/50 border-white/10 hover:border-purple-500/50 text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5 font-heading font-black text-xs text-purple-200 truncate">
-                      <Zap className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                      <span className="truncate">⚡ {p2SelectedHero?.specialAbilities?.[0]?.name.toUpperCase() || 'SIGNATURE MOVE'}</span>
-                    </div>
-                    <span className="text-[9px] text-purple-300 block mt-0.5 truncate">
-                      {p2SelectedHero?.specialAbilities?.[0]?.description || p2SelectedHero?.powers || 'Superpower strike'}
-                    </span>
-                  </button>
-
-                  <button
-                    disabled={p2.isBot}
-                    onClick={() => {
-                      if (!p2.isBot) {
-                        soundManager.playClick();
-                        setP2Action('DEFEND');
-                      }
-                    }}
-                    className={`p-2.5 rounded-xl border text-left transition-all ${
-                      p2Action === 'DEFEND'
-                        ? 'bg-blue-900/80 border-blue-400 ring-2 ring-blue-400 scale-[1.02]'
-                        : 'bg-black/50 border-white/10 hover:border-blue-500/50 text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5 font-heading font-black text-xs text-blue-200">
-                      <Shield className="w-3.5 h-3.5 text-blue-400" />
-                      <span>🛡️ DEFENSIVE GUARD</span>
-                    </div>
-                    <span className="text-[9px] text-slate-400 block mt-0.5">50% Damage Guard</span>
-                  </button>
-
-                  <button
-                    disabled={p2.isBot}
-                    onClick={() => {
-                      if (!p2.isBot) {
-                        soundManager.playClick();
-                        setP2Action('ARTIFACT');
-                      }
-                    }}
-                    className={`p-2.5 rounded-xl border text-left transition-all ${
-                      p2Action === 'ARTIFACT'
-                        ? 'bg-amber-900/80 border-amber-400 ring-2 ring-amber-400 shadow-glow-gold scale-[1.02]'
-                        : 'bg-black/50 border-white/10 hover:border-amber-500/50 text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5 font-heading font-black text-xs text-amber-200">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                      <span>🔮 RELIC SURGE</span>
-                    </div>
-                    <span className="text-[9px] text-slate-400 block mt-0.5">
-                      {p2SelectedHero?.equippedArtifact ? p2SelectedHero.equippedArtifact.name : 'Equipped Artifact'}
-                    </span>
-                  </button>
+          {/* Flashbang Blindness Overlay */}
+          {isFlashbanged && (
+            <div className="absolute inset-0 z-50 bg-white/95 backdrop-blur-md rounded-3xl flex flex-col items-center justify-center p-6 text-center animate-pulse pointer-events-auto">
+              <div className="bg-black/90 p-6 sm:p-8 rounded-3xl border-4 border-amber-400 max-w-md shadow-[0_0_80px_rgba(255,255,255,0.9)] space-y-3">
+                <Sparkles className="w-12 h-12 text-amber-400 mx-auto animate-spin" />
+                <h2 className="font-heading font-black text-xl sm:text-2xl text-white uppercase tracking-wider">
+                  💥 FLASHBANGED!
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-300 font-medium">
+                  You were blinded by <span className="text-amber-300 font-bold">{activeUser?.flashbangedBy || 'an enemy'}</span>! All battle actions are locked!
+                </p>
+                <div className="text-xl font-mono font-black text-amber-400">
+                  ⏳ RECOVERING IN {Math.max(1, Math.ceil(((activeUser?.flashbangedUntil || 0) - Date.now()) / 1000))}s...
                 </div>
               </div>
             </div>
+          )}
 
+          {/* Interactive Healing Potion Button (1x Match Limit) */}
+          <div className="pt-1 flex items-center justify-between">
+            <button
+              disabled={!p1HasPotion || p1UsedHealingPotion || (p1SelectedHero?.currentHp ?? 100) >= (p1SelectedHero?.maxHp ?? 100) || !canControlP1}
+              onClick={handleUseHealingPotionP1}
+              className={`px-3 py-1 rounded-xl font-heading font-black text-[11px] uppercase tracking-wider transition-all flex items-center gap-1.5 border shadow ${
+                !p1HasPotion || p1UsedHealingPotion || (p1SelectedHero?.currentHp ?? 100) >= (p1SelectedHero?.maxHp ?? 100)
+                  ? 'bg-slate-900/60 text-slate-500 border-slate-700 cursor-not-allowed opacity-50'
+                  : 'bg-emerald-950/90 text-emerald-300 hover:bg-emerald-900 border-emerald-500/60 shadow-[0_0_15px_rgba(16,185,129,0.35)] animate-pulse'
+              }`}
+            >
+              <TestTube2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>
+                {!p1HasPotion 
+                  ? '🧪 NO POTION (BUY IN SHOP)' 
+                  : p1UsedHealingPotion 
+                  ? '🧪 HEAL POTION (USED 1x)' 
+                  : (p1SelectedHero?.currentHp ?? 100) >= (p1SelectedHero?.maxHp ?? 100)
+                  ? '🧪 HERO AT FULL HP (100%)'
+                  : `🧪 USE HEAL POTION (+40 HP)`}
+              </span>
+            </button>
+            <span className="text-[10px] text-slate-400 font-mono">
+              {p1PotionCount > 0 && !p1UsedHealingPotion ? `${p1PotionCount} Potion Available` : '0 Available'}
+            </span>
+          </div>
+        </div>
+
+        {/* TACTICAL COMBAT COMMANDS (P1) */}
+        <div className="space-y-2 pt-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-black uppercase text-red-300 block">
+              CHOOSE {p1SelectedHero?.name.toUpperCase()}'S MOVE:
+            </span>
           </div>
 
-          {/* 3. HEROIC ROSTER DOCKS (Switch Active Fighter) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-white/10 mt-6">
-            
-            {/* Player 1 Roster Bench */}
-            <div className="space-y-2">
-              {/* In-Battle Tag-Team Fusion Banner */}
-              {p1Fusions.length > 0 && (
-                <div className="p-3 rounded-2xl bg-gradient-to-r from-red-950 via-purple-950 to-pink-950 border border-pink-500/70 shadow-[0_0_25px_rgba(236,72,153,0.4)] animate-pulse space-y-1.5 mb-2">
-                  <span className="text-[10px] font-black text-pink-300 uppercase tracking-wider block">
-                    ⚡ IN-BATTLE TAG-TEAM FUSION DETECTED!
-                  </span>
-                  {p1Fusions.map((fusion, fIdx) => (
-                    <button
-                      key={fIdx}
-                      onClick={() => handleInBattleMerge(fusion)}
-                      className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-pink-600 via-purple-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-heading font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transform hover:scale-[1.02] transition-all"
-                    >
-                      <Flame className="w-4 h-4 text-amber-300 animate-bounce" />
-                      <span>🔥 MERGE ULTIMATE HERO: {fusion.hero1.name} + {fusion.hero2.name}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <span className="text-xs font-black uppercase text-red-300 flex items-center gap-1.5">
-                <Cpu className="w-3.5 h-3.5 text-red-400" />
-                <span>{p1.name}'S ROSTER BENCH (CLICK TO SWAP ACTIVE FIGHTER):</span>
-              </span>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                {p1.collection.map((c, i) => {
-                  const hp = c.currentHp !== undefined ? c.currentHp : 100;
-                  const isDead = hp <= 0;
-                  const isSelected = p1HeroIdx === i;
-
-                  return (
-                    <button
-                      key={c.id}
-                      disabled={isDead}
-                      onClick={() => {
-                        soundManager.playClick();
-                        setP1HeroIdx(i);
-                      }}
-                      className={`p-2.5 rounded-2xl border text-left transition-all flex items-center gap-2.5 ${
-                        isDead
-                          ? 'bg-red-950/20 border-red-950 opacity-40 grayscale cursor-not-allowed'
-                          : isSelected
-                          ? 'bg-red-900/80 border-red-400 ring-2 ring-red-400/80 shadow-glow-red scale-105'
-                          : 'bg-black/60 border-white/10 hover:border-red-500/50 opacity-85 hover:opacity-100'
-                      }`}
-                    >
-                      <CharacterPortrait character={c} size="sm" />
-                      <div className="min-w-0 flex-1 space-y-0.5">
-                        <span className="text-xs font-black text-white block truncate leading-tight">{c.name}</span>
-                        <span className={`text-[10px] font-black flex items-center gap-1 ${isDead ? 'text-red-500' : 'text-emerald-400'}`}>
-                          {isDead ? (
-                            <>
-                              <Skull className="w-3 h-3 text-red-500" />
-                              <span>KO</span>
-                            </>
-                          ) : (
-                            <>
-                              <Heart className="w-3 h-3 text-red-400 fill-current" />
-                              <span>{hp} HP</span>
-                            </>
-                          )}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              disabled={!canControlP1}
+              onClick={() => {
+                soundManager.playClick();
+                setP1Action('ATTACK');
+                setP1SelectedSkillId(undefined);
+              }}
+              className={`p-2.5 rounded-xl border text-left transition-all ${
+                !canControlP1
+                  ? 'opacity-40 cursor-not-allowed bg-black/40 border-slate-800 text-slate-500'
+                  : p1Action === 'ATTACK'
+                  ? 'bg-red-900/80 border-red-400 ring-2 ring-red-400 shadow-glow-red scale-[1.02]'
+                  : 'bg-black/50 border-white/10 hover:border-red-500/50 text-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 font-heading font-black text-xs text-red-200">
+                <Swords className="w-3.5 h-3.5 text-red-400" />
+                <span>⚔️ STRIKE ATTACK</span>
               </div>
-            </div>
+              <span className="text-[9px] text-slate-400 block mt-0.5">Heavy assault + roll</span>
+            </button>
 
-            {/* Player 2 Roster Bench */}
-            <div className="space-y-2">
-              <span className="text-xs font-black uppercase text-blue-300 flex items-center gap-1.5">
-                <Cpu className="w-3.5 h-3.5 text-blue-400" />
-                <span>{p2.name}'S ROSTER BENCH:</span>
-              </span>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                {p2.collection.map((c, i) => {
-                  const hp = c.currentHp !== undefined ? c.currentHp : 100;
-                  const isDead = hp <= 0;
-                  const isSelected = p2HeroIdx === i;
-
-                  return (
-                    <button
-                      key={c.id}
-                      disabled={isDead || p2.isBot}
-                      onClick={() => {
-                        if (!p2.isBot && !isDead) {
-                          soundManager.playClick();
-                          setP2HeroIdx(i);
-                        }
-                      }}
-                      className={`p-2.5 rounded-2xl border text-left transition-all flex items-center gap-2.5 ${
-                        isDead
-                          ? 'bg-red-950/20 border-red-950 opacity-40 grayscale cursor-not-allowed'
-                          : isSelected
-                          ? 'bg-blue-900/80 border-blue-400 ring-2 ring-blue-400/80 shadow-[0_0_20px_rgba(59,130,246,0.6)] scale-105'
-                          : 'bg-black/60 border-white/10 hover:border-blue-500/50 opacity-85 hover:opacity-100'
-                      }`}
-                    >
-                      <CharacterPortrait character={c} size="sm" />
-                      <div className="min-w-0 flex-1 space-y-0.5">
-                        <span className="text-xs font-black text-white block truncate leading-tight">{c.name}</span>
-                        <span className={`text-[10px] font-black flex items-center gap-1 ${isDead ? 'text-red-500' : 'text-emerald-400'}`}>
-                          {isDead ? (
-                            <>
-                              <Skull className="w-3 h-3 text-red-500" />
-                              <span>KO</span>
-                            </>
-                          ) : (
-                            <>
-                              <Heart className="w-3 h-3 text-red-400 fill-current" />
-                              <span>{hp} HP</span>
-                            </>
-                          )}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
+            <button
+              disabled={!canControlP1}
+              onClick={() => {
+                soundManager.playClick();
+                setP1Action('SPECIAL');
+                setP1SelectedSkillId(undefined);
+              }}
+              className={`p-2.5 rounded-xl border text-left transition-all ${
+                !canControlP1
+                  ? 'opacity-40 cursor-not-allowed bg-black/40 border-slate-800 text-slate-500'
+                  : (p1Action === 'SPECIAL' && !p1SelectedSkillId)
+                  ? 'bg-purple-900/80 border-purple-400 ring-2 ring-purple-400 shadow-glow-cosmic scale-[1.02]'
+                  : 'bg-black/50 border-white/10 hover:border-purple-500/50 text-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 font-heading font-black text-xs text-purple-200 truncate">
+                <Zap className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                <span className="truncate">⚡ HERO INNATE SPECIAL</span>
               </div>
-            </div>
+              <span className="text-[9px] text-purple-300 block mt-0.5 truncate">
+                {p1SelectedHero?.specialAbilities?.[0]?.name ? `${p1SelectedHero.specialAbilities[0].name} (Innate Ability)` : 'Standard Special Strike'}
+              </span>
+            </button>
 
+            <button
+              disabled={!canControlP1}
+              onClick={() => {
+                soundManager.playClick();
+                setP1Action('DEFEND');
+                setP1SelectedSkillId(undefined);
+              }}
+              className={`p-2.5 rounded-xl border text-left transition-all ${
+                !canControlP1
+                  ? 'opacity-40 cursor-not-allowed bg-black/40 border-slate-800 text-slate-500'
+                  : p1Action === 'DEFEND'
+                  ? 'bg-blue-900/80 border-blue-400 ring-2 ring-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.6)] scale-[1.02]'
+                  : 'bg-black/50 border-white/10 hover:border-blue-500/50 text-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 font-heading font-black text-xs text-blue-200">
+                <Shield className="w-3.5 h-3.5 text-blue-400" />
+                <span>🛡️ DEFENSIVE GUARD</span>
+              </div>
+              <span className="text-[9px] text-slate-400 block mt-0.5">50% Damage Guard</span>
+            </button>
+
+            <button
+              disabled={!canControlP1}
+              onClick={() => {
+                soundManager.playClick();
+                setP1Action('ARTIFACT');
+                setP1SelectedSkillId(undefined);
+              }}
+              className={`p-2.5 rounded-xl border text-left transition-all ${
+                !canControlP1
+                  ? 'opacity-40 cursor-not-allowed bg-black/40 border-slate-800 text-slate-500'
+                  : p1Action === 'ARTIFACT'
+                  ? 'bg-amber-900/80 border-amber-400 ring-2 ring-amber-400 shadow-glow-gold scale-[1.02]'
+                  : 'bg-black/50 border-white/10 hover:border-amber-500/50 text-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 font-heading font-black text-xs text-amber-200">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>🔮 RELIC SURGE</span>
+              </div>
+              <span className="text-[9px] text-slate-400 block mt-0.5">
+                {p1SelectedHero?.equippedArtifact ? p1SelectedHero.equippedArtifact.name : 'Equipped Artifact'}
+              </span>
+            </button>
           </div>
 
-          {/* 4. MASSIVE UNLEASH CLASH BUTTON */}
-          <div className="pt-6">
-            {isOnlineMode && !isUserP1 && !isUserP2 ? (
-              <div className="w-full py-5 rounded-3xl font-heading font-black text-sm sm:text-base uppercase tracking-widest bg-black/60 border border-white/20 text-slate-300 flex items-center justify-center gap-3">
-                <Swords className="w-5 h-5 text-amber-400 animate-spin" />
-                <span>👁️ SPECTATING DUEL • AWAITING {p1.name.toUpperCase()} & {p2.name.toUpperCase()} TO LOCK IN...</span>
+          {/* Purchased Signature Skills (1-Time Use Only Per Match) */}
+          <div className="space-y-1.5 pt-2 border-t border-white/10">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase text-amber-300">
+                ⚡ {p1SelectedHero?.equippedSkills?.length ? `${p1SelectedHero.equippedSkills.length} SIGNATURE SKILLS` : 'SIGNATURE SKILLS'}:
+              </span>
+              <span className="text-[9px] font-mono text-slate-400">
+                {(p1SelectedHero?.equippedSkills || []).filter(s => !(p1SelectedHero?.usedSkillIds?.includes(s.id) || p1UsedSkillIds.includes(s.id))).length} / {p1SelectedHero?.equippedSkills?.length || 0} Available
+              </span>
+            </div>
+
+            {(!p1SelectedHero?.equippedSkills || p1SelectedHero.equippedSkills.length === 0) ? (
+              <div className="p-3 rounded-xl bg-black/40 border border-white/5 text-center">
+                <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400 font-bold">
+                  <Zap className="w-3.5 h-3.5 text-slate-500" />
+                  <span>0 Skills Unlocked (Buy in Skill Vault during Shop Phase)</span>
+                </div>
               </div>
             ) : (
-              <button
-                onClick={handleExecuteRound}
-                disabled={isUserLocked}
-                className={`w-full py-5 rounded-3xl font-heading font-black text-base sm:text-xl uppercase tracking-widest border-2 transition-all transform flex items-center justify-center gap-3 ${
-                  isUserLocked
-                    ? 'bg-purple-950/80 border-purple-400/80 text-purple-200 shadow-glow-cosmic cursor-wait'
-                    : 'bg-gradient-to-r from-red-600 via-purple-600 to-rose-600 hover:from-red-500 hover:to-purple-500 text-white shadow-[0_0_40px_rgba(239,68,68,0.7)] border-amber-400 hover:scale-[1.01] active:scale-[0.99] animate-pulse'
-                }`}
-              >
-                <Swords className="w-6 h-6 text-amber-300 animate-spin" />
-                <span>
-                  {isOnlineMode
-                    ? isUserLocked
-                      ? '⏳ MOVE LOCKED IN • WAITING FOR OPPONENT...'
-                      : `⚡ LOCK IN ${isUserP1 ? p1SelectedHero?.name : p2SelectedHero?.name}'S MOVE (${isUserP1 ? p1Action : p2Action}) ⚡`
-                    : `⚡ UNLEASH ROUND ${match.rounds.length + 1} CLASH! ⚡`}
-                </span>
-                <Swords className="w-6 h-6 text-amber-300 animate-spin" />
-              </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {p1SelectedHero.equippedSkills.map((skill: CharacterSkill) => {
+                  const isUsed = (p1SelectedHero?.usedSkillIds?.includes(skill.id)) || p1UsedSkillIds.includes(skill.id);
+                  const isSelected = p1SelectedSkillId === skill.id;
+                  return (
+                    <button
+                      key={skill.id}
+                      disabled={isUsed || !canControlP1}
+                      onClick={() => handleUseSkillP1(skill)}
+                      className={`p-2.5 rounded-xl border text-left transition-all ${
+                        isUsed || !canControlP1
+                          ? 'bg-black/30 border-slate-800 opacity-40 text-slate-500 cursor-not-allowed'
+                          : isSelected
+                          ? 'bg-gradient-to-r from-purple-950 via-indigo-950 to-purple-900 border-amber-400 ring-2 ring-amber-400 text-amber-200 shadow-[0_0_20px_rgba(245,158,11,0.6)] scale-[1.02]'
+                          : 'bg-black/60 border-purple-500/30 hover:border-purple-400 text-slate-300 hover:scale-[1.01]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-heading font-black text-xs text-white truncate flex items-center gap-1">
+                          <span>{skill.icon}</span>
+                          <span className="truncate">{skill.name}</span>
+                        </span>
+                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                          isUsed 
+                            ? 'bg-red-950/90 text-red-400 border border-red-500/40' 
+                            : isSelected
+                            ? 'bg-amber-400 text-black font-black animate-pulse'
+                            : 'bg-purple-900/80 text-purple-200 border border-purple-400/40'
+                        }`}>
+                          {isUsed ? 'USED (1x)' : isSelected ? '⭐ ACTIVE MOVE' : `+${skill.bonusPower} PWR`}
+                        </span>
+                      </div>
+                      <span className="text-[9px] text-slate-300 block truncate mt-1">{skill.description}</span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
+
+        </div>
+      </div>
+
+      {/* CENTER VS EMBLEM (1 Col) */}
+      <div className="lg:col-span-1 flex flex-col items-center justify-center py-2 space-y-2">
+        <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-red-600 via-purple-600 to-blue-600 p-0.5 shadow-glow-cosmic flex items-center justify-center transition-transform ${
+          isClashing ? 'scale-125 animate-ping' : 'animate-pulse'
+        }`}>
+          <div className="w-full h-full rounded-full bg-black/90 flex items-center justify-center">
+            <Swords className="w-6 h-6 sm:w-7 sm:h-7 text-amber-400 animate-spin" />
+          </div>
+        </div>
+        <span className="font-heading font-black text-xl sm:text-2xl text-white drop-shadow">VS</span>
+      </div>
+
+      {/* PLAYER 2 ACTIVE FIGHTER (5 Cols) */}
+      <div className={`lg:col-span-5 rounded-3xl p-4 sm:p-6 bg-gradient-to-b from-blue-950/50 to-black/80 border-2 border-blue-500/60 shadow-[0_0_30px_rgba(59,130,246,0.25)] space-y-4 relative overflow-hidden transition-all duration-300 ${
+        isClashing ? '-translate-x-6 sm:-translate-x-12 scale-[1.02] shadow-[0_0_50px_rgba(59,130,246,0.8)]' : ''
+      }`}>
+        {/* Defense Energy Shield Overlay */}
+        {p2Action === 'DEFEND' && (
+          <div className="absolute inset-0 bg-blue-500/15 border-2 border-blue-400 rounded-3xl pointer-events-none z-20 animate-shield-pulse flex items-center justify-center">
+            <div className="bg-blue-950/90 text-blue-300 font-heading font-black text-xs px-3 py-1 rounded-full border border-blue-400 shadow-lg flex items-center gap-1.5 animate-bounce">
+              <Shield className="w-3.5 h-3.5 text-blue-400" />
+              <span>DEFENSIVE SHIELD ACTIVE (50% GUARD)</span>
+            </div>
+          </div>
+        )}
+
+        {/* K.O. Stamp Overlay if fainted */}
+        {(p2SelectedHero?.currentHp !== undefined && p2SelectedHero.currentHp <= 0) && (
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm rounded-3xl flex items-center justify-center z-30 pointer-events-none">
+            <div className="animate-ko-stamp bg-red-600 text-white font-heading font-black text-3xl sm:text-4xl px-6 py-2 rounded-2xl border-4 border-white shadow-[0_0_40px_rgba(230,36,41,0.9)] rotate-[-8deg]">
+              💥 K.O.
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-black uppercase text-blue-300 bg-blue-900/60 px-3 py-1 rounded-full border border-blue-500/40 flex items-center gap-1.5">
+            <span>{p2.name}'S CHAMPION {p2.isBot && '🤖 AI'}</span>
+            {match.player2Ready && (
+              <span className="bg-emerald-500 text-black text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase animate-pulse">
+                READY ✓
+              </span>
+            )}
+          </span>
+          <span className="text-xs font-black text-cyan-300 bg-black/60 px-2.5 py-1 rounded-lg border border-cyan-500/30">
+            ⚡ POWER: {p2SelectedHero?.overallPower || 85}
+          </span>
+        </div>
+
+        {/* Large Character Portrait & Floating Damage Popups */}
+        <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-5 relative">
+          {latestRound && latestRound.player1DamageDealt !== undefined && latestRound.player1DamageDealt > 0 && (
+            <div className="absolute -top-6 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+              <div className="animate-damage-float bg-red-600 text-white font-heading font-black text-sm px-3 py-1 rounded-full border-2 border-white shadow-[0_0_20px_rgba(230,36,41,0.9)]">
+                💥 -{latestRound.player1DamageDealt} HP!
+              </div>
+            </div>
+          )}
+
+          <div className="relative shrink-0">
+            <Fighter2DSprite
+              character={p2SelectedHero}
+              side="p2"
+              isAttacking={p2Attacking}
+              isTakingHit={p2TakingHit}
+              isDefending={p2Action === 'DEFEND'}
+              isSuperActive={p2Action === 'SPECIAL' || p2Action.startsWith('SKILL_')}
+              isDefeated={(p2SelectedHero?.currentHp !== undefined && p2SelectedHero.currentHp <= 0)}
+            />
+          </div>
+
+          <div className="text-center sm:text-left space-y-1.5 flex-1 min-w-0">
+            <h3 className="font-heading font-black text-xl sm:text-2xl text-white leading-tight truncate drop-shadow">
+              {p2SelectedHero?.name}
+            </h3>
+            <p className="text-xs text-slate-300 line-clamp-2">
+              {p2SelectedHero?.description}
+            </p>
+            <div className="flex flex-wrap gap-1.5 pt-1 justify-center sm:justify-start">
+              <span className="text-[10px] font-bold text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/40">
+                🛡️ {p2SelectedHero?.factions?.[0] || p2SelectedHero?.alignment || 'Marvel'}
+              </span>
+              <span className="text-[10px] font-bold text-purple-300 bg-purple-950/80 px-2 py-0.5 rounded border border-purple-500/40 truncate max-w-[140px]">
+                ✨ {p2SelectedHero?.specialAbilities?.[0]?.name || p2SelectedHero?.powers || 'Cosmic Surge'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Health Bar */}
+        <div className="space-y-1 bg-black/50 p-3 rounded-2xl border border-white/10">
+          <div className="flex justify-between items-center text-xs font-black">
+            <span className="text-slate-300 flex items-center gap-1.5">
+              <Heart className="w-4 h-4 text-blue-500 fill-blue-500" />
+              <span>CHAMPION HEALTH</span>
+            </span>
+            <span className="text-sm font-mono text-cyan-400">
+              {p2SelectedHero?.currentHp !== undefined ? p2SelectedHero.currentHp : 100} / {p2SelectedHero?.maxHp || 100} HP ({getHpPercent(p2SelectedHero)}%)
+            </span>
+          </div>
+          {/* ⚡ LAST STAND Comeback Mechanic Banner (P2) */}
+          {p2SelectedHero && p2SelectedHero.currentHp !== undefined && p2SelectedHero.currentHp <= 25 && p2SelectedHero.currentHp > 0 && (
+            <div className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-500/30 to-blue-500/30 border border-amber-400 text-amber-300 text-[10px] font-heading font-black uppercase tracking-wider shadow-[0_0_15px_rgba(245,158,11,0.5)] animate-pulse flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <Zap className="w-3.5 h-3.5 text-amber-400" />
+                <span>⚡ LAST STAND OVERDRIVE</span>
+              </span>
+              <span className="text-[9px] font-mono text-amber-200">+3 PWR • +15% DEF</span>
+            </div>
+          )}
+
+          <div className="w-full h-4 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-white/15">
+            <div 
+              className={`h-full rounded-full bg-gradient-to-r transition-all duration-500 ${getHpGradient(getHpPercent(p2SelectedHero))}`}
+              style={{ width: `${getHpPercent(p2SelectedHero)}%` }}
+            />
+          </div>
+
+          {/* Interactive Healing Potion Button (Player 2) */}
+          <div className="pt-1 flex items-center justify-between">
+            <button
+              disabled={!p2HasPotion || p2UsedHealingPotion || (p2SelectedHero?.currentHp ?? 100) >= (p2SelectedHero?.maxHp ?? 100) || !canControlP2}
+              onClick={handleUseHealingPotionP2}
+              className={`px-3 py-1 rounded-xl font-heading font-black text-[11px] uppercase tracking-wider transition-all flex items-center gap-1.5 border shadow ${
+                !p2HasPotion || p2UsedHealingPotion || (p2SelectedHero?.currentHp ?? 100) >= (p2SelectedHero?.maxHp ?? 100)
+                  ? 'bg-slate-900/60 text-slate-500 border-slate-700 cursor-not-allowed opacity-50'
+                  : 'bg-emerald-950/90 text-emerald-300 hover:bg-emerald-900 border-emerald-500/60 shadow-[0_0_15px_rgba(16,185,129,0.35)] animate-pulse'
+              }`}
+            >
+              <TestTube2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>
+                {!p2HasPotion 
+                  ? '🧪 NO POTION (BUY IN SHOP)' 
+                  : p2UsedHealingPotion 
+                  ? '🧪 HEAL POTION (USED 1x)' 
+                  : (p2SelectedHero?.currentHp ?? 100) >= (p2SelectedHero?.maxHp ?? 100)
+                  ? '🧪 HERO AT FULL HP (100%)'
+                  : `🧪 USE HEAL POTION (+40 HP)`}
+              </span>
+            </button>
+            <span className="text-[10px] text-slate-400 font-mono">
+              {p2PotionCount > 0 && !p2UsedHealingPotion ? `${p2PotionCount} Potion Available` : '0 Available'}
+            </span>
+          </div>
+        </div>
+
+        {/* P2 COMBAT MOVES */}
+        <div className="space-y-2 pt-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-black uppercase text-blue-300 block">
+              {p2.isBot ? '🤖 AI AUTO-TACTICAL SELECTION' : `CHOOSE ${p2SelectedHero?.name.toUpperCase()}'S MOVE:`}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              disabled={!canControlP2}
+              onClick={() => {
+                if (canControlP2) {
+                  soundManager.playClick();
+                  setP2Action('ATTACK');
+                  setP2SelectedSkillId(undefined);
+                }
+              }}
+              className={`p-2.5 rounded-xl border text-left transition-all ${
+                !canControlP2
+                  ? 'opacity-40 cursor-not-allowed bg-black/40 border-slate-800 text-slate-500'
+                  : p2Action === 'ATTACK'
+                  ? 'bg-blue-900/80 border-blue-400 ring-2 ring-blue-400 shadow-glow-blue scale-[1.02]'
+                  : 'bg-black/50 border-white/10 hover:border-blue-500/50 text-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 font-heading font-black text-xs text-blue-200">
+                <Swords className="w-3.5 h-3.5 text-blue-400" />
+                <span>⚔️ STRIKE ATTACK</span>
+              </div>
+              <span className="text-[9px] text-slate-400 block mt-0.5">Heavy assault + roll</span>
+            </button>
+
+            <button
+              disabled={!canControlP2}
+              onClick={() => {
+                if (canControlP2) {
+                  soundManager.playClick();
+                  setP2Action('SPECIAL');
+                  setP2SelectedSkillId(undefined);
+                }
+              }}
+              className={`p-2.5 rounded-xl border text-left transition-all ${
+                !canControlP2
+                  ? 'opacity-40 cursor-not-allowed bg-black/40 border-slate-800 text-slate-500'
+                  : (p2Action === 'SPECIAL' && !p2SelectedSkillId)
+                  ? 'bg-purple-900/80 border-purple-400 ring-2 ring-purple-400 shadow-glow-cosmic scale-[1.02]'
+                  : 'bg-black/50 border-white/10 hover:border-purple-500/50 text-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 font-heading font-black text-xs text-purple-200 truncate">
+                <Zap className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                <span className="truncate">⚡ HERO INNATE SPECIAL</span>
+              </div>
+              <span className="text-[9px] text-purple-300 block mt-0.5 truncate">
+                {p2SelectedHero?.specialAbilities?.[0]?.name ? `${p2SelectedHero.specialAbilities[0].name} (Innate Ability)` : 'Standard Special Strike'}
+              </span>
+            </button>
+
+            <button
+              disabled={!canControlP2}
+              onClick={() => {
+                if (canControlP2) {
+                  soundManager.playClick();
+                  setP2Action('DEFEND');
+                  setP2SelectedSkillId(undefined);
+                }
+              }}
+              className={`p-2.5 rounded-xl border text-left transition-all ${
+                !canControlP2
+                  ? 'opacity-40 cursor-not-allowed bg-black/40 border-slate-800 text-slate-500'
+                  : p2Action === 'DEFEND'
+                  ? 'bg-blue-900/80 border-blue-400 ring-2 ring-blue-400 scale-[1.02]'
+                  : 'bg-black/50 border-white/10 hover:border-blue-500/50 text-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 font-heading font-black text-xs text-blue-200">
+                <Shield className="w-3.5 h-3.5 text-blue-400" />
+                <span>🛡️ DEFENSIVE GUARD</span>
+              </div>
+              <span className="text-[9px] text-slate-400 block mt-0.5">50% Damage Guard</span>
+            </button>
+
+            <button
+              disabled={!canControlP2}
+              onClick={() => {
+                if (canControlP2) {
+                  soundManager.playClick();
+                  setP2Action('ARTIFACT');
+                  setP2SelectedSkillId(undefined);
+                }
+              }}
+              className={`p-2.5 rounded-xl border text-left transition-all ${
+                !canControlP2
+                  ? 'opacity-40 cursor-not-allowed bg-black/40 border-slate-800 text-slate-500'
+                  : p2Action === 'ARTIFACT'
+                  ? 'bg-amber-900/80 border-amber-400 ring-2 ring-amber-400 shadow-glow-gold scale-[1.02]'
+                  : 'bg-black/50 border-white/10 hover:border-amber-500/50 text-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 font-heading font-black text-xs text-amber-200">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>🔮 RELIC SURGE</span>
+              </div>
+              <span className="text-[9px] text-slate-400 block mt-0.5">
+                {p2SelectedHero?.equippedArtifact ? p2SelectedHero.equippedArtifact.name : 'Equipped Artifact'}
+              </span>
+            </button>
+          </div>
+
+          {/* Purchased Signature Skills (1-Time Use Only Per Match - P2) */}
+          <div className="space-y-1.5 pt-2 border-t border-white/10">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase text-blue-300">
+                ⚡ {p2SelectedHero?.equippedSkills?.length ? `${p2SelectedHero.equippedSkills.length} SIGNATURE SKILLS` : 'SIGNATURE SKILLS'}:
+              </span>
+              <span className="text-[9px] font-mono text-slate-400">
+                {(p2SelectedHero?.equippedSkills || []).filter(s => !(p2SelectedHero?.usedSkillIds?.includes(s.id) || p2UsedSkillIds.includes(s.id))).length} / {p2SelectedHero?.equippedSkills?.length || 0} Available
+              </span>
+            </div>
+
+            {(!p2SelectedHero?.equippedSkills || p2SelectedHero.equippedSkills.length === 0) ? (
+              <div className="p-3 rounded-xl bg-black/40 border border-white/5 text-center">
+                <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400 font-bold">
+                  <Zap className="w-3.5 h-3.5 text-slate-500" />
+                  <span>0 Skills Unlocked</span>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {p2SelectedHero.equippedSkills.map((skill: CharacterSkill) => {
+                  const isUsed = (p2SelectedHero?.usedSkillIds?.includes(skill.id)) || p2UsedSkillIds.includes(skill.id);
+                  const isSelected = p2SelectedSkillId === skill.id;
+                  return (
+                    <button
+                      key={skill.id}
+                      disabled={isUsed || !canControlP2}
+                      onClick={() => handleUseSkillP2(skill)}
+                      className={`p-2.5 rounded-xl border text-left transition-all ${
+                        isUsed || !canControlP2
+                          ? 'bg-black/30 border-slate-800 opacity-40 text-slate-500 cursor-not-allowed'
+                          : isSelected
+                          ? 'bg-gradient-to-r from-purple-950 via-indigo-950 to-purple-900 border-amber-400 ring-2 ring-amber-400 text-amber-200 shadow-[0_0_20px_rgba(245,158,11,0.6)] scale-[1.02]'
+                          : 'bg-black/60 border-purple-500/30 hover:border-purple-400 text-slate-300 hover:scale-[1.01]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-heading font-black text-xs text-white truncate flex items-center gap-1">
+                          <span>{skill.icon}</span>
+                          <span className="truncate">{skill.name}</span>
+                        </span>
+                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                          isUsed 
+                            ? 'bg-red-950/90 text-red-400 border border-red-500/40' 
+                            : isSelected
+                            ? 'bg-amber-400 text-black font-black animate-pulse'
+                            : 'bg-purple-900/80 text-purple-200 border border-purple-400/40'
+                        }`}>
+                          {isUsed ? 'USED (1x)' : isSelected ? '⭐ ACTIVE MOVE' : `+${skill.bonusPower} PWR`}
+                        </span>
+                      </div>
+                      <span className="text-[9px] text-slate-300 block truncate mt-1">{skill.description}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    {/* 3. HEROIC ROSTER DOCKS (Switch Active Fighter) */}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-white/10 mt-6">
+      
+      {/* Player 1 Roster Bench */}
+      <div className="space-y-2">
+        {/* In-Battle Tag-Team Fusion Banner */}
+        {p1Fusions.length > 0 && (
+          <div className="p-3 rounded-2xl bg-gradient-to-r from-red-950 via-purple-950 to-pink-950 border border-pink-500/70 shadow-[0_0_25px_rgba(236,72,153,0.4)] animate-pulse space-y-1.5 mb-2">
+            <span className="text-[10px] font-black text-pink-300 uppercase tracking-wider block">
+              ⚡ IN-BATTLE TAG-TEAM FUSION DETECTED!
+            </span>
+            {p1Fusions.map((fusion, fIdx) => (
+              <button
+                key={fIdx}
+                disabled={!canControlP1}
+                onClick={() => handleInBattleMerge(fusion)}
+                className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-pink-600 via-purple-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-heading font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transform hover:scale-[1.02] transition-all disabled:opacity-40"
+              >
+                <Flame className="w-4 h-4 text-amber-300 animate-bounce" />
+                <span>🔥 MERGE ULTIMATE HERO: {fusion.hero1.name} + {fusion.hero2.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <span className="text-xs font-black uppercase text-red-300 flex items-center gap-1.5">
+          <Cpu className="w-3.5 h-3.5 text-red-400" />
+          <span>{p1.name}'S ROSTER BENCH (CLICK TO SWAP ACTIVE FIGHTER):</span>
+        </span>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          {p1.collection.map((c, i) => {
+            const hp = c.currentHp !== undefined ? c.currentHp : 100;
+            const isDead = hp <= 0;
+            const isSelected = p1HeroIdx === i;
+
+            return (
+              <button
+                key={c.id}
+                disabled={isDead || !canControlP1}
+                onClick={() => {
+                  soundManager.playClick();
+                  setP1HeroIdx(i);
+                }}
+                className={`p-2.5 rounded-2xl border text-left transition-all flex items-center gap-2.5 ${
+                  isDead || !canControlP1
+                    ? 'bg-red-950/20 border-red-950 opacity-40 grayscale cursor-not-allowed'
+                    : isSelected
+                    ? 'bg-red-900/80 border-red-400 ring-2 ring-red-400/80 shadow-glow-red scale-105'
+                    : 'bg-black/60 border-white/10 hover:border-red-500/50 opacity-85 hover:opacity-100'
+                }`}
+              >
+                <CharacterPortrait character={c} size="sm" />
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <span className="text-xs font-black text-white block truncate leading-tight">{c.name}</span>
+                  <span className={`text-[10px] font-black flex items-center gap-1 ${isDead ? 'text-red-500' : 'text-emerald-400'}`}>
+                    {isDead ? (
+                      <>
+                        <Skull className="w-3 h-3 text-red-500" />
+                        <span>KO</span>
+                      </>
+                    ) : (
+                      <>
+                        <Heart className="w-3 h-3 text-red-400 fill-current" />
+                        <span>{hp} HP</span>
+                      </>
+                    )}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Player 2 Roster Bench */}
+      <div className="space-y-2">
+        <span className="text-xs font-black uppercase text-blue-300 flex items-center gap-1.5">
+          <Cpu className="w-3.5 h-3.5 text-blue-400" />
+          <span>{p2.name}'S ROSTER BENCH:</span>
+        </span>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          {p2.collection.map((c, i) => {
+            const hp = c.currentHp !== undefined ? c.currentHp : 100;
+            const isDead = hp <= 0;
+            const isSelected = p2HeroIdx === i;
+
+            return (
+              <button
+                key={c.id}
+                disabled={isDead || !canControlP2}
+                onClick={() => {
+                  if (canControlP2 && !isDead) {
+                    soundManager.playClick();
+                    setP2HeroIdx(i);
+                  }
+                }}
+                className={`p-2.5 rounded-2xl border text-left transition-all flex items-center gap-2.5 ${
+                  isDead || !canControlP2
+                    ? 'bg-red-950/20 border-red-950 opacity-40 grayscale cursor-not-allowed'
+                    : isSelected
+                    ? 'bg-blue-900/80 border-blue-400 ring-2 ring-blue-400/80 shadow-[0_0_20px_rgba(59,130,246,0.6)] scale-105'
+                    : 'bg-black/60 border-white/10 hover:border-blue-500/50 opacity-85 hover:opacity-100'
+                }`}
+              >
+                <CharacterPortrait character={c} size="sm" />
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <span className="text-xs font-black text-white block truncate leading-tight">{c.name}</span>
+                  <span className={`text-[10px] font-black flex items-center gap-1 ${isDead ? 'text-red-500' : 'text-emerald-400'}`}>
+                    {isDead ? (
+                      <>
+                        <Skull className="w-3 h-3 text-red-500" />
+                        <span>KO</span>
+                      </>
+                    ) : (
+                      <>
+                        <Heart className="w-3 h-3 text-red-400 fill-current" />
+                        <span>{hp} HP</span>
+                      </>
+                    )}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+    </div>
+
+    {/* 4. MASSIVE UNLEASH CLASH BUTTON */}
+    <div className="pt-6">
+      {isSpectator ? (
+        <div className="w-full py-5 rounded-3xl font-heading font-black text-sm sm:text-base uppercase tracking-widest bg-black/60 border border-white/20 text-slate-300 flex items-center justify-center gap-3">
+          <Eye className="w-5 h-5 text-amber-400 animate-pulse" />
+          <span>👁️ SPECTATING DUEL • AWAITING {p1.name.toUpperCase()} & {p2.name.toUpperCase()} TO LOCK IN...</span>
+        </div>
+      ) : (
+        <button
+          onClick={handleExecuteRound}
+          disabled={isUserLocked || !((isUserP1 && canControlP1) || (isUserP2 && canControlP2))}
+          className={`w-full py-5 rounded-3xl font-heading font-black text-base sm:text-xl uppercase tracking-widest border-2 transition-all transform flex items-center justify-center gap-3 ${
+            isUserLocked
+              ? 'bg-purple-950/80 border-purple-400/80 text-purple-200 shadow-glow-cosmic cursor-wait'
+              : 'bg-gradient-to-r from-red-600 via-purple-600 to-rose-600 hover:from-red-500 hover:to-purple-500 text-white shadow-[0_0_40px_rgba(239,68,68,0.7)] border-amber-400 hover:scale-[1.01] active:scale-[0.99] animate-pulse'
+          }`}
+        >
+          <Swords className="w-6 h-6 text-amber-300 animate-spin" />
+          <span>
+            {isOnlineMode
+              ? isUserLocked
+                ? '⏳ MOVE LOCKED IN • WAITING FOR OPPONENT...'
+                : `⚡ LOCK IN ${isUserP1 ? p1SelectedHero?.name : p2SelectedHero?.name}'S MOVE (${isUserP1 ? p1Action : p2Action}) ⚡`
+              : `⚡ UNLEASH ROUND ${match.rounds.length + 1} CLASH! ⚡`}
+          </span>
+          <Swords className="w-6 h-6 text-amber-300 animate-spin" />
+        </button>
+      )}
+    </div>
 
         </div>
       )}
@@ -1056,6 +1472,17 @@ export function BattlePhase({
 
       {/* 8. Floating Comic Reactions Bar */}
       <FloatingReactions playerName={isUserP1 ? p1.name : p2.name} />
+
+      {/* 9. Multiplayer Spectator Chat & Live Player Status Drawer */}
+      {isOnlineMode && (
+        <SpectatorChatDrawer
+          players={state.players}
+          messages={state.spectatorChat || []}
+          currentUserId={controllingPlayerId}
+          isSpectator={isSpectator}
+          onSendMessage={msg => onSendSpectatorChat?.(msg)}
+        />
+      )}
 
     </div>
   );

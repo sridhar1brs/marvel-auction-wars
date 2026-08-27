@@ -11,6 +11,10 @@ export default defineConfig({
       ignored: ['**/scratch/**', '**/.system_generated/**', '**/node_modules/**']
     },
     proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true
+      },
       '/socket.io': {
         target: 'http://localhost:3001',
         ws: true

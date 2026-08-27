@@ -1,0 +1,16 @@
+{
+  "lastUpdated": "2026-08-26T15:51:07.918Z",
+  "codes": [
+    {
+      "code": "ASCEND2026",
+      "astraReward": 5000,
+      "maxUses": 1000,
+      "usedCount": 0,
+      "expiresAt": "2026-12-31",
+      "isActive": true,
+      "createdAt": 1787759467918,
+      "redeemedBy": [],
+      "creatorUsername": "System"
+    }
+  ]
+}

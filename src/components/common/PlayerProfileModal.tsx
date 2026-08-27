@@ -1,0 +1,400 @@
+import React, { useState, useRef } from 'react';
+import { Player, PlayerProfile } from '../../types/game';
+import { ALL_CHARACTERS } from '../../data/characters/index';
+import { 
+  Trophy, Award, Swords, Shield, Star, X, User, Zap, Flame, Crown, 
+  Clock, Sparkles, LogOut, Skull, HeartHandshake, Compass, Layers, 
+  Upload, Edit3, Check, Gift, Activity
+} from 'lucide-react';
+import { soundManager } from '../../audio/soundManager';
+import { useAuth, UserProfile } from '../../context/AuthContext';
+import { getLevelFromXp, formatPlaytime } from '../../utils/progression';
+
+interface Props {
+  player?: Player | null;
+  profile?: PlayerProfile | null;
+  onClose: () => void;
+}
+
+export function PlayerProfileModal({ player, profile: directProfile, onClose }: Props) {
+  const { user: authUser, logout, isAuthenticated, updateCustomAvatar } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [isEditingBio, setIsEditingBio] = useState(false);
+  const [bioInput, setBioInput] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [customAvatarPreview, setCustomAvatarPreview] = useState<string | null>(null);
+
+  // Prefer direct profile, then player.profile, then authUser if player matches, then fallback
+  let profile: any;
+  if (directProfile) {
+    profile = directProfile;
+  } else if (player?.profile) {
+    profile = player.profile;
+  } else if (authUser && (!player || player.id === authUser.id || player.name.toLowerCase() === authUser.username.toLowerCase())) {
+    profile = authUser;
+  } else {
+    const safePlayer: Player = player || {
+      id: 'guest',
+      name: 'Guest Commander',
+      avatar: '🦸‍♂️',
+      money: 30,
+      collection: [],
+      isHost: false,
+      isReady: false,
+      isBot: false,
+      level: 1,
+      stats: { battlesWon: 0, moneySpent: 0, highestBid: 0 }
+    };
+    profile = {
+      id: safePlayer.id,
+      username: safePlayer.name,
+      displayName: safePlayer.name,
+      avatar: safePlayer.avatar || '🦸‍♂️',
+      level: safePlayer.level || 1,
+      xp: 0,
+      matchesPlayed: 0,
+      wins: 0,
+      losses: 0,
+      winRate: 0,
+      charactersPurchased: safePlayer.collection?.length || 0,
+      battlesWon: safePlayer.stats?.battlesWon || 0,
+      mvpAwards: 0,
+      tournamentWins: 0,
+      playtimeSeconds: 0,
+      playtimeFormatted: '0m',
+      ascensionCoins: 0,
+      rankedTier: 'BRONZE',
+      rankedDivision: 3,
+      rankedRating: 1000,
+      currentWinStreak: 0,
+      bestWinStreak: 0,
+      totalDamageDealt: 0,
+      bossesDefeated: 0,
+      dungeonsCompleted: 0
+    };
+  }
+
+  const levelInfo = getLevelFromXp(profile.xp || 0);
+  const currentLevel = profile.level || levelInfo.level || 1;
+  const currentLevelXp = profile.currentLevelXp ?? levelInfo.currentLevelXp;
+  const xpForNextLevel = profile.xpForNextLevel ?? levelInfo.xpForNextLevel;
+  const progressPercent = profile.progressPercent ?? levelInfo.progressPercent;
+  const winRate = profile.matchesPlayed > 0 ? Math.round((profile.wins / profile.matchesPlayed) * 100) : 0;
+  const playtime = profile.playtimeFormatted || formatPlaytime(profile.playtimeSeconds || 0);
+
+  const favoriteHero = profile.favoriteCharacterId 
+    ? ALL_CHARACTERS.find(c => c.id === profile.favoriteCharacterId)
+    : (player?.collection?.[0] || ALL_CHARACTERS[0]);
+
+  const isOwnProfile = authUser && (
+    profile.id === authUser.id || 
+    (profile.username && profile.username.toLowerCase() === authUser.username.toLowerCase())
+  );
+
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file (PNG, JPG, WEBP).');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Image size exceeds 2MB limit.');
+      return;
+    }
+
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      setCustomAvatarPreview(base64);
+      if (updateCustomAvatar) {
+        await updateCustomAvatar(base64);
+        soundManager.playVictory();
+      }
+      setIsUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveBio = async () => {
+    if (updateCustomAvatar) {
+      await updateCustomAvatar(undefined, bioInput);
+      soundManager.playClick();
+    }
+    setIsEditingBio(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn select-none">
+      <div className="relative w-full max-w-xl max-h-[92vh] overflow-y-auto custom-scrollbar bg-gradient-to-b from-[#141A2E] via-[#0D1222] to-[#070914] border-2 border-cyan-500/50 rounded-3xl p-5 sm:p-6 shadow-[0_0_60px_rgba(6,182,212,0.4)] space-y-5 text-white">
+        
+        {/* Close Button */}
+        <button
+          type="button"
+          onClick={() => {
+            soundManager.playClick();
+            onClose();
+          }}
+          className="absolute top-4 right-4 p-2 bg-slate-900/80 hover:bg-slate-800 rounded-full border border-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Profile Header & Custom Avatar Upload */}
+        <div className="flex items-center gap-3.5 sm:gap-4 border-b border-white/10 pb-4">
+          <div className="relative shrink-0 group">
+            <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-cyan-600 via-blue-600 to-purple-600 flex items-center justify-center text-3xl sm:text-4xl shadow-lg border-2 border-cyan-400 shadow-cyan-500/30 overflow-hidden bg-black">
+              {customAvatarPreview || profile.customAvatarUrl ? (
+                <img
+                  src={customAvatarPreview || profile.customAvatarUrl}
+                  alt="Custom Avatar"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span>{profile.avatar || player?.avatar || '🦸‍♂️'}</span>
+              )}
+            </div>
+
+            {/* Upload Button overlay for own profile */}
+            {isOwnProfile && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute inset-0 bg-black/60 rounded-2xl flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-[10px] font-bold"
+                title="Upload Custom Profile Picture"
+              >
+                <Upload className="w-4 h-4 text-cyan-400 mb-0.5" />
+                <span>Change</span>
+              </button>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarFileChange}
+            />
+
+            <div className="absolute -bottom-2 -right-1 bg-amber-500 text-black font-black text-[10px] px-2 py-0.5 rounded-full border border-amber-200 shadow-md">
+              LVL {currentLevel}
+            </div>
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-xl sm:text-2xl font-heading font-black text-white tracking-wide truncate">
+                {profile.displayName || profile.username || player?.name}
+              </h2>
+              {profile.rankedTier && (
+                <span className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black text-[10px] px-2 py-0.5 rounded-full border border-purple-400 shadow-glow-cosmic">
+                  {profile.rankedTier} {profile.rankedDivision || 1}
+                </span>
+              )}
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-2 text-xs text-cyan-400 font-mono mt-0.5">
+              <span>COMMANDER</span>
+              <span>•</span>
+              <span className="text-amber-300 font-bold">✨ {(profile.astra ?? profile.ascensionCoins ?? 0).toLocaleString()} ASTRA</span>
+              <span>•</span>
+              <span className="px-2 py-0.5 rounded-full bg-purple-950/80 border border-purple-400 text-purple-200 text-[10px] font-bold">
+                {profile.rankedTier === 'ASCENDER'
+                  ? '⚡ ASCENDER'
+                  : !profile.isPlacementsCompleted || profile.rankedTier === 'UNRANKED'
+                  ? 'UNRANKED'
+                  : `${profile.rankedTier} ${profile.rankedDivision || ''}`} ({(profile.rankedRating ?? 0).toLocaleString()} MMR)
+              </span>
+            </div>
+
+            {/* Bio */}
+            {profile.bio && (
+              <p className="text-xs text-slate-300 italic mt-1 max-w-sm line-clamp-2">
+                "{profile.bio}"
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* XP Level & Progression Bar */}
+        <div className="p-3.5 bg-black/60 border border-cyan-500/30 rounded-2xl space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-heading font-black text-amber-300 uppercase tracking-wide flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>LEVEL {currentLevel} PROGRESSION</span>
+            </span>
+            <span className="font-mono text-cyan-300 font-bold">
+              {currentLevelXp.toLocaleString()} / {xpForNextLevel.toLocaleString()} XP ({progressPercent}%)
+            </span>
+          </div>
+
+          {/* Animated XP Bar */}
+          <div className="relative w-full h-3 bg-slate-900 rounded-full overflow-hidden border border-white/10">
+            <div
+              className="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-amber-400 rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(34,211,238,0.5)]"
+              style={{ width: `${Math.max(4, Math.min(100, progressPercent))}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+            <span>Total Career XP: {profile.xp?.toLocaleString() || 0}</span>
+            <span>Next: Level {currentLevel + 1}</span>
+          </div>
+        </div>
+
+        {/* Primary Career Stats Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          {/* 1. Wins */}
+          <div className="bg-black/50 p-3 rounded-2xl border border-white/10 text-center">
+            <Trophy className="w-4 h-4 text-amber-400 mx-auto mb-1" />
+            <span className="text-[10px] text-slate-400 uppercase font-bold block">VICTORIES</span>
+            <span className="text-lg font-heading font-black text-amber-300">{profile.wins}</span>
+          </div>
+
+          {/* 2. Losses */}
+          <div className="bg-black/50 p-3 rounded-2xl border border-white/10 text-center">
+            <Skull className="w-4 h-4 text-rose-400 mx-auto mb-1" />
+            <span className="text-[10px] text-slate-400 uppercase font-bold block">DEFEATS</span>
+            <span className="text-lg font-heading font-black text-rose-300">{profile.losses}</span>
+          </div>
+
+          {/* 3. Win Rate */}
+          <div className="bg-black/50 p-3 rounded-2xl border border-white/10 text-center">
+            <Flame className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
+            <span className="text-[10px] text-slate-400 uppercase font-bold block">WIN RATE</span>
+            <span className="text-lg font-heading font-black text-emerald-400">{winRate}%</span>
+          </div>
+
+          {/* 4. Total Play Time */}
+          <div className="bg-black/50 p-3 rounded-2xl border border-white/10 text-center">
+            <Clock className="w-4 h-4 text-cyan-400 mx-auto mb-1" />
+            <span className="text-[10px] text-slate-400 uppercase font-bold block">PLAY TIME</span>
+            <span className="text-base sm:text-lg font-heading font-black text-cyan-300 truncate block">
+              {playtime}
+            </span>
+          </div>
+        </div>
+
+        {/* Ascension Multiverse Accolades Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+          <div className="bg-slate-950/60 p-2.5 rounded-xl border border-white/10 text-center">
+            <Flame className="w-4 h-4 text-amber-400 mx-auto mb-0.5" />
+            <span className="text-[9px] text-slate-400 block font-bold">WIN STREAK</span>
+            <span className="font-heading font-black text-amber-300 text-sm">{profile.currentWinStreak || 0} (Best: {profile.bestWinStreak || 0})</span>
+          </div>
+
+          <div className="bg-slate-950/60 p-2.5 rounded-xl border border-white/10 text-center">
+            <Award className="w-4 h-4 text-purple-400 mx-auto mb-0.5" />
+            <span className="text-[9px] text-slate-400 block font-bold">MVP AWARDS</span>
+            <span className="font-heading font-black text-purple-300 text-sm">{profile.mvpAwards || 0}</span>
+          </div>
+
+          <div className="bg-slate-950/60 p-2.5 rounded-xl border border-white/10 text-center">
+            <Compass className="w-4 h-4 text-emerald-400 mx-auto mb-0.5" />
+            <span className="text-[9px] text-slate-400 block font-bold">DUNGEON PEAK</span>
+            <span className="font-heading font-black text-emerald-300 text-sm">Wave {profile.dungeonPeak || profile.dungeonMaxWave || 0}</span>
+          </div>
+
+          <div className="bg-slate-950/60 p-2.5 rounded-xl border border-white/10 text-center">
+            <Activity className="w-4 h-4 text-cyan-400 mx-auto mb-0.5" />
+            <span className="text-[9px] text-slate-400 block font-bold">TOTAL DAMAGE</span>
+            <span className="font-heading font-black text-cyan-300 text-sm">{(profile.totalDamageDealt || 0).toLocaleString()}</span>
+          </div>
+        </div>
+
+        {/* Favorite Signature Character Showcase */}
+        {favoriteHero && (
+          <div className="bg-black/60 p-3 sm:p-3.5 rounded-2xl border border-cyan-500/30 flex items-center gap-3.5">
+            <div className="w-14 h-14 rounded-xl overflow-hidden border border-cyan-400 shrink-0 bg-black">
+              <img
+                src={`/images/characters/${favoriteHero.id}.jpg`}
+                alt={favoriteHero.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                }}
+              />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[9px] text-amber-400 font-mono font-bold uppercase tracking-widest block">
+                FAVORITE SIGNATURE HERO
+              </span>
+              <h4 className="text-sm sm:text-base font-heading font-black text-white truncate">
+                {favoriteHero.name}
+              </h4>
+              <p className="text-[11px] text-slate-300 truncate">
+                {favoriteHero.powers}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Bio Edit for own profile */}
+        {isOwnProfile && (
+          <div className="pt-2 border-t border-white/10">
+            {isEditingBio ? (
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  maxLength={140}
+                  value={bioInput}
+                  onChange={e => setBioInput(e.target.value)}
+                  placeholder="Enter commander bio..."
+                  className="w-full px-3 py-1.5 rounded-xl bg-black/60 border border-white/20 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                />
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingBio(false)}
+                    className="px-3 py-1 rounded-lg text-xs text-slate-400 hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveBio}
+                    className="px-3 py-1 rounded-lg bg-cyan-500 text-black font-bold text-xs shadow-glow-cyan cursor-pointer"
+                  >
+                    Save Bio
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBioInput(profile.bio || '');
+                    setIsEditingBio(true);
+                  }}
+                  className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>{profile.bio ? 'Edit Commander Bio' : 'Add Commander Bio'}</span>
+                </button>
+
+                {logout && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      logout();
+                      onClose();
+                    }}
+                    className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign Out</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}

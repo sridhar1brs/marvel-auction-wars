@@ -38,6 +38,17 @@ export interface RaidBossConfig {
 
 export const RAID_BOSSES: RaidBossConfig[] = [
   {
+    id: 'one_above_all',
+    name: 'The One-Above-All',
+    title: 'Supreme Omnipotent Creator of the Multiverse',
+    maxHp: 850,
+    imageUrl: '/images/characters/char-exp49-008.jpg',
+    introLog: '⚡ RAID COMMENCED! The One-Above-All manifests in absolute cosmic genesis beyond all creation!',
+    specialName: '🌟 OMNIPOTENT GENESIS SNAP',
+    phase2Aura: 'border-amber-300 shadow-[0_0_50px_rgba(251,191,36,0.8)]',
+    description: 'The supreme creator and ultimate authority across all Marvel realities, timeless and omnipotent.'
+  },
+  {
     id: 'infinity_ultron',
     name: 'Infinity Ultron',
     title: 'Supreme Multiverse Destroyer',
@@ -135,6 +146,61 @@ export const RAID_BOSSES: RaidBossConfig[] = [
     specialName: '✨ BATTLEWORLD REALITY WARP',
     phase2Aura: 'border-yellow-400 shadow-glow-gold',
     description: 'The supreme entity of the Beyond Realm. Reality is merely his toy.'
+  },
+  {
+    id: 'mephisto',
+    name: 'Mephisto',
+    title: 'Lord of the Burning Underworld & Faustian Bargains',
+    maxHp: 680,
+    imageUrl: '/images/characters/char-m-009.jpg',
+    introLog: '⚡ RAID COMMENCED! Mephisto emerges from the sulfurous depths with soul-stealing hellfire!',
+    specialName: '🔥 SOUL-STEAL FAUSTIAN PACT',
+    phase2Aura: 'border-red-600 shadow-glow-red',
+    description: 'Master of demonic manipulation and hellfire sorcery. Steals commander vitality.'
+  },
+  {
+    id: 'gorr',
+    name: 'Gorr the God Butcher',
+    title: 'Slayer of Deities & Wielder of the All-Black',
+    maxHp: 720,
+    imageUrl: '/images/characters/char-a-015.jpg',
+    introLog: '⚡ RAID COMMENCED! Gorr vows that all gods and heroes shall perish beneath his necrosword!',
+    specialName: '⚔️ GOD-BOMB NECRO-DECAPITATION',
+    phase2Aura: 'border-purple-600 shadow-glow-cosmic',
+    description: 'Slew pantheons across eternity. Converts fallen strength into dark matter.'
+  },
+  {
+    id: 'god_emperor_doom',
+    name: 'God Emperor Doom',
+    title: 'Supreme Ruler of the Collapsed Multiverse',
+    maxHp: 800,
+    imageUrl: '/images/characters/char-m-012.jpg',
+    introLog: '⚡ RAID COMMENCED! God Emperor Doom harnesses the stolen power of the Beyonders!',
+    specialName: '👑 WILL OF LATVERIA DECIMATION',
+    phase2Aura: 'border-emerald-400 shadow-glow-green',
+    description: 'Reconstructed reality from fragments. Omnipotent sorcery and science.'
+  },
+  {
+    id: 'living_tribunal',
+    name: 'The Living Tribunal',
+    title: 'Three-Faced Cosmic Arbiter of All Realities',
+    maxHp: 950,
+    imageUrl: '/images/characters/char-m-020.jpg',
+    introLog: '⚡ RAID COMMENCED! The Living Tribunal convenes cosmic judgment upon all players!',
+    specialName: '⚖️ THREE-FACED COSMIC ARBITRATION',
+    phase2Aura: 'border-cyan-300 shadow-[0_0_60px_rgba(6,182,212,0.8)]',
+    description: 'Answers only to The One-Above-All. Maintains absolute equilibrium across realities.'
+  },
+  {
+    id: 'celestial_exitar',
+    name: 'Exitar the Exterminator',
+    title: 'Celestial Titan of World Purification',
+    maxHp: 880,
+    imageUrl: '/images/characters/char-m-014.jpg',
+    introLog: '⚡ RAID COMMENCED! Exitar descends from the cosmos to cleanse the entire timeline!',
+    specialName: '☄️ CELESTIAL PURGE PROTOCOL',
+    phase2Aura: 'border-amber-400 shadow-glow-gold',
+    description: 'A 20,000-foot Celestial that obliterates worlds deemed unworthy of survival.'
   }
 ];
 
@@ -243,11 +309,12 @@ export function BossRaidManager({ onExit }: Props) {
       }
     ];
 
-    setTeamMoney(prev => prev - cost);
+    const remainingMoney = teamMoney - cost;
+    setTeamMoney(remainingMoney);
     setTeamRoster(newSquad);
 
-    // Check if team is full based on configured teamCharacterLimit
-    if (newSquad.length >= teamCharacterLimit) {
+    // Auto-Start Boss Battle if team is full OR if all team funds are depleted ($0) and team is not empty
+    if (newSquad.length >= teamCharacterLimit || (remainingMoney <= 0 && newSquad.length > 0)) {
       soundManager.playVictory();
       setStage('SKILL_VAULT');
     } else {
@@ -258,7 +325,12 @@ export function BossRaidManager({ onExit }: Props) {
   // 3. SKIP DRAFT LOT
   const handleSkipDraftLot = () => {
     soundManager.playClick();
-    getNextDraftLot();
+    if (teamMoney <= 0 && teamRoster.length > 0) {
+      soundManager.playVictory();
+      setStage('SKILL_VAULT');
+    } else {
+      getNextDraftLot();
+    }
   };
 
   // 4. EQUIP RELIC
@@ -502,12 +574,12 @@ export function BossRaidManager({ onExit }: Props) {
           </div>
         </div>
 
-        {/* 2. Combined Money Selector ($10 - $200) */}
+        {/* 2. Combined Money Selector ($10 - $1000) */}
         <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-emerald-500/30 bg-slate-900/50 space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-xs sm:text-sm font-black uppercase text-slate-200 flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-emerald-400" />
-              <span>2. COMBINED TEAM MONEY ($10 - $200):</span>
+              <span>2. COMBINED TEAM MONEY ($10 - $1000):</span>
             </span>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-400">
@@ -525,34 +597,35 @@ export function BossRaidManager({ onExit }: Props) {
               <input
                 type="range"
                 min={10}
-                max={200}
+                max={1000}
                 step={5}
                 value={combinedMoney}
                 onChange={e => setCombinedMoney(Number(e.target.value))}
                 className="w-full h-2.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
               />
-              <div className="relative w-24">
+              <div className="relative w-28">
                 <span className="absolute left-2.5 top-2 text-xs font-bold text-emerald-400">$</span>
                 <input
                   type="number"
                   min={10}
-                  max={200}
+                  max={1000}
                   value={combinedMoney}
-                  onChange={e => setCombinedMoney(Math.min(200, Math.max(10, Number(e.target.value) || 10)))}
+                  onChange={e => setCombinedMoney(Math.min(1000, Math.max(10, Number(e.target.value) || 10)))}
                   className="w-full bg-black/60 border border-emerald-500/40 pl-6 pr-2 py-1.5 rounded-xl text-xs font-black text-white text-center focus:outline-none focus:border-emerald-400"
                 />
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2 pt-1">
-              {[10, 25, 50, 75, 100, 150, 200].map(val => (
+              {[10, 25, 50, 100, 250, 500, 750, 1000].map(val => (
                 <button
                   key={val}
+                  type="button"
                   onClick={() => {
                     soundManager.playClick();
                     setCombinedMoney(val);
                   }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                     combinedMoney === val
                       ? 'bg-emerald-600 text-white border-emerald-400 shadow-glow-gold'
                       : 'bg-black/50 text-slate-300 border-white/10 hover:border-emerald-500/40'

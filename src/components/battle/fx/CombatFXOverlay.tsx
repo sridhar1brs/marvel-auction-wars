@@ -37,12 +37,15 @@ export function CombatFXOverlay({
 
   // 60FPS High Performance Particle & Beam Canvas Engine
   useEffect(() => {
-    if (effectType === 'none' && !comicBurst) return;
-
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
+    if (effectType === 'none' && !comicBurst) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
 
     let animationFrameId: number;
     const width = (canvas.width = canvas.parentElement?.clientWidth || 800);
@@ -121,10 +124,8 @@ export function CombatFXOverlay({
       // 1. Web Shooting & Geometric Netting
       if (effectType === 'web') {
         ctx.save();
-        ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = 4;
-        ctx.shadowColor = '#38BDF8';
-        ctx.shadowBlur = 20;
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+        ctx.lineWidth = 8;
         
         // Multi-strand web ropes
         for (let s = -1; s <= 1; s++) {
@@ -134,18 +135,21 @@ export function CombatFXOverlay({
           ctx.stroke();
         }
 
-        // Geometric Web Trap at Target
-        for (let w = 0; w < 8; w++) {
-          const angle = (w / 8) * Math.PI * 2 + progress * 2;
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 3;
+        for (let s = -1; s <= 1; s++) {
           ctx.beginPath();
-          ctx.moveTo(targetX, originY);
-          ctx.lineTo(targetX + Math.cos(angle) * 60 * Math.min(1, progress * 1.5), originY + Math.sin(angle) * 60 * Math.min(1, progress * 1.5));
+          ctx.moveTo(originX, originY + s * 10);
+          ctx.lineTo(targetX, originY + s * 15);
           ctx.stroke();
         }
-        // Web concentric rings
-        for (let r = 1; r <= 3; r++) {
+
+        // Geometric Web Trap at Target
+        for (let w = 0; w < 6; w++) {
+          const angle = (w / 6) * Math.PI * 2 + progress * 2;
           ctx.beginPath();
-          ctx.arc(targetX, originY, r * 18 * Math.min(1, progress * 1.3), 0, Math.PI * 2);
+          ctx.moveTo(targetX, originY);
+          ctx.lineTo(targetX + Math.cos(angle) * 50 * Math.min(1, progress * 1.5), originY + Math.sin(angle) * 50 * Math.min(1, progress * 1.5));
           ctx.stroke();
         }
         ctx.restore();
@@ -154,63 +158,46 @@ export function CombatFXOverlay({
       // 2. High-Energy Unibeam & Optic Blast
       if (effectType === 'laser') {
         ctx.save();
-        const beamW = Math.sin(progress * Math.PI) * 28;
+        const beamW = Math.sin(progress * Math.PI) * 24;
         
-        // Outer plasma glow
+        // Outer plasma glow layer
         ctx.beginPath();
         ctx.moveTo(originX, originY);
         ctx.lineTo(targetX, originY);
-        ctx.lineWidth = beamW;
-        ctx.strokeStyle = '#EF4444';
-        ctx.shadowColor = '#EF4444';
-        ctx.shadowBlur = 40;
+        ctx.lineWidth = beamW * 1.5;
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.35)';
         ctx.stroke();
 
         // Middle energy core
-        ctx.lineWidth = beamW * 0.6;
+        ctx.lineWidth = beamW * 0.7;
         ctx.strokeStyle = '#FBBF24';
-        ctx.shadowColor = '#FBBF24';
-        ctx.shadowBlur = 20;
         ctx.stroke();
 
         // Inner white-hot laser rod
         ctx.lineWidth = beamW * 0.25;
         ctx.strokeStyle = '#FFFFFF';
         ctx.stroke();
-
-        // Plasma charge rings traveling along beam
-        for (let pr = 1; pr <= 4; pr++) {
-          const ringX = originX + (targetX - originX) * ((progress * 1.8 + pr * 0.25) % 1);
-          ctx.beginPath();
-          ctx.ellipse(ringX, originY, 8, beamW * 0.7, 0, 0, Math.PI * 2);
-          ctx.strokeStyle = '#FFFFFF';
-          ctx.lineWidth = 3;
-          ctx.stroke();
-        }
         ctx.restore();
       }
 
       // 3. Branching Bifrost Lightning Web
       if (effectType === 'lightning') {
         ctx.save();
-        ctx.shadowColor = '#38BDF8';
-        ctx.shadowBlur = 25;
-
-        for (let bolt = 0; bolt < 3; bolt++) {
+        for (let bolt = 0; bolt < 2; bolt++) {
           ctx.beginPath();
           let currX = originX;
-          let currY = originY + (bolt - 1) * 15;
+          let currY = originY + (bolt - 0.5) * 15;
           ctx.moveTo(currX, currY);
-          const steps = 10;
+          const steps = 8;
           for (let s = 1; s <= steps; s++) {
             const nextX = originX + ((targetX - originX) / steps) * s;
-            const nextY = originY + (Math.random() - 0.5) * 60 + (bolt - 1) * 15;
+            const nextY = originY + (Math.random() - 0.5) * 40 + (bolt - 0.5) * 15;
             ctx.lineTo(nextX, nextY);
             currX = nextX;
             currY = nextY;
           }
-          ctx.lineWidth = bolt === 1 ? 5 : 3;
-          ctx.strokeStyle = bolt === 1 ? '#FFFFFF' : '#38BDF8';
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = bolt === 0 ? '#FFFFFF' : '#38BDF8';
           ctx.stroke();
         }
         ctx.restore();
@@ -220,27 +207,25 @@ export function CombatFXOverlay({
       if (effectType === 'gamma_smash') {
         ctx.save();
         ctx.strokeStyle = '#22C55E';
-        ctx.shadowColor = '#4ADE80';
-        ctx.shadowBlur = 35;
-        ctx.lineWidth = 6;
+        ctx.lineWidth = 4;
 
-        // Ground fault jagged fissure lines
+        // Ground fault fissure lines
         ctx.beginPath();
         let fx = originX;
-        let fy = originY + 30;
+        let fy = originY + 25;
         ctx.moveTo(fx, fy);
-        for (let i = 0; i < 8; i++) {
-          fx += (targetX - originX) / 8;
-          fy = originY + 30 + (Math.random() - 0.5) * 25;
+        for (let i = 0; i < 6; i++) {
+          fx += (targetX - originX) / 6;
+          fy = originY + 25 + (Math.random() - 0.5) * 20;
           ctx.lineTo(fx, fy);
         }
         ctx.stroke();
 
-        // Expanding bedrock shockwave ellipses
-        for (let r = 1; r <= 4; r++) {
+        // Expanding shockwave ellipses
+        for (let r = 1; r <= 3; r++) {
           ctx.beginPath();
-          ctx.ellipse(targetX, originY + 25, progress * 95 * r, progress * 38 * r, 0, 0, Math.PI * 2);
-          ctx.strokeStyle = r % 2 === 0 ? '#86EFAC' : '#22C55E';
+          ctx.ellipse(targetX, originY + 20, progress * 80 * r, progress * 30 * r, 0, 0, Math.PI * 2);
+          ctx.strokeStyle = r % 2 === 0 ? 'rgba(134, 239, 172, 0.6)' : 'rgba(34, 197, 94, 0.8)';
           ctx.stroke();
         }
         ctx.restore();
@@ -249,13 +234,11 @@ export function CombatFXOverlay({
       // 5. Concentric Sonic Boom Compression Waves
       if (effectType === 'sonic') {
         ctx.save();
-        ctx.strokeStyle = '#06B6D4';
-        ctx.shadowColor = '#67E8F9';
-        ctx.shadowBlur = 25;
-        ctx.lineWidth = 5;
-        for (let s = 1; s <= 5; s++) {
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.7)';
+        ctx.lineWidth = 4;
+        for (let s = 1; s <= 4; s++) {
           ctx.beginPath();
-          const rad = (progress * 110 + s * 22) % 110;
+          const rad = (progress * 90 + s * 20) % 90;
           ctx.arc(originX + (targetX - originX) * (progress * 0.85), originY, rad, -Math.PI * 0.45, Math.PI * 0.45, attackerSide === 'right');
           ctx.stroke();
         }
@@ -268,20 +251,13 @@ export function CombatFXOverlay({
         ctx.translate(originX, originY);
         ctx.rotate(progress * Math.PI * 3);
         ctx.strokeStyle = '#E879F9';
-        ctx.lineWidth = 4;
-        ctx.shadowColor = '#D946EF';
-        ctx.shadowBlur = 30;
+        ctx.lineWidth = 3;
 
-        // Concentric geometric star glyphs
         ctx.beginPath();
-        ctx.arc(0, 0, 45, 0, Math.PI * 2);
+        ctx.arc(0, 0, 40, 0, Math.PI * 2);
         ctx.stroke();
         ctx.beginPath();
-        ctx.rect(-30, -30, 60, 60);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.rotate(Math.PI / 4);
-        ctx.rect(-30, -30, 60, 60);
+        ctx.rect(-25, -25, 50, 50);
         ctx.stroke();
         ctx.restore();
       }
@@ -292,22 +268,17 @@ export function CombatFXOverlay({
         ctx.translate(targetX, originY);
         ctx.rotate(-progress * Math.PI * 4);
         
-        for (let a = 0; a < 4; a++) {
+        for (let a = 0; a < 3; a++) {
           ctx.beginPath();
           ctx.strokeStyle = a % 2 === 0 ? '#A855F7' : '#38BDF8';
-          ctx.lineWidth = 4;
-          ctx.shadowColor = '#EC4899';
-          ctx.shadowBlur = 25;
-          ctx.arc(0, 0, (progress * 80 + a * 20) % 80, 0, Math.PI * 1.5);
+          ctx.lineWidth = 3;
+          ctx.arc(0, 0, (progress * 70 + a * 20) % 70, 0, Math.PI * 1.5);
           ctx.stroke();
         }
 
-        // Singularity core
         ctx.beginPath();
-        ctx.arc(0, 0, 18, 0, Math.PI * 2);
+        ctx.arc(0, 0, 14, 0, Math.PI * 2);
         ctx.fillStyle = '#FFFFFF';
-        ctx.shadowColor = '#FFFFFF';
-        ctx.shadowBlur = 30;
         ctx.fill();
         ctx.restore();
       }
@@ -315,18 +286,16 @@ export function CombatFXOverlay({
       // 8. Roaring Inferno Flame Pillar
       if (effectType === 'fire') {
         ctx.save();
-        ctx.strokeStyle = '#EA580C';
-        ctx.lineWidth = 6;
-        ctx.shadowColor = '#F97316';
-        ctx.shadowBlur = 35;
-        for (let f = -2; f <= 2; f++) {
+        ctx.strokeStyle = '#F97316';
+        ctx.lineWidth = 4;
+        for (let f = -1; f <= 1; f++) {
           ctx.beginPath();
-          ctx.moveTo(originX + f * 15, originY + 40);
+          ctx.moveTo(originX + f * 15, originY + 30);
           ctx.quadraticCurveTo(
-            targetX + (Math.random() - 0.5) * 40,
-            originY - progress * 100,
-            targetX + f * 20,
-            originY - 20
+            targetX + (Math.random() - 0.5) * 30,
+            originY - progress * 80,
+            targetX + f * 15,
+            originY - 15
           );
           ctx.stroke();
         }
@@ -338,15 +307,13 @@ export function CombatFXOverlay({
         ctx.save();
         ctx.fillStyle = '#0F172A';
         ctx.strokeStyle = '#DC2626';
-        ctx.lineWidth = 3;
-        ctx.shadowColor = '#DC2626';
-        ctx.shadowBlur = 20;
-        for (let sp = 0; sp < 6; sp++) {
-          const offY = (sp - 2.5) * 20;
+        ctx.lineWidth = 2.5;
+        for (let sp = 0; sp < 4; sp++) {
+          const offY = (sp - 1.5) * 20;
           ctx.beginPath();
           ctx.moveTo(originX, originY + offY * 0.4);
-          ctx.lineTo(targetX + 30 * progress, originY + offY);
-          ctx.lineTo(originX, originY + offY * 0.4 + 10);
+          ctx.lineTo(targetX + 25 * progress, originY + offY);
+          ctx.lineTo(originX, originY + offY * 0.4 + 8);
           ctx.fill();
           ctx.stroke();
         }
@@ -358,17 +325,14 @@ export function CombatFXOverlay({
         ctx.save();
         const arrowX = originX + (targetX - originX) * progress;
         ctx.strokeStyle = '#8B5CF6';
-        ctx.lineWidth = 5;
-        ctx.shadowColor = '#A78BFA';
-        ctx.shadowBlur = 20;
+        ctx.lineWidth = 4;
         ctx.beginPath();
-        ctx.moveTo(arrowX - 60, originY);
+        ctx.moveTo(arrowX - 50, originY);
         ctx.lineTo(arrowX, originY);
         ctx.stroke();
-        // Arrowhead flare
         ctx.fillStyle = '#F59E0B';
         ctx.beginPath();
-        ctx.arc(arrowX, originY, 8, 0, Math.PI * 2);
+        ctx.arc(arrowX, originY, 6, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
@@ -377,13 +341,11 @@ export function CombatFXOverlay({
       if (effectType === 'gun_kata') {
         ctx.save();
         ctx.strokeStyle = '#FCD34D';
-        ctx.lineWidth = 3.5;
-        ctx.shadowColor = '#F59E0B';
-        ctx.shadowBlur = 20;
-        for (let b = 0; b < 5; b++) {
-          const offY = (b - 2) * 14;
+        ctx.lineWidth = 2.5;
+        for (let b = 0; b < 3; b++) {
+          const offY = (b - 1) * 14;
           ctx.beginPath();
-          ctx.moveTo(originX + 25, originY + offY);
+          ctx.moveTo(originX + 20, originY + offY);
           ctx.lineTo(targetX, originY + offY);
           ctx.stroke();
         }
@@ -401,18 +363,16 @@ export function CombatFXOverlay({
           ctx.globalAlpha = Math.max(0, p.alpha);
           ctx.fillStyle = p.color;
           ctx.strokeStyle = p.color;
-          ctx.shadowColor = p.color;
-          ctx.shadowBlur = 10;
 
           if (p.shape === 'web') {
             ctx.beginPath();
-            ctx.moveTo(p.x - p.size * 2, p.y);
-            ctx.lineTo(p.x + p.size * 2, p.y);
-            ctx.moveTo(p.x, p.y - p.size * 2);
-            ctx.lineTo(p.x, p.y + p.size * 2);
+            ctx.moveTo(p.x - p.size * 1.5, p.y);
+            ctx.lineTo(p.x + p.size * 1.5, p.y);
+            ctx.moveTo(p.x, p.y - p.size * 1.5);
+            ctx.lineTo(p.x, p.y + p.size * 1.5);
             ctx.stroke();
           } else if (p.shape === 'spark') {
-            ctx.fillRect(p.x, p.y, p.size * 2, p.size * 0.8);
+            ctx.fillRect(p.x, p.y, p.size * 1.5, p.size * 0.7);
           } else {
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
@@ -430,7 +390,10 @@ export function CombatFXOverlay({
     };
 
     render();
-    return () => cancelAnimationFrame(animationFrameId);
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      if (ctx) ctx.clearRect(0, 0, width, height);
+    };
   }, [effectType, attackerSide, comicBurst]);
 
   return (

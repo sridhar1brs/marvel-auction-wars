@@ -100,34 +100,20 @@ export function Fighter2DSprite({
       {/* 4. 2D Animated Fighter Avatar Body */}
       <div className={`relative z-10 transition-transform duration-300 ${getAnimationClass()}`}>
         
-        {/* Multi-Layer Speed Ghosting Mirage Trails when Attacking */}
+        {/* Hardware-Accelerated Kinetic Speed Trail when Attacking */}
         {isAttacking && (
-          <>
-            <div 
-              className={`absolute inset-0 opacity-40 blur-xs pointer-events-none transform scale-110 ${
-                isP1 ? '-translate-x-12' : 'translate-x-12'
-              }`}
-            >
-              <CharacterPortrait
-                character={character}
-                size="xl"
-                showBadge={false}
-                className="opacity-40"
-              />
-            </div>
-            <div 
-              className={`absolute inset-0 opacity-60 blur-2xs pointer-events-none transform scale-105 ${
-                isP1 ? '-translate-x-6' : 'translate-x-6'
-              }`}
-            >
-              <CharacterPortrait
-                character={character}
-                size="xl"
-                showBadge={false}
-                className="opacity-60"
-              />
-            </div>
-          </>
+          <div 
+            className={`absolute inset-0 opacity-40 pointer-events-none transform ${
+              isP1 ? '-translate-x-8' : 'translate-x-8'
+            }`}
+          >
+            <CharacterPortrait
+              character={character}
+              size="xl"
+              showBadge={false}
+              className="opacity-40"
+            />
+          </div>
         )}
 
         {/* Core Character Portrait */}

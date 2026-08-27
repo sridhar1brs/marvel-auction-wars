@@ -26,7 +26,9 @@ export function simulateRoundDuel(
   char2: Character,
   roundNumber: number,
   action1: BattleActionType = 'ATTACK',
-  action2: BattleActionType = 'ATTACK'
+  action2: BattleActionType = 'ATTACK',
+  p1SkillId?: string,
+  p2SkillId?: string
 ): BattleRound {
   const log: string[] = [];
   log.push(`ROUND ${roundNumber} (${char1.grade} TIER): ${char1.name} [${action1}] VS ${char2.name} [${action2}]`);
@@ -41,54 +43,64 @@ export function simulateRoundDuel(
   let p1Hp = char1.currentHp !== undefined ? char1.currentHp : p1MaxHp;
   let p2Hp = char2.currentHp !== undefined ? char2.currentHp : p2MaxHp;
 
-  // 1. Tactical Command Modifiers (9 Attack/Defense Types)
-  const p1Skills = getSkillsForCharacter(char1);
-  const p2Skills = getSkillsForCharacter(char2);
+  // ⚡ COMEBACK MECHANIC: LAST STAND (Critical HP <= 25%)
+  char1.lastStandActive = p1Hp <= 25 && p1Hp > 0;
+  char2.lastStandActive = p2Hp <= 25 && p2Hp > 0;
+
+  if (char1.lastStandActive) {
+    p1Power += 3.0;
+    log.push(`⚡ LAST STAND ACTIVATED: ${char1.name} is critically wounded (${p1Hp} HP)! Tactical adrenaline surge grants +3.0 Power and +15% fortified defense!`);
+  }
+  if (char2.lastStandActive) {
+    p2Power += 3.0;
+    log.push(`⚡ LAST STAND ACTIVATED: ${char2.name} is critically wounded (${p2Hp} HP)! Tactical adrenaline surge grants +3.0 Power and +15% fortified defense!`);
+  }
+
+  // 1. Tactical Command Modifiers (Attack, Defend, Artifact, Signature Skills)
+  const p1AllSkills = [...(char1.equippedSkills || []), ...getSkillsForCharacter(char1)];
+  const p2AllSkills = [...(char2.equippedSkills || []), ...getSkillsForCharacter(char2)];
+
+  const p1ChosenSkill = p1SkillId ? p1AllSkills.find(s => s.id === p1SkillId) : undefined;
+  const p2ChosenSkill = p2SkillId ? p2AllSkills.find(s => s.id === p2SkillId) : undefined;
 
   if (action1 === 'DEFEND') {
     p1Power += 6;
     log.push(`🛡️ ${char1.name} enters a defensive stance, fortifying armor! (+6 Defense)`);
+  } else if (p1ChosenSkill) {
+    p1Power += p1ChosenSkill.bonusPower;
+    log.push(`🌟 ${char1.name} unleashes [${p1ChosenSkill.name}]! (+${p1ChosenSkill.bonusPower} Power)`);
   } else if (action1 === 'SPECIAL') {
     p1Power += 5;
     log.push(`⚡ ${char1.name} charges their signature cosmic superpower! (+5 Power)`);
-  } else if (action1 === 'SKILL_1' && p1Skills[0]) {
-    p1Power += p1Skills[0].bonusPower;
-    log.push(`🌟 ${char1.name} unleashes [${p1Skills[0].name}]! (+${p1Skills[0].bonusPower} Power)`);
-  } else if (action1 === 'SKILL_2' && p1Skills[1]) {
-    p1Power += p1Skills[1].bonusPower;
-    log.push(`🌟 ${char1.name} unleashes [${p1Skills[1].name}]! (+${p1Skills[1].bonusPower} Power)`);
-  } else if (action1 === 'SKILL_3' && p1Skills[2]) {
-    p1Power += p1Skills[2].bonusPower;
-    log.push(`🌟 ${char1.name} unleashes [${p1Skills[2].name}]! (+${p1Skills[2].bonusPower} Power)`);
-  } else if (action1 === 'SKILL_4' && p1Skills[3]) {
-    p1Power += p1Skills[3].bonusPower;
-    log.push(`🌟 ${char1.name} unleashes [${p1Skills[3].name}]! (+${p1Skills[3].bonusPower} Power)`);
-  } else if (action1 === 'SKILL_5' && p1Skills[4]) {
-    p1Power += p1Skills[4].bonusPower;
-    log.push(`🌟 ${char1.name} unleashes [${p1Skills[4].name}]! (+${p1Skills[4].bonusPower} Power)`);
+  } else if (action1 === 'SKILL_1' && p1AllSkills[0]) {
+    p1Power += p1AllSkills[0].bonusPower;
+    log.push(`🌟 ${char1.name} unleashes [${p1AllSkills[0].name}]! (+${p1AllSkills[0].bonusPower} Power)`);
+  } else if (action1 === 'SKILL_2' && p1AllSkills[1]) {
+    p1Power += p1AllSkills[1].bonusPower;
+    log.push(`🌟 ${char1.name} unleashes [${p1AllSkills[1].name}]! (+${p1AllSkills[1].bonusPower} Power)`);
+  } else if (action1 === 'SKILL_3' && p1AllSkills[2]) {
+    p1Power += p1AllSkills[2].bonusPower;
+    log.push(`🌟 ${char1.name} unleashes [${p1AllSkills[2].name}]! (+${p1AllSkills[2].bonusPower} Power)`);
   }
 
   if (action2 === 'DEFEND') {
     p2Power += 6;
     log.push(`🛡️ ${char2.name} enters a defensive stance, fortifying armor! (+6 Defense)`);
+  } else if (p2ChosenSkill) {
+    p2Power += p2ChosenSkill.bonusPower;
+    log.push(`🌟 ${char2.name} unleashes [${p2ChosenSkill.name}]! (+${p2ChosenSkill.bonusPower} Power)`);
   } else if (action2 === 'SPECIAL') {
     p2Power += 5;
     log.push(`⚡ ${char2.name} charges their signature cosmic superpower! (+5 Power)`);
-  } else if (action2 === 'SKILL_1' && p2Skills[0]) {
-    p2Power += p2Skills[0].bonusPower;
-    log.push(`🌟 ${char2.name} unleashes [${p2Skills[0].name}]! (+${p2Skills[0].bonusPower} Power)`);
-  } else if (action2 === 'SKILL_2' && p2Skills[1]) {
-    p2Power += p2Skills[1].bonusPower;
-    log.push(`🌟 ${char2.name} unleashes [${p2Skills[1].name}]! (+${p2Skills[1].bonusPower} Power)`);
-  } else if (action2 === 'SKILL_3' && p2Skills[2]) {
-    p2Power += p2Skills[2].bonusPower;
-    log.push(`🌟 ${char2.name} unleashes [${p2Skills[2].name}]! (+${p2Skills[2].bonusPower} Power)`);
-  } else if (action2 === 'SKILL_4' && p2Skills[3]) {
-    p2Power += p2Skills[3].bonusPower;
-    log.push(`🌟 ${char2.name} unleashes [${p2Skills[3].name}]! (+${p2Skills[3].bonusPower} Power)`);
-  } else if (action2 === 'SKILL_5' && p2Skills[4]) {
-    p2Power += p2Skills[4].bonusPower;
-    log.push(`🌟 ${char2.name} unleashes [${p2Skills[4].name}]! (+${p2Skills[4].bonusPower} Power)`);
+  } else if (action2 === 'SKILL_1' && p2AllSkills[0]) {
+    p2Power += p2AllSkills[0].bonusPower;
+    log.push(`🌟 ${char2.name} unleashes [${p2AllSkills[0].name}]! (+${p2AllSkills[0].bonusPower} Power)`);
+  } else if (action2 === 'SKILL_2' && p2AllSkills[1]) {
+    p2Power += p2AllSkills[1].bonusPower;
+    log.push(`🌟 ${char2.name} unleashes [${p2AllSkills[1].name}]! (+${p2AllSkills[1].bonusPower} Power)`);
+  } else if (action2 === 'SKILL_3' && p2AllSkills[2]) {
+    p2Power += p2AllSkills[2].bonusPower;
+    log.push(`🌟 ${char2.name} unleashes [${p2AllSkills[2].name}]! (+${p2AllSkills[2].bonusPower} Power)`);
   }
 
   // 2. Stat Advantages Comparison
@@ -279,24 +291,42 @@ export function simulateRoundDuel(
 
   if (winnerId === player1.id) {
     if (action1 === 'SPECIAL') damageToLoser += 8;
+    if (p1ChosenSkill) {
+      const skillDmg = Math.max(12, Math.round(p1ChosenSkill.bonusPower * 2.2));
+      damageToLoser += skillDmg;
+      log.push(`✨ [${p1ChosenSkill.name}] unleashes a devastating critical power surge for +${skillDmg} bonus damage!`);
+    }
     if (action1 === 'DUAL_STRIKE') damageToLoser += 14;
     if (action2 === 'DEFEND') damageToLoser = Math.max(10, Math.round(damageToLoser * 0.5));
+    if (char2.lastStandActive) {
+      damageToLoser = Math.max(8, Math.round(damageToLoser * 0.85));
+      log.push(`🛡️ ${char2.name}'s LAST STAND defense absorbs 15% incoming damage!`);
+    }
     p2Hp = Math.max(0, p2Hp - damageToLoser);
     char2.currentHp = p2Hp;
     char2.isFainted = p2Hp <= 0;
-    log.push(`🩸 ${char1.name} strikes for ${damageToLoser} damage! ${char2.name} is at ${p2Hp}/${p2MaxHp} HP.`);
+    log.push(`🩸 ${char1.name} strikes for ${damageToLoser} total damage! ${char2.name} is at ${p2Hp}/${p2MaxHp} HP.`);
 
     if (p2Hp <= 0) {
       log.push(`💀 KNOCKOUT! ${char2.name} has been defeated!`);
     }
   } else {
     if (action2 === 'SPECIAL') damageToLoser += 8;
+    if (p2ChosenSkill) {
+      const skillDmg = Math.max(12, Math.round(p2ChosenSkill.bonusPower * 2.2));
+      damageToLoser += skillDmg;
+      log.push(`✨ [${p2ChosenSkill.name}] unleashes a devastating critical power surge for +${skillDmg} bonus damage!`);
+    }
     if (action2 === 'DUAL_STRIKE') damageToLoser += 14;
     if (action1 === 'DEFEND') damageToLoser = Math.max(10, Math.round(damageToLoser * 0.5));
+    if (char1.lastStandActive) {
+      damageToLoser = Math.max(8, Math.round(damageToLoser * 0.85));
+      log.push(`🛡️ ${char1.name}'s LAST STAND defense absorbs 15% incoming damage!`);
+    }
     p1Hp = Math.max(0, p1Hp - damageToLoser);
     char1.currentHp = p1Hp;
     char1.isFainted = p1Hp <= 0;
-    log.push(`🩸 ${char2.name} strikes for ${damageToLoser} damage! ${char1.name} is at ${p1Hp}/${p1MaxHp} HP.`);
+    log.push(`🩸 ${char2.name} strikes for ${damageToLoser} total damage! ${char1.name} is at ${p1Hp}/${p1MaxHp} HP.`);
 
     if (p1Hp <= 0) {
       log.push(`💀 KNOCKOUT! ${char1.name} has been defeated!`);

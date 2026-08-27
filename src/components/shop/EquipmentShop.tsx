@@ -4,11 +4,13 @@ import { MARVEL_ARTIFACTS } from '../../data/artifacts';
 import { getSkillsForCharacter, CharacterSkill } from '../../data/skills/characterSkills';
 import { CharacterPortrait } from '../common/CharacterPortrait';
 import { soundManager } from '../../audio/soundManager';
-import { Sparkles, DollarSign, Shield, Zap, Swords, ArrowRight, Check, ShoppingBag, Flame, Layers, Filter } from 'lucide-react';
+import { DiscardConfirmModal } from '../common/DiscardConfirmModal';
+import { Sparkles, DollarSign, Shield, Zap, Swords, ArrowRight, Check, ShoppingBag, Flame, Layers, Filter, Trash2 } from 'lucide-react';
 
 interface Props {
   players: Player[];
   onUpdatePlayerCollection: (playerId: string, updatedCollection: Character[], updatedMoney: number) => void;
+  onDiscardCharacter?: (playerId: string, characterId: string) => void;
   onProceedToBattles: () => void;
   onBack?: () => void;
   isLocalMode?: boolean;
@@ -18,6 +20,7 @@ interface Props {
 export function EquipmentShop({
   players,
   onUpdatePlayerCollection,
+  onDiscardCharacter,
   onProceedToBattles,
   onBack,
   isLocalMode = true,
@@ -28,6 +31,7 @@ export function EquipmentShop({
     : (players[0]?.id || '');
 
   const [activeTab, setActiveTab] = useState<'SKILL_VAULT' | 'RELIC_VAULT'>('SKILL_VAULT');
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>(initialPlayerId);
   const [selectedHeroIndex, setSelectedHeroIndex] = useState<number>(0);
   const [relicPriceFilter, setRelicPriceFilter] = useState<'ALL' | '1-5' | '6-10' | '11-15' | '16-20'>('ALL');
@@ -310,6 +314,21 @@ export function EquipmentShop({
                   </div>
                 </div>
               )}
+
+              {/* Discard Hero Action Button ($0 Refund) */}
+              <div className="pt-2 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playClick();
+                    setShowDiscardModal(true);
+                  }}
+                  className="w-full py-2 px-3 rounded-xl bg-red-950/50 hover:bg-red-900/60 border border-red-500/40 text-red-300 font-heading font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>DISCARD {selectedHero.name.toUpperCase()} ($0 REFUND)</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -501,6 +520,23 @@ export function EquipmentShop({
           </button>
         </div>
       </div>
+
+      {/* Discard Confirmation Modal */}
+      {showDiscardModal && selectedHero && (
+        <DiscardConfirmModal
+          character={selectedHero}
+          currentCount={activePlayer.collection.length}
+          characterLimit={players.length > 0 ? 5 : 5}
+          onConfirm={() => {
+            if (onDiscardCharacter) {
+              onDiscardCharacter(activePlayer.id, selectedHero.id);
+            }
+            setShowDiscardModal(false);
+            setSelectedHeroIndex(0);
+          }}
+          onCancel={() => setShowDiscardModal(false)}
+        />
+      )}
     </div>
   );
 }

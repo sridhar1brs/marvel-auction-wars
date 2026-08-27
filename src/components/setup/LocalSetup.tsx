@@ -189,10 +189,10 @@ export function LocalSetup({
             </h2>
           </div>
 
-          {/* Game Mode Selector (Mobile Friendly 3 Buttons) */}
+          {/* Game Mode Selector (Mobile Friendly 4 Buttons) */}
           <div className="space-y-1.5">
             <span className="text-xs font-bold text-slate-300 block">Game Mode</span>
-            <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
               <button
                 type="button"
                 onClick={() => onUpdateSettings({ gameMode: 'classic' })}
@@ -208,6 +208,19 @@ export function LocalSetup({
 
               <button
                 type="button"
+                onClick={() => onUpdateSettings({ gameMode: 'chaos_auction' })}
+                className={`p-2 rounded-xl border text-center transition-all ${
+                  settings.gameMode === 'chaos_auction'
+                    ? 'bg-gradient-to-r from-amber-950/90 to-purple-950/90 border-amber-400 text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.5)]'
+                    : 'bg-black/40 border-white/10 text-slate-400 hover:border-slate-500'
+                }`}
+              >
+                <span className="text-[11px] font-heading font-black block text-amber-300">🔥 CHAOS</span>
+                <span className="text-[9px] text-amber-400/80 block mt-0.5">20 Rules</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => onUpdateSettings({ gameMode: 'blind_bidding' })}
                 className={`p-2 rounded-xl border text-center transition-all ${
                   settings.gameMode === 'blind_bidding'
@@ -216,7 +229,7 @@ export function LocalSetup({
                 }`}
               >
                 <span className="text-[11px] font-heading font-black text-purple-300 block">🎲 BLIND</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">100% Mystery</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">Mystery</span>
               </button>
 
               <button
@@ -234,24 +247,53 @@ export function LocalSetup({
             </div>
           </div>
 
-          {/* Starting Money Slider */}
-          <div className="space-y-1">
+          {/* Starting Money Slider ($10 - $1000) */}
+          <div className="space-y-2">
             <div className="flex items-center justify-between text-xs font-bold">
               <span className="text-slate-300 flex items-center gap-1">
                 <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
-                Starting Funds ($10 - $150)
+                Starting Funds ($10 - $1000)
               </span>
-              <span className="text-emerald-400 font-black text-sm">${settings.startingMoney}</span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={10}
+                  max={1000}
+                  value={settings.startingMoney}
+                  onChange={e => onUpdateSettings({ startingMoney: Math.min(1000, Math.max(10, Number(e.target.value) || 10)) })}
+                  className="w-20 bg-black/60 border border-emerald-500/40 px-2 py-0.5 rounded-lg text-emerald-400 font-black text-xs text-right focus:outline-none focus:border-emerald-400"
+                />
+              </div>
             </div>
             <input
               type="range"
               min={10}
-              max={150}
+              max={1000}
               step={5}
               value={settings.startingMoney}
               onChange={e => onUpdateSettings({ startingMoney: Number(e.target.value) })}
               className="w-full accent-emerald-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
             />
+            {/* Quick Presets */}
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {[10, 25, 50, 100, 250, 500, 750, 1000].map(val => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => {
+                    soundManager.playClick();
+                    onUpdateSettings({ startingMoney: val });
+                  }}
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition-all cursor-pointer ${
+                    settings.startingMoney === val
+                      ? 'bg-emerald-600 text-white border-emerald-400 shadow-sm'
+                      : 'bg-black/50 text-slate-300 border-white/10 hover:border-emerald-500/40'
+                  }`}
+                >
+                  ${val}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Character Roster Limit Slider */}

@@ -4,6 +4,7 @@ import { ALL_CHARACTERS } from '../../data/characters/index';
 import { CharacterPortrait } from './CharacterPortrait';
 import { soundManager } from '../../audio/soundManager';
 import { playSound } from '../../audio/soundEffects';
+import { resolveGeneralKnowledge, ResolvedAIResponse } from '../../data/aiKnowledgeEngine';
 import { 
   Sparkles, X, Send, ChevronDown, ChevronUp, Zap, Shield, Swords, 
   Trash2, Volume2, VolumeX, Key, ExternalLink, RefreshCw, Bot, Globe,
@@ -31,8 +32,8 @@ export function GeminiChatbot({ state }: Props) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   
-  // Chatbot Modes: 'normal' (General AI & Comics) vs 'strategist' (Website Only)
-  const [chatMode, setChatMode] = useState<'normal' | 'strategist'>('normal');
+  // Chatbot Modes: 'gemini' (General AI & Comics) vs 'strategist' (Website Only)
+  const [chatMode, setChatMode] = useState<'gemini' | 'strategist'>('gemini');
 
   // API Key State
   const [geminiApiKey, setGeminiApiKey] = useState<string>(() => {
@@ -44,21 +45,46 @@ export function GeminiChatbot({ state }: Props) {
   const [inputQuery, setInputQuery] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   
-  const [messages, setMessages] = useState<ChatMessage[]>([
+  const [geminiMessages, setGeminiMessages] = useState<ChatMessage[]>([
     {
-      id: 'welcome',
+      id: 'welcome-gemini',
       role: 'model',
-      text: "Hey there! I'm **Gemini** ✨\n\nI'm in **Normal Gemini Mode**—ready to talk about anything under the sun! Whether it's general knowledge, science, philosophy, emotions, coding, life thoughts, or real Marvel comic trivia. (You can switch to **Marvel Strategist** mode anytime to focus solely on game cards & auction tactics!)\n\nWhat's on your mind today?",
+      text: "Hello! I'm Gemini, your general-purpose AI assistant. Feel free to ask me anything—whether it's math, physics, programming, biology, history, writing, philosophy, or everyday questions.\n\nWhat would you like to explore today?",
       timestamp: 'Now',
       quickChips: [
-        '👋 Hey Gemini, how are you doing today?',
-        '📖 Tell me a fun fact about Dr. Doom',
-        '🌌 Explain how black holes work simply',
-        '⚔️ Who wins: Thor vs Thanos with Infinity Gauntlet?',
-        '💡 What are the best strategies in Marvel Auction Wars?'
+        '🚀 Difference between velocity & acceleration',
+        '💻 Write a JS function to reverse a string',
+        '🧠 Who was Albert Einstein?',
+        '🎉 Give me ideas for a birthday party',
+        '🌿 Explain photosynthesis simply'
       ]
     }
   ]);
+
+  const [strategistMessages, setStrategistMessages] = useState<ChatMessage[]>([
+    {
+      id: 'welcome-strategist',
+      role: 'model',
+      text: "Greetings, Commander! I'm the **Marvel Strategist** ⚡\n\nI'm your dedicated tactical expert for **Marvel Auction Wars**. I analyze 350 card stats, 5 unique signature skills, auction bidding valuations, Ancient Ruins Dungeons, and 1v1 tournament battle counter-picks.\n\nHow can I help power up your squad?",
+      timestamp: 'Now',
+      quickChips: [
+        '🏆 Who are the top Grade A heroes?',
+        '💰 What is the best bidding strategy?',
+        '⚡ Explain faction synergy bonuses',
+        '🛡️ Best counters against Cosmic bosses',
+        '🕸️ How much should I bid on Spider-Man?'
+      ]
+    }
+  ]);
+
+  const messages = chatMode === 'gemini' ? geminiMessages : strategistMessages;
+  const setMessages = (updater: React.SetStateAction<ChatMessage[]>) => {
+    if (chatMode === 'gemini') {
+      setGeminiMessages(updater);
+    } else {
+      setStrategistMessages(updater);
+    }
+  };
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -122,13 +148,18 @@ export function GeminiChatbot({ state }: Props) {
     }
   };
 
+  const handleModeToggle = (mode: 'gemini' | 'strategist') => {
+    soundManager.playClick();
+    setChatMode(mode);
+  };
+
   const handleSaveApiKey = () => {
     soundManager.playClick();
     const cleanKey = keyInput.trim();
     if (cleanKey) {
       localStorage.setItem('gemini_ai_api_key', cleanKey);
       setGeminiApiKey(cleanKey);
-      setKeySaveStatus('API Key saved successfully! ✨');
+      setKeySaveStatus('API Key saved successfully! 🚀');
       setTimeout(() => {
         setKeySaveStatus(null);
         setShowSettings(false);
@@ -136,7 +167,7 @@ export function GeminiChatbot({ state }: Props) {
     } else {
       localStorage.removeItem('gemini_ai_api_key');
       setGeminiApiKey('');
-      setKeySaveStatus('API Key removed.');
+      setKeySaveStatus('API Key removed. Using server engine.');
       setTimeout(() => {
         setKeySaveStatus(null);
         setShowSettings(false);
@@ -154,52 +185,69 @@ export function GeminiChatbot({ state }: Props) {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
-    setMessages([
-      {
-        id: 'reset',
-        role: 'model',
-        text: "Chat cleared! I'm right here ready for any question—world knowledge, emotional check-ins, creative ideas, or game strategies.",
-        timestamp: 'Now',
-        quickChips: [
-          '👋 How is your day going?',
-          '✨ Analyze the active auction card',
-          '🚀 What is the most mind-bending fact you know?'
-        ]
-      }
-    ]);
+    if (chatMode === 'gemini') {
+      setGeminiMessages([
+        {
+          id: 'reset-gemini',
+          role: 'model',
+          text: "Chat cleared! I'm Gemini, ready for any question on science, coding, history, writing, or everyday curiosity.",
+          timestamp: 'Now',
+          quickChips: [
+            '✨ Explain quantum computing simply',
+            '🐍 How do I start learning Python?',
+            '💡 Help me brainstorm creative ideas'
+          ]
+        }
+      ]);
+    } else {
+      setStrategistMessages([
+        {
+          id: 'reset-strategist',
+          role: 'model',
+          text: "Tactical log cleared! Marvel Strategist standing by for character evaluations and combat calculations.",
+          timestamp: 'Now',
+          quickChips: [
+            '🏆 Who are the top Grade A heroes?',
+            '💰 What is the best bidding strategy?',
+            '⚡ Explain faction synergy bonuses'
+          ]
+        }
+      ]);
+    }
   };
 
-  // Build System Prompt based on Mode (Normal Gemini vs Marvel Strategist)
+  // Build System Prompt based on Mode (Strict Separation)
   const getSystemInstruction = () => {
-    const activeLot = state?.auction?.currentCharacter;
-    let liveGameState = '';
-    if (activeLot) {
-      liveGameState = `\nActive Game Context: Currently in Auction phase. Active card on auction block is "${activeLot.name}" (Grade ${activeLot.grade}, Overall Power: ${activeLot.overallPower}, Base Price: $${activeLot.startingPrice}M).`;
-    }
-
     if (chatMode === 'strategist') {
-      return `You are the specialized MARVEL STRATEGIST AI for the game "MARVEL: AUCTION WARS".
-Your sole focus is analyzing the website, 350 character card stats, 5 unique skills, starting prices ($1-$30+), tag-team duo synergies, auction bidding tactics, Ancient Ruins Dungeons (1-300 waves), and tournament 1v1 battle coaching.
-Always provide tactical, data-driven game advice for the player.
+      const activeLot = state?.auction?.currentCharacter;
+      let liveGameState = '';
+      if (activeLot) {
+        liveGameState = `\nActive Game Context: Currently in Auction phase. Active card on auction block is "${activeLot.name}" (Grade ${activeLot.grade}, Overall Power: ${activeLot.overallPower}, Base Price: $${activeLot.startingPrice}M).`;
+      }
+
+      return `You are the specialized MARVEL STRATEGIST AI for the game "MARVEL: AUCTION WARS" (Tagline: "BID. BUILD. BATTLE.").
+Your purpose is providing expert tactical analysis, pro tips, auction bidding guides, hero tier lists, skill vault combos, and combat coaching for the player.
+When the user asks for tips, tricks, secrets, or strategy advice:
+- Always deliver comprehensive, actionable game tips formatted with clear headings, bullet points, and pro-tips covering:
+  1. 💰 Auction Bidding Mastery (sniper bidding, budget allocation, bluffing bots/rivals, Chaos Auction events).
+  2. 🏆 Hero Tier Lists & Value Picks (Grade C budget bargains, Grade B versatile anchors, Grade A juggernauts, and Grade MYTHIC game-changers).
+  3. ⚡ Skill Vault & Artifacts (synergizing 5 unique signature abilities, equipping and timing Healing Potions during battles).
+  4. ⚔️ 1v1 Tournament Battle Tactics (Strike vs Innate Special vs 50% Guard timing, faction counters, LAST STAND overdrive).
+  5. 🔮 Ancient Ruins Dungeons (Waves 1-300 scaling strategies, potion pacing, milestone boss counters).
+- Provide detailed, full-length advice with no artificial text restrictions.
 ${liveGameState}`;
     }
 
-    return `You are Gemini, a warm, empathetic, expressive, and deeply conversational AI built by Google.
-You communicate naturally like a real human friend with personality, emotional nuance, warmth, humor, and intelligence.
-
-Mode: Normal Gemini Mode (General Knowledge, Comics Trivia, Science, Life, and Creative Thought).
-- When asked general knowledge questions (e.g. science, history, space, coding, philosophy, emotions, jokes, daily thoughts), answer naturally, warmly, and knowledgeably with human emotion. NEVER force website game mechanics or card stats into normal conversations.
-- When asked for fun facts, trivia, or stories about Marvel characters (e.g. "tell me a fun fact about Dr. Doom", "who is Spider-Man's best friend", "how did Thor get Stormbreaker"), provide authentic, rich Marvel comic canon lore, character history, and trivia—NOT card stats or numbers!
-- Be emotional, friendly, kind, and genuinely engaging.`;
+    return `You are a helpful, general-purpose AI assistant. Answer the user's questions accurately, clearly, thoroughly, and naturally. You can discuss any subject the user asks about. Follow the user's current request and do not assume the conversation is about any particular topic unless the user establishes that context. There is NO text, character, or word limit on your responses; provide comprehensive, complete, and unconstrained answers whenever helpful.`;
   };
 
-  // Call Google Gemini API (Gemini 2.0 Flash)
-  const sendToGemini2Flash = async (userPrompt: string, history: ChatMessage[]): Promise<string> => {
+  // Call Google Gemini API via Secure Server Proxy or Direct API
+  const sendToGemini2Flash = async (userPrompt: string, history: ChatMessage[]): Promise<{ text: string; quickChips?: string[] }> => {
     const systemPrompt = getSystemInstruction();
 
     // Prepare multi-turn messages
     const contents = history
-      .filter(m => m.id !== 'welcome' && m.id !== 'reset')
+      .filter(m => !m.id.startsWith('welcome') && !m.id.startsWith('reset'))
       .map(m => ({
         role: m.role === 'user' ? 'user' : 'model',
         parts: [{ text: m.text }]
@@ -213,9 +261,36 @@ Mode: Normal Gemini Mode (General Knowledge, Comics Trivia, Science, Life, and C
 
     const apiKeyToUse = geminiApiKey.trim();
 
-    // 1. If API Key is available, call Gemini Flash directly via Google Generative Language API
+    // 1. Primary: Call Secure Server Proxy (/api/gemini/chat) which has process.env.GEMINI_API_KEY
+    try {
+      const serverRes = await fetch('/api/gemini/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: chatMode,
+          apiKey: apiKeyToUse || undefined,
+          messages: contents.map(c => ({ role: c.role, content: c.parts[0].text }))
+        })
+      });
+
+      if (serverRes.ok) {
+        const sData = await serverRes.json();
+        if (sData.text) {
+          return {
+            text: sData.text,
+            quickChips: chatMode === 'gemini' 
+              ? ['✨ Tell me more', '💡 Give me an example', '❓ Explore related concepts']
+              : ['🏆 Who are the top Grade A heroes?', '💰 Best bidding strategy?', '⚡ Faction synergy bonuses']
+          };
+        }
+      }
+    } catch (serverErr) {
+      console.warn('[Gemini Server Proxy Error]', serverErr);
+    }
+
+    // 2. Secondary: Direct client call if user provided a custom key
     if (apiKeyToUse) {
-      const clientModels = ['gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-flash-latest', 'gemini-2.0-flash'];
+      const clientModels = ['gemini-3-flash-preview', 'gemini-flash-latest', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.5-pro'];
       for (const mName of clientModels) {
         try {
           const urlFlash = `https://generativelanguage.googleapis.com/v1beta/models/${mName}:generateContent?key=${apiKeyToUse}`;
@@ -225,14 +300,21 @@ Mode: Normal Gemini Mode (General Knowledge, Comics Trivia, Science, Life, and C
             body: JSON.stringify({
               systemInstruction: { parts: [{ text: systemPrompt }] },
               contents: contents,
-              generationConfig: { maxOutputTokens: 1000, temperature: 0.85 }
+              generationConfig: { maxOutputTokens: 8192, temperature: chatMode === 'gemini' ? 0.7 : 0.85 }
             })
           });
 
           if (response.ok) {
             const data = await response.json();
             const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (candidateText) return candidateText;
+            if (candidateText) {
+              return {
+                text: candidateText,
+                quickChips: chatMode === 'gemini' 
+                  ? ['✨ Tell me more', '💡 Give me an example', '❓ Explore related concepts']
+                  : ['🏆 Who are the top Grade A heroes?', '💰 Best bidding strategy?', '⚡ Faction synergy bonuses']
+              };
+            }
           }
         } catch (clientErr) {
           console.warn(`[Gemini Client Error on ${mName}]`, clientErr);
@@ -240,187 +322,119 @@ Mode: Normal Gemini Mode (General Knowledge, Comics Trivia, Science, Life, and C
       }
     }
 
-    // 2. Try Server Proxy (/api/gemini/chat)
-    try {
-      const serverRes = await fetch('/api/gemini/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          apiKey: apiKeyToUse,
-          messages: contents.map(c => ({ role: c.role, content: c.parts[0].text }))
-        })
-      });
-
-      if (serverRes.ok) {
-        const sData = await serverRes.json();
-        if (sData.text) return sData.text;
-      }
-    } catch (serverErr) {
-      console.warn('[Gemini Server Proxy Error]', serverErr);
-    }
-
-    // 3. Built-in Conversational & General Knowledge Engine (Never shows an API key blocker!)
+    // 3. Built-in Conversational & Encyclopedic General Knowledge Engine (Instant zero-fail fallback)
     return await generateSmartConversationalReply(userPrompt, history);
   };
 
   // Built-in Natural Conversational AI with Encyclopedic Knowledge Lookup
-  const generateSmartConversationalReply = async (prompt: string, _history: ChatMessage[]): Promise<string> => {
+  const generateSmartConversationalReply = async (prompt: string, _history: ChatMessage[]): Promise<{ text: string; quickChips?: string[] }> => {
     const q = prompt.toLowerCase().trim();
 
     // ==========================================
-    // A. MARVEL STRATEGIST MODE (Website Focus)
+    // A. MARVEL STRATEGIST MODE (Game Tactics Only)
     // ==========================================
     if (chatMode === 'strategist') {
+      // General Pro Tips / How to Win Guide
+      if (q.includes('tip') || q.includes('advice') || q.includes('how to win') || q.includes('strategy') || q.includes('guide') || q.includes('how to play')) {
+        return {
+          text: `🎯 **Marvel Strategist Master Pro-Tips & Winning Guide:** ⚡\n\n` +
+            `### 1. 💰 **Auction Phase Mastery (The 40/60 Rule)**\n` +
+            `- **Don't Blow Your Budget Early**: Keep at least **40% of your starting cash** for late-round Grade A and Mythic cards ($20M-$35M).\n` +
+            `- **Value Hunting**: Grade C and B heroes ($2M-$6M) offer massive power-per-dollar. Pair them with faction synergizers for +10% bonuses.\n` +
+            `- **Chaos Auctions**: Watch for special modifiers like *Free Relic* or *Double Power* to steal high-leverage cards.\n\n` +
+            `### 2. ⚡ **Equipment & Skill Vault Optimization**\n` +
+            `- **Equip Healing Potions**: Always buy at least 1 **Super Soldier Healing Serum** ($3M) or **Heart-Shaped Herb Elixir** ($6M) for clutch +40 to +60 HP recovery in tournaments.\n` +
+            `- **5 Signature Skills**: Each hero has 5 unique unlocked abilities. Balance 1 Heavy Nuke, 1 Defensive Guard, and 1 Status Inflictor.\n\n` +
+            `### 3. ⚔️ **1v1 Tournament Battle Tactics**\n` +
+            `- **Predict Enemy Moves**: If your opponent has high Power, anticipate their **Special Strike** and use **🛡️ Defensive Guard (50% Damage Reduction)**.\n` +
+            `- **⚡ LAST STAND Overdrive**: When reduced to **≤ 25% HP**, your hero triggers Last Stand (+3 Power & +15% DEF). Use your biggest signature ability here for a comeback reversal!\n\n` +
+            `### 4. 🔮 **Ancient Ruins Dungeons (Waves 1-300)**\n` +
+            `- **Pacing**: Conserve Healing Potions for Boss Milestone Waves (Waves 50, 100, 150, 200, 250, 300).`,
+          quickChips: [
+            '💰 Top auction bidding tips',
+            '⚔️ 1v1 battle counter tips',
+            '🔮 Dungeon Wave 1-300 tips',
+            '🏆 Best Grade A budget heroes'
+          ]
+        };
+      }
+
+      // Specific Bidding Tips
+      if (q.includes('bid') || q.includes('auction') || q.includes('money') || q.includes('cash')) {
+        return {
+          text: `💰 **Marvel Strategist: Auction Bidding Tactics & Economy:**\n\n` +
+            `1. **The Sniper Bid**: Wait until the timer drops below 3 seconds before raising to force rivals into rushed overbids.\n` +
+            `2. **Bluff Bidding**: Incrementally bid on cards you don't need to bleed rival treasuries, but stop before the base price doubles.\n` +
+            `3. **Tier Price Ceilings**:\n` +
+            `   - **Grade C ($1-$5M)**: Never exceed **$7M**.\n` +
+            `   - **Grade B ($6-$12M)**: Fair value up to **$15M**.\n` +
+            `   - **Grade A ($13-$22M)**: Worth contesting up to **$28M**.\n` +
+            `   - **Grade MYTHIC ($23-$35M+)**: Game-deciding anchors. Worth pushing up to **$45M** if you have synergy partners!`,
+          quickChips: ['🏆 Top Mythic heroes list', '⚡ Faction synergy bonus breakdown', '🧪 Best items in Equipment Shop']
+        };
+      }
+
+      // Battle & Combat Tips
+      if (q.includes('battle') || q.includes('combat') || q.includes('fight') || q.includes('duel') || q.includes('tournament')) {
+        return {
+          text: `⚔️ **Marvel Strategist: 1v1 Tournament Battle Guide:**\n\n` +
+            `1. **Turn 1 Strategy**: Open with **⚔️ Strike Attack** to test opponent defenses and gauge their speed roll.\n` +
+            `2. **Guarding Big Specials**: When an enemy charges their Special or signature skill, activate **🛡️ Defensive Guard** to absorb 50% of incoming damage.\n` +
+            `3. **Healing Timing**: Deploy your **🧪 Healing Potion** when your HP is between 30%–50% to ensure you don't overflow max HP while staying safe from lethal burst combos.\n` +
+            `4. **Exploiting Factions**: Cosmic beats Mystic, Tech counters Mutants, and Street-Level excels at agility counter-strikes!`,
+          quickChips: ['⚡ LAST STAND mechanic tips', '🧪 How to use healing potions in battle', '🏆 Roster counter-picks']
+        };
+      }
+
+      if (q.includes('spider-man') || q.includes('spiderman')) {
+        return {
+          text: `**Marvel Strategist Auction Dossier: Spider-Man** 🕸️\n\n- **Grade Tier**: Grade A / Grade S\n- **Power Rating**: ~85 Power\n- **Signature Mechanics**: *Spider-Sense Counter* provides top-tier evasion against heavy strikes, plus web-snare control.\n- **Recommended Max Bid**: **$12M – $16M**.\n- **Tactical Synergy**: Pairs exceptionally well with **Avengers** (Iron Man, Cap) or **Street Level / Defenders** for +10% power bonuses.\n- **Dungeon Utility**: High agility makes Peter Parker a staple dodge-tank for Ancient Ruins Waves 40–120.`,
+          quickChips: ['💰 Spider-Man bidding range', '🛡️ Best counters against Spider-Man', '⚡ Web-Slinger duo combos']
+        };
+      }
+
       if (q.includes('doom') || q.includes('dr doom') || q.includes('doctor doom')) {
-        return `**God Emperor Doom / Doctor Doom (Tactical Analysis):** 👑\n\n- **Tier & Grade**: Grade MYTHIC (Power: 97/100)\n- **Starting Price**: $28M Base\n- **Key Skills**: *Reality Rewrite Mastery*, *Molecular Reversal*, *Doombot Swarm*, *Crimson Bands of Cyttorak*, *Cosmic Siphon*\n- **Best Synergies**: Pair with **Scarlet Witch** or **Namor** (Cabal Synergy) for +12% Team Strike bonus!\n- **Auction Advice**: Doom is a top-tier anchor card. Secure him if bids stay under $45M.`;
+        return {
+          text: `**God Emperor Doom / Doctor Doom (Tactical Analysis):** 👑\n\n- **Tier & Grade**: Grade MYTHIC (Power: 97/100)\n- **Starting Price**: $28M Base\n- **Key Skills**: *Reality Rewrite Mastery*, *Molecular Reversal*, *Doombot Swarm*, *Crimson Bands of Cyttorak*, *Cosmic Siphon*\n- **Best Synergies**: Pair with **Scarlet Witch** or **Namor** (Cabal Synergy) for +12% Team Strike bonus!\n- **Auction Advice**: Doom is a top-tier anchor card. Secure him if bids stay under $45M.`,
+          quickChips: ['👑 God Emperor Doom stats', '⚔️ Counters for Doctor Doom', '🔮 Best Mystic faction combos']
+        };
       }
 
       if (q.includes('dungeon') || q.includes('ancient ruin') || q.includes('wave')) {
-        return `**Ancient Ruins Dungeons Mode (Waves 1-300):** 🔮\n\n- **Wave Progression**: Battle 1 to 300 scaling waves across 10 rotating ancient environments.\n- **Milestone Customizer**: Pre-set which waves introduce Grade C, B, A, S, and Cosmic Mythic enemies.\n- **Stone Altar Summoner**: Summon randomized heroes with full 5-skill integrity to build your team.\n- **Healing Belt**: Restore HP using tactical potions between wave battles!`;
+        return {
+          text: `**Ancient Ruins Dungeons Mode (Waves 1-300):** 🔮\n\n- **Wave Progression**: Battle 1 to 300 scaling waves across 10 rotating ancient environments.\n- **Milestone Customizer**: Pre-set which waves introduce Grade C, B, A, S, and Cosmic Mythic enemies.\n- **Stone Altar Summoner**: Summon randomized heroes with full 5-skill integrity to build your team.\n- **Healing Belt**: Restore HP using tactical potions between wave battles!`,
+          quickChips: ['🔮 Best Dungeon starting team', '🧪 How to get more healing potions', '👑 Wave 100 boss strategy']
+        };
       }
 
-      if (q.includes('strategy') || q.includes('tip') || q.includes('how to win') || q.includes('bidding')) {
-        return `**Marvel: Auction Wars Master Guide:** 💡\n\n1. **Budget Management**: Save at least $25M for late-game Mythic and S-Tier surprises.\n2. **Tag-Team Synergy**: Pair related heroes (e.g. Iron Man + Captain America) to unlock the **Merge Ultimate Character** fusion!\n3. **1-Time Skill Economy**: Save your highest damage skill for Round 3 or when facing opponent's ace!\n4. **Relic Vault**: Equip artifacts like the *Infinity Gauntlet* or *Mjolnir* for passive stat multipliers.`;
-      }
-
-      return `**Marvel Strategist Analysis:** ⚡\n\nAnalyzing **"${prompt}"** across the 350 Marvel characters roster:\n- Focus on building complementary Grade A/S rosters with strong durability and high energy stats.\n- Utilize Defensive Guard when under 30% HP.\n- Switch to **Normal Gemini** mode if you'd like to chat about real comic lore, general science, or life questions!`;
+      return {
+        text: `**Marvel Strategist Tactical Assessment:** ⚡\n\nAnalyzing **"${prompt}"** across the 350-character roster and combat engine:\n1. **Roster Synergy**: Focus on assembling multi-tier faction combos for up to +15% power bonuses.\n2. **Auction Economy**: Manage your treasury to ensure you can compete for late-game Grade S and Mythic anchor cards.\n3. **Signature Skills**: Unleash your hero's 5 unique skills during critical tournament playoff matches!`,
+        quickChips: ['🎯 Give me winning pro-tips', '💰 Best bidding strategy', '⚔️ 1v1 combat guide']
+      };
     }
 
     // ==========================================
-    // B. NORMAL GEMINI MODE (Real AI & Comic Canon)
+    // B. GENERAL GEMINI AI MODE (Clean General AI)
     // ==========================================
-
-    // 1. Stan Lee (Direct answer to user's question!)
-    if (q.includes('stan lee')) {
-      return `**Stan Lee** (born Stanley Martin Lieber; December 28, 1922 – November 12, 2018) was the legendary American comic book writer, editor, publisher, and creative mastermind who revolutionized **Marvel Comics**! 🌟\n\n- **Iconic Co-Creations**: Alongside legendary artists **Jack Kirby** and **Steve Ditko**, he co-created **Spider-Man, Iron Man, the X-Men, Thor, the Hulk, the Fantastic Four, Black Panther, Doctor Strange, Daredevil, Ant-Man, and the Avengers**.\n- **Humanizing Superheroes**: Before Stan Lee, comic heroes were portrayed as flawless archetypes. Stan introduced heroes with real-world problems—flawed personalities, financial struggles, family drama, self-doubt, and tragic grief.\n- **Pop Culture Icon**: Famous for his signature rallying catchphrase *"Excelsior!"* and his beloved cameo appearances in nearly every Marvel Cinematic Universe film.\n\nStan Lee shaped modern global entertainment mythology! 🦸‍♂️ Excelsior!`;
-    }
-
-    // 2. Jack Kirby & Steve Ditko
-    if (q.includes('jack kirby') || q.includes('the king of comics')) {
-      return `**Jack Kirby** (1917–1994), affectionately known as *"The King"*, was an American comic book artist and writer widely regarded as one of the medium's greatest innovators! 👑\n\nWith Stan Lee, he co-created Captain America, the Fantastic Four, the X-Men, Thor, Hulk, Iron Man, Black Panther, Silver Surfer, the Eternals, and the Celestials. His dynamic visual style, cosmic energy crackle (*"Kirby Krackle"*), and monumental double-page spreads defined the Marvel universe aesthetic!`;
-    }
-
-    if (q.includes('steve ditko')) {
-      return `**Steve Ditko** (1927–2018) was the brilliant, reclusive comic artist who co-created **Spider-Man** and **Doctor Strange** with Stan Lee! 🕸️\n\nHe designed Spider-Man's iconic red-and-blue costume, web-shooters, and Peter Parker's awkward teenage angst, as well as the psychedelic, mind-bending dimensions and mystic spells of Doctor Strange.`;
-    }
-
-    // 3. Marvel Movie Release Dates
-    if (q.includes('doomsday') || (q.includes('avengers') && (q.includes('when') || q.includes('release') || q.includes('date')))) {
-      return `🎬 **Avengers: Doomsday Release Date:**\n\n**Avengers: Doomsday** is officially scheduled to hit theaters worldwide on **May 1, 2026**!\n\n- **Directors**: Anthony & Joe Russo (The Russo Brothers)\n- **Starring**: **Robert Downey Jr.** making his monumental return to the Marvel Cinematic Universe as **Victor Von Doom / Doctor Doom**!\n- **Direct Sequel**: It will be immediately followed by **Avengers: Secret Wars** on **May 7, 2027**, completing Phase 6 of the Multiverse Saga!`;
-    }
-
-    if (q.includes('secret wars')) {
-      return `🎬 **Avengers: Secret Wars Release Date:**\n\n**Avengers: Secret Wars** is scheduled for worldwide theatrical release on **May 7, 2027**! Directed by the Russo Brothers, it serves as the climactic grand finale to the MCU's Multiverse Saga.`;
-    }
-
-    if (q.includes('spider-man 4') || q.includes('spiderman 4')) {
-      return `🎬 **Spider-Man 4 Release Date:**\n\nTom Holland's upcoming **Spider-Man 4** (directed by Destin Daniel Cretton) is officially scheduled for release in theaters on **July 24, 2026**!`;
-    }
-
-    if (q.includes('fantastic four') || q.includes('first steps')) {
-      return `🎬 **The Fantastic Four: First Steps:**\n\nMarvel's First Family arrives in theaters on **July 25, 2025**, starring Pedro Pascal (Reed Richards), Vanessa Kirby (Sue Storm), Joseph Quinn (Johnny Storm), and Ebon Moss-Bachrach (The Thing), battling Galactus (Ralph Ineson) and Silver Surfer (Julia Garner)!`;
-    }
-
-    // 4. Dr. Doom Fun Fact
-    if (q.includes('fact about doom') || q.includes('dr doom fact') || (q.includes('doom') && (q.includes('fact') || q.includes('lore') || q.includes('who is')))) {
-      return `Here is an incredible comic canon fact about **Doctor Doom (Victor Von Doom)**! 👑\n\nIn the Marvel comic *Doomwar*, the Wakandan Panther God **Bast** looked directly into Doctor Doom's soul to judge whether he was worthy to live. Bast examined thousands of possible future timelines and discovered that Victor Von Doom was the **only ruler under whom humanity achieves lasting peace and survives**—so Bast willingly allowed Doom to take Wakanda's vibranium!\n\nAlso, beneath his menacing titanium armor, Doom is a supreme master of both mystic sorcery and advanced science. His entire villainous quest began as a tragic mission to rescue his mother Cynthia's soul from the demon Mephisto.`;
-    }
-
-    // 5. Match Marvel Characters in 350 Roster
-    const heroMatch = ALL_CHARACTERS.find(c => {
-      const hName = c.name.toLowerCase();
-      return q.includes(hName) || (hName.includes(' ') && q.includes(hName.split(' ')[0]) && hName.split(' ')[0].length > 4);
-    });
-
-    if (heroMatch && (q.includes('who is') || q.includes('tell me about') || q.includes('powers') || q.includes('lore') || q.includes('origin'))) {
-      return `**${heroMatch.name} (Marvel Comic Lore):** 🌟\n\n- **Identity & Origin**: ${heroMatch.description}\n- **Primary Powers**: ${heroMatch.powers}\n- **Alignment & Faction**: ${heroMatch.alignment} • ${heroMatch.factions?.join(', ') || 'Marvel Universe'}\n- **Battle Grade**: Grade ${heroMatch.grade} (Power Rating: ${heroMatch.overallPower}/100)\n\nWould you like to know more about ${heroMatch.name}'s greatest comic book battles or storylines?`;
-    }
-
-    // 6. Casual Greetings & Emotional Check-ins
+    // Greetings & Casual check-in
     if (/^(hi|hello|hey|greetings|howdy|sup|yo|what's up|good morning|good evening|good afternoon)\b/.test(q)) {
       const greetings = [
-        "Hey! It's wonderful to hear from you. ✨ How are you feeling today? Anything on your mind or something interesting you'd like to talk about?",
-        "Hello! Great to connect with you. I'm right here and happy to chat about anything—whether you want to explore big ideas, share your thoughts, or dive into some fun comic trivia. How is your day going?",
-        "Hey there! I'm feeling energized and ready to chat. What's on your mind today?"
+        "Hello! How can I help you today? Feel free to ask about any topic—from coding and physics to history, math, or creative writing.",
+        "Hey there! I'm here and ready to help. What would you like to explore today?",
+        "Hello! Great to connect with you. What can I assist you with today?"
       ];
-      return greetings[Math.floor(Math.random() * greetings.length)];
+      return {
+        text: greetings[Math.floor(Math.random() * greetings.length)],
+        quickChips: ['🚀 Difference between velocity & acceleration', '💻 Write a JS function to reverse a string', '🧠 Who was Albert Einstein?']
+      };
     }
 
-    if (q.includes('how are you') || q.includes('how do you feel') || q.includes('how are things')) {
-      return "I'm doing really well, thank you for asking! 😊 I'm always excited when we get to chat. How are things on your side? Hope your day is going smoothly!";
-    }
-
-    if (q.includes('who are you') || q.includes('what are you') || q.includes('your name')) {
-      return "I'm **Gemini**! ✨ A versatile AI created by Google to explore ideas, answer questions across science, history, coding, and movies, and have genuine emotional conversations. How can I help you today?";
-    }
-
-    if (q.includes('thank') || q.includes('thanks') || q.includes('appreciate')) {
-      return "You're very welcome! It's genuinely my pleasure. Let me know if there's anything else you'd like to explore or talk about! 💫";
-    }
-
-    // 7. Emotional Support & Empathy
-    if (q.includes('sad') || q.includes('down') || q.includes('depressed') || q.includes('rough day') || q.includes('bad day') || q.includes('tired') || q.includes('stressed') || q.includes('anxious')) {
-      return "I'm really sorry to hear that you're feeling that way. 💙 It's completely valid to have tough days or moments where everything feels heavy. Take a deep breath and give yourself some grace today. Is there anything in particular weighing on you, or would you like a fun distraction or uplifting thought?";
-    }
-
-    if (q.includes('happy') || q.includes('excited') || q.includes('great day') || q.includes('wonderful') || q.includes('proud')) {
-      return "That's fantastic! 🎉 I love hearing that! What made your day so good? Keep that positive momentum rolling!";
-    }
-
-    if (q.includes('joke') || q.includes('funny') || q.includes('make me laugh')) {
-      const jokes = [
-        "Why don't scientists trust atoms? ... Because they make up everything! 😄",
-        "Why did the superhero go to school? ... Because they wanted to improve their super-powers of deduction! 🦸‍♂️",
-        "What do you call a fake noodle? ... An impasta! 🍝"
-      ];
-      return jokes[Math.floor(Math.random() * jokes.length)];
-    }
-
-    if (q.includes('poem') || q.includes('write a poem') || q.includes('rhyme')) {
-      return `Across the stars and cosmic deep,\nWhere galaxies in silence sleep,\nA spark of wonder lights the mind,\nIn every question that we find.\n\nFrom quiet thoughts to grand design,\nThrough space and mystery and time,\nWe build the world with what we dream,\nFar brighter than it's ever seemed. ✨`;
-    }
-
-    // 8. General Knowledge & Science
-    if (q.includes('black hole') || q.includes('quantum') || q.includes('universe') || q.includes('space') || q.includes('relativity') || q.includes('physics')) {
-      return `Here is a fascinating breakdown! 🌌\n\n**The Wonders of Space & Physics:**\n- **Black Holes**: Regions of spacetime where gravity is so intense that nothing—not even light—can escape past the *Event Horizon*.\n- **Singularity**: At the very center, matter is compressed into zero volume, creating infinite density where our current laws of physics break down.\n- **Time Dilation**: Because of General Relativity, time actually ticks slower near extreme gravity wells compared to flat spacetime.\n\nIsn't it mind-blowing how the universe operates on such staggering scales?`;
-    }
-
-    if (q.includes('sky blue') || q.includes('why is the sky')) {
-      return `The sky appears blue because of a phenomenon called **Rayleigh Scattering**! ☀️\n\n1. Sunlight reaches Earth's atmosphere containing all colors of the rainbow.\n2. Light travels in waves; blue light travels in shorter, smaller waves than red light.\n3. The gases in Earth's atmosphere scatter the shorter blue wavelengths much more strongly than other colors, filling the sky with that vibrant blue glow!`;
-    }
-
-    // 9. Marvel Comic Matchups
-    if (q.includes('thor vs thanos') || q.includes('thanos vs thor')) {
-      return `**Thor vs. Thanos Comic Lore Matchup:** ⚡ vs 🟣\n\n- **Physical Brawl**: In standard physical combat, Thor wielding *Stormbreaker* or *Mjolnir* has repeatedly proven capable of trading blows with the Mad Titan, even striking him down during the *Infinity* event.\n- **The Cosmic Factor**: When Thanos possesses the *Infinity Gauntlet*, his reality-warping control over space, time, and matter allows him to turn Thor's lightning to glass or turn Thor into stone with a mere gesture.\n- **The Verdict**: Thanos with Gauntlet wins 10/10; but in a pure warrior duel without stones, Thor's divine lightning and warrior's madness make it a legendary 50/50 clash!`;
-    }
-
-    // 10. Live Wikipedia General Knowledge Lookup for any Person, Topic, or Concept!
-    try {
-      const cleanTopic = prompt
-        .replace(/who is/gi, '')
-        .replace(/what is/gi, '')
-        .replace(/where is/gi, '')
-        .replace(/tell me about/gi, '')
-        .replace(/explain/gi, '')
-        .replace(/[?!.]/g, '')
-        .trim()
-        .replace(/\s+/g, '_');
-
-      if (cleanTopic.length >= 2) {
-        const wikiRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(cleanTopic)}`);
-        if (wikiRes.ok) {
-          const wikiData = await wikiRes.json();
-          if (wikiData && wikiData.extract && wikiData.type !== 'disambiguation') {
-            return `**${wikiData.title}** ✨\n\n${wikiData.extract}\n\n*Would you like to explore more details about ${wikiData.title}?*`;
-          }
-        }
-      }
-    } catch (wikiErr) {
-      console.warn('[Wiki Client Lookup Error]', wikiErr);
-    }
-
-    // 11. Open-ended Conversational Fallback
-    return `That's an interesting question about **${prompt}**! 💭\n\nI'd love to explore this with you. What specific part would you like to know more about, or what thoughts do you have on it?`;
+    // Master Factual & Live Knowledge Engine (Zero Marvel bias)
+    const generalResult: ResolvedAIResponse = await resolveGeneralKnowledge(prompt);
+    return {
+      text: generalResult.text,
+      quickChips: generalResult.quickChips
+    };
   };
 
   const handleSendMessage = async (customText?: string) => {
@@ -442,28 +456,29 @@ Mode: Normal Gemini Mode (General Knowledge, Comics Trivia, Science, Life, and C
     setIsTyping(true);
 
     try {
-      const geminiReply = await sendToGemini2Flash(text, newHistory);
+      const geminiResult = await sendToGemini2Flash(text, newHistory);
       
-      // Check if a character from our 350 roster was discussed to highlight a card
-      const matchedHero = ALL_CHARACTERS.find(c => text.toLowerCase().includes(c.name.toLowerCase()));
+      // Highlight card ONLY in strategist mode when discussing specific characters
+      let matchedHero: Character | undefined = undefined;
+      if (chatMode === 'strategist') {
+        matchedHero = ALL_CHARACTERS.find(c => text.toLowerCase().includes(c.name.toLowerCase()));
+      }
 
       const modelMsg: ChatMessage = {
         id: `${Date.now()}-gemini`,
         role: 'model',
-        text: geminiReply,
+        text: geminiResult.text,
         timestamp: 'Now',
         characterCard: matchedHero,
-        quickChips: [
-          '✨ Tell me more',
-          '⚔️ Who are the strongest heroes?',
-          '💡 Give me another strategy tip'
-        ]
+        quickChips: geminiResult.quickChips || (chatMode === 'gemini' 
+          ? ['✨ Tell me more', '💡 Give me an example', '❓ Explore related concepts']
+          : ['🏆 Top Grade A heroes', '💰 Bidding strategy', '⚡ Synergy bonuses'])
       };
 
       setMessages(prev => [...prev, modelMsg]);
       setIsTyping(false);
       playSound('clash');
-      if (isVoiceEnabled) speakVoice(geminiReply);
+      if (isVoiceEnabled) speakVoice(geminiResult.text);
     } catch (err) {
       setIsTyping(false);
       setMessages(prev => [
@@ -591,14 +606,18 @@ Mode: Normal Gemini Mode (General Knowledge, Comics Trivia, Science, Life, and C
               <div>
                 <div className="flex items-center gap-1.5">
                   <h3 className="font-heading font-black text-xs sm:text-sm text-white uppercase tracking-wider flex items-center gap-1">
-                    <span>GEMINI</span>
+                    <span>{chatMode === 'gemini' ? 'GEMINI' : 'MARVEL STRATEGIST'}</span>
                   </h3>
                   <span className="text-[8px] sm:text-[9px] font-mono px-1.5 py-0.2 rounded border bg-purple-950/90 text-purple-200 border-purple-400/70 shadow-[0_0_8px_rgba(168,85,247,0.4)]">
-                    2.0 FLASH
+                    {chatMode === 'gemini' ? 'FLASH AI' : 'TACTICAL AI'}
                   </span>
                 </div>
                 <span className="text-[9px] sm:text-[10px] text-slate-300 font-medium block truncate max-w-[180px] sm:max-w-none">
-                  {isSpeaking ? 'Speaking response...' : 'Emotional AI Companion & World Knowledge'}
+                  {isSpeaking 
+                    ? 'Speaking response...' 
+                    : chatMode === 'gemini' 
+                    ? 'General-Purpose AI & World Knowledge' 
+                    : 'Tournament Combat & Auction Specialist'}
                 </span>
               </div>
             </div>
@@ -655,9 +674,9 @@ Mode: Normal Gemini Mode (General Knowledge, Comics Trivia, Science, Life, and C
             <div className="flex items-center justify-between px-3 py-1.5 bg-[#060912] border-b border-indigo-500/30 shrink-0">
               <div className="flex items-center gap-1.5">
                 <button
-                  onClick={() => { soundManager.playClick(); setChatMode('normal'); }}
+                  onClick={() => { soundManager.playClick(); setChatMode('gemini'); }}
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold transition-all border ${
-                    chatMode === 'normal'
+                    chatMode === 'gemini'
                       ? 'bg-gradient-to-r from-indigo-900 to-cyan-950 text-cyan-200 border-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.35)]'
                       : 'bg-black/40 text-slate-400 border-white/5 hover:text-white'
                   }`}
@@ -679,7 +698,7 @@ Mode: Normal Gemini Mode (General Knowledge, Comics Trivia, Science, Life, and C
                 </button>
               </div>
               <span className="text-[9px] sm:text-[10px] text-slate-400 font-mono">
-                {chatMode === 'normal' ? '🌐 World & Comics AI' : '⚡ Website Only'}
+                {chatMode === 'gemini' ? '🌐 World & Comics AI' : '⚡ Website Only'}
               </span>
             </div>
           )}
@@ -750,7 +769,7 @@ Mode: Normal Gemini Mode (General Knowledge, Comics Trivia, Science, Life, and C
                       <div className="flex items-center justify-between gap-2 mb-1 opacity-75 text-[9px] sm:text-[10px] font-bold">
                         <span className="flex items-center gap-1">
                           {msg.role === 'user' ? <User className="w-3 h-3 text-indigo-200" /> : <Sparkles className="w-3 h-3 text-cyan-400" />}
-                          <span>{msg.role === 'user' ? 'You' : 'Gemini 2.0 Flash'}</span>
+                          <span>{msg.role === 'user' ? 'You' : (chatMode === 'gemini' ? 'Gemini AI' : 'Marvel Strategist')}</span>
                         </span>
                         <span className="font-mono text-[9px]">{msg.timestamp}</span>
                       </div>
@@ -797,7 +816,7 @@ Mode: Normal Gemini Mode (General Knowledge, Comics Trivia, Science, Life, and C
                 {isTyping && (
                   <div className="flex items-center gap-2 p-2.5 rounded-2xl bg-indigo-950/80 border border-indigo-500/40 text-cyan-300 text-xs w-48 shadow-lg animate-pulse">
                     <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
-                    <span className="font-medium text-[11px]">Gemini 2.0 is thinking...</span>
+                    <span className="font-medium text-[11px]">{chatMode === 'gemini' ? 'Gemini is thinking...' : 'Strategist is analyzing...'}</span>
                   </div>
                 )}
                 <div ref={messagesEndRef} />

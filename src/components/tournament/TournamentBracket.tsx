@@ -1,20 +1,25 @@
 import React, { useState } from 'react';
 import { TournamentMatch, GameState } from '../../types/game';
-import { Trophy, Swords, Play, CheckCircle2, ChevronRight, Sparkles, Shield, Flame, LayoutGrid } from 'lucide-react';
+import { Trophy, Swords, Play, CheckCircle2, ChevronRight, Sparkles, Shield, Flame, LayoutGrid, Eye } from 'lucide-react';
 import { soundManager } from '../../audio/soundManager';
 
 interface Props {
   state: GameState;
   onPlayMatch: (matchId: string) => void;
+  isOnlineMode?: boolean;
+  currentUserId?: string;
 }
 
-export function TournamentBracket({ state, onPlayMatch }: Props) {
+export function TournamentBracket({ state, onPlayMatch, isOnlineMode = false, currentUserId }: Props) {
   const matches = state.tournamentMatches;
 
   const r16Matches = matches.filter(m => m.roundName === 'Round of 16');
   const qfMatches = matches.filter(m => m.roundName === 'Quarterfinals');
   const semiMatches = matches.filter(m => m.roundName === 'Semifinals');
   const finalMatch = matches.find(m => m.roundName === 'Final');
+
+  const activeCurrentMatch = matches.find(m => m.id === state.currentMatchId && m.status !== 'COMPLETED');
+  const isUserInActiveMatch = activeCurrentMatch && (activeCurrentMatch.player1?.id === currentUserId || activeCurrentMatch.player2?.id === currentUserId);
 
   const [mobileRoundTab, setMobileRoundTab] = useState<'ALL' | 'R16' | 'QF' | 'SF' | 'FINAL'>('ALL');
 
@@ -25,6 +30,30 @@ export function TournamentBracket({ state, onPlayMatch }: Props) {
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8 animate-fadeIn">
+      {/* Live Match in Progress Spectator Alert */}
+      {isOnlineMode && activeCurrentMatch && (
+        <div className="p-4 bg-gradient-to-r from-red-950/90 via-purple-950/90 to-blue-950/90 rounded-2xl border-2 border-red-500/80 shadow-[0_0_30px_rgba(239,68,68,0.5)] flex items-center justify-between flex-wrap gap-3 animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-red-400 block">
+                🔴 LIVE MATCH IN PROGRESS
+              </span>
+              <h3 className="text-sm sm:text-base font-heading font-black text-white">
+                {activeCurrentMatch.player1?.name || 'Player 1'} VS {activeCurrentMatch.player2?.name || 'Player 2'}
+              </h3>
+            </div>
+          </div>
+          <button
+            onClick={() => handleStartDuel(activeCurrentMatch.id)}
+            className="px-5 py-2.5 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-heading font-black text-xs uppercase rounded-xl shadow-glow-red flex items-center gap-2 transition-all hover:scale-105"
+          >
+            <Eye className="w-4 h-4" />
+            <span>{isUserInActiveMatch ? '⚔️ ENTER ACTIVE DUEL' : '👁️ SPECTATE ARENA LIVE'}</span>
+          </button>
+        </div>
+      )}
+
       {/* Title Header */}
       <div className="text-center space-y-2">
         <div className="inline-flex items-center gap-1.5 px-4 py-1 rounded-full bg-red-950/80 border border-red-500/50 text-red-300 text-[11px] font-heading font-black tracking-widest uppercase shadow-glow-red">
@@ -118,7 +147,7 @@ export function TournamentBracket({ state, onPlayMatch }: Props) {
                 <Flame className="w-4 h-4" /> Round of 16 Matches ({r16Matches.length})
               </h3>
               {r16Matches.map(m => (
-                <MatchCard key={m.id} match={m} onPlay={handleStartDuel} />
+                <MatchCard key={m.id} match={m} onPlay={handleStartDuel} isOnlineMode={isOnlineMode} currentUserId={currentUserId} isActiveCurrentMatch={m.id === state.currentMatchId} />
               ))}
             </div>
           )}
@@ -129,7 +158,7 @@ export function TournamentBracket({ state, onPlayMatch }: Props) {
                 <Flame className="w-4 h-4" /> Quarterfinals Matches ({qfMatches.length})
               </h3>
               {qfMatches.map(m => (
-                <MatchCard key={m.id} match={m} onPlay={handleStartDuel} />
+                <MatchCard key={m.id} match={m} onPlay={handleStartDuel} isOnlineMode={isOnlineMode} currentUserId={currentUserId} isActiveCurrentMatch={m.id === state.currentMatchId} />
               ))}
             </div>
           )}
@@ -140,7 +169,7 @@ export function TournamentBracket({ state, onPlayMatch }: Props) {
                 <Sparkles className="w-4 h-4" /> Semifinals Final Four ({semiMatches.length})
               </h3>
               {semiMatches.map(m => (
-                <MatchCard key={m.id} match={m} onPlay={handleStartDuel} />
+                <MatchCard key={m.id} match={m} onPlay={handleStartDuel} isOnlineMode={isOnlineMode} currentUserId={currentUserId} isActiveCurrentMatch={m.id === state.currentMatchId} />
               ))}
             </div>
           )}
@@ -150,7 +179,7 @@ export function TournamentBracket({ state, onPlayMatch }: Props) {
               <h3 className="font-heading font-black text-sm text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Trophy className="w-4 h-4 text-amber-400" /> Grand Championship Final
               </h3>
-              <MatchCard match={finalMatch} onPlay={handleStartDuel} />
+              <MatchCard match={finalMatch} onPlay={handleStartDuel} isOnlineMode={isOnlineMode} currentUserId={currentUserId} isActiveCurrentMatch={finalMatch.id === state.currentMatchId} />
             </div>
           )}
         </div>
@@ -172,7 +201,7 @@ export function TournamentBracket({ state, onPlayMatch }: Props) {
 
               <div className="space-y-3">
                 {r16Matches.map(m => (
-                  <MatchCard key={m.id} match={m} onPlay={handleStartDuel} />
+                  <MatchCard key={m.id} match={m} onPlay={handleStartDuel} isOnlineMode={isOnlineMode} currentUserId={currentUserId} isActiveCurrentMatch={m.id === state.currentMatchId} />
                 ))}
               </div>
             </div>
@@ -191,7 +220,7 @@ export function TournamentBracket({ state, onPlayMatch }: Props) {
             <div className="space-y-4">
               {qfMatches.length > 0 ? (
                 qfMatches.map(m => (
-                  <MatchCard key={m.id} match={m} onPlay={handleStartDuel} />
+                  <MatchCard key={m.id} match={m} onPlay={handleStartDuel} isOnlineMode={isOnlineMode} currentUserId={currentUserId} isActiveCurrentMatch={m.id === state.currentMatchId} />
                 ))
               ) : (
                 <div className="p-4 rounded-2xl bg-black/40 border border-white/5 text-center text-xs text-slate-500 font-bold">
@@ -213,7 +242,7 @@ export function TournamentBracket({ state, onPlayMatch }: Props) {
 
             <div className="space-y-4">
               {semiMatches.map(m => (
-                <MatchCard key={m.id} match={m} onPlay={handleStartDuel} />
+                <MatchCard key={m.id} match={m} onPlay={handleStartDuel} isOnlineMode={isOnlineMode} currentUserId={currentUserId} isActiveCurrentMatch={m.id === state.currentMatchId} />
               ))}
             </div>
           </div>
@@ -230,7 +259,7 @@ export function TournamentBracket({ state, onPlayMatch }: Props) {
 
             {finalMatch && (
               <div className="p-1 rounded-3xl bg-gradient-to-b from-amber-500/40 via-purple-600/30 to-red-600/40 shadow-[0_0_30px_rgba(245,158,11,0.3)]">
-                <MatchCard match={finalMatch} onPlay={handleStartDuel} isGrandFinal={true} />
+                <MatchCard match={finalMatch} onPlay={handleStartDuel} isGrandFinal={true} isOnlineMode={isOnlineMode} currentUserId={currentUserId} isActiveCurrentMatch={finalMatch.id === state.currentMatchId} />
               </div>
             )}
           </div>
@@ -246,21 +275,30 @@ function MatchCard({
   match,
   onPlay,
   isGrandFinal = false,
+  isOnlineMode = false,
+  currentUserId,
+  isActiveCurrentMatch = false,
 }: {
   match: TournamentMatch;
   onPlay: (matchId: string) => void;
   isGrandFinal?: boolean;
+  isOnlineMode?: boolean;
+  currentUserId?: string;
+  isActiveCurrentMatch?: boolean;
 }) {
   const p1 = match.player1;
   const p2 = match.player2;
   const isReady = match.status === 'READY';
   const isComplete = match.status === 'COMPLETED';
+  const isUserCombatant = currentUserId ? (p1?.id === currentUserId || p2?.id === currentUserId) : true;
 
   return (
     <div
       className={`glass-panel p-4 sm:p-5 rounded-2xl border-2 transition-all duration-300 ${
         isGrandFinal
           ? 'border-amber-500/80 shadow-[0_0_30px_rgba(245,158,11,0.4)] bg-[#140E06]/95'
+          : isActiveCurrentMatch
+          ? 'border-red-500 shadow-[0_0_30px_rgba(230,36,41,0.6)] bg-[#19090C]/95 ring-2 ring-red-500 animate-pulse'
           : isReady
           ? 'border-red-500/70 shadow-[0_0_25px_rgba(230,36,41,0.35)] bg-[#12080A]/95 animate-pulse'
           : isComplete
@@ -278,7 +316,7 @@ function MatchCard({
           <span className="text-base">{p1?.avatar || '❓'}</span>
           <div className="min-w-0">
             <span className="font-heading font-black text-xs sm:text-sm truncate block text-white">
-              {p1 ? p1.name : 'TBD (Awaiting Winner)'}
+              {p1 ? p1.name : 'TBD (Awaiting Winner)'} {p1 && p1.id === currentUserId && '(You)'}
             </span>
             {p1 && (
               <span className="text-[10px] text-slate-400 font-bold">
@@ -302,7 +340,7 @@ function MatchCard({
           <span className="text-base">{p2?.avatar || '❓'}</span>
           <div className="min-w-0">
             <span className="font-heading font-black text-xs sm:text-sm truncate block text-white">
-              {p2 ? p2.name : match.isBye ? 'BYE (Automatic Advance)' : 'TBD (Awaiting Winner)'}
+              {p2 ? p2.name : match.isBye ? 'BYE (Automatic Advance)' : 'TBD (Awaiting Winner)'} {p2 && p2.id === currentUserId && '(You)'}
             </span>
             {p2 && (
               <span className="text-[10px] text-slate-400 font-bold">
@@ -317,13 +355,22 @@ function MatchCard({
       </div>
 
       {/* Action Footer Button */}
-      {isReady && (
+      {(isReady || isActiveCurrentMatch) && (
         <button
           onClick={() => onPlay(match.id)}
           className="w-full py-3 bg-gradient-to-r from-red-600 via-amber-500 to-red-600 hover:from-red-500 hover:to-amber-400 text-white font-heading font-black text-xs sm:text-sm uppercase tracking-wider rounded-xl shadow-[0_0_20px_rgba(230,36,41,0.5)] transition-all flex items-center justify-center gap-2 transform hover:scale-[1.02]"
         >
-          <Play className="w-4 h-4 fill-current text-white animate-bounce" />
-          <span>COMMENCE MATCH DUEL</span>
+          {isOnlineMode && !isUserCombatant ? (
+            <>
+              <Eye className="w-4 h-4 text-white" />
+              <span>👁️ SPECTATE LIVE DUEL</span>
+            </>
+          ) : (
+            <>
+              <Play className="w-4 h-4 fill-current text-white animate-bounce" />
+              <span>⚔️ COMMENCE MATCH DUEL</span>
+            </>
+          )}
         </button>
       )}
 
@@ -336,7 +383,7 @@ function MatchCard({
         </div>
       )}
 
-      {match.status === 'PENDING' && (
+      {match.status === 'PENDING' && !isActiveCurrentMatch && (
         <span className="block text-center text-[10px] font-bold uppercase text-slate-500 py-1.5">
           🔒 Awaiting Previous Match Results
         </span>

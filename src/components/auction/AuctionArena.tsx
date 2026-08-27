@@ -18,6 +18,8 @@ interface Props {
   onInstantSkip?: () => void;
   onConcede?: () => void;
   onOpenRelicShop?: () => void;
+  onTriggerFlashbang?: (targetId: string) => void;
+  onDiscardCharacter?: (playerId: string, characterId: string) => void;
   isLocalMode?: boolean;
 }
 
@@ -29,6 +31,8 @@ export function AuctionArena({
   onInstantSkip,
   onConcede,
   onOpenRelicShop,
+  onTriggerFlashbang,
+  onDiscardCharacter,
   isLocalMode = true,
 }: Props) {
   const [localTurnPlayerId, setLocalTurnPlayerId] = useState<string>(
@@ -51,8 +55,9 @@ export function AuctionArena({
     ? (state.players.find(p => p.id === localTurnPlayerId) || state.players[0])
     : (state.players.find(p => p.id === socketId) || state.players[0]);
 
-  // Flashbang only blinds OPPONENTS, never the player who detonated it!
-  const isBlinded = Date.now() < flashbangActiveUntil && controllingPlayer.name !== flashbangAttacker;
+  // Flashbang only blinds OPPONENTS, never the player who detonated it! (TODO-035)
+  const isBlinded = (Date.now() < flashbangActiveUntil && controllingPlayer.name !== flashbangAttacker) || 
+    !!(controllingPlayer?.flashbangedUntil && Date.now() < controllingPlayer.flashbangedUntil);
 
   const handleTriggerFlashbang = (player: Player) => {
     if (player.money < flashbangCost) return;
@@ -62,6 +67,10 @@ export function AuctionArena({
     setFlashbangAttacker(player.name);
     setTacticalMessage(`💥 FLASH DETONATED! Opponent screens blinded & locked for 4s!`);
     setTimeout(() => setTacticalMessage(null), 4500);
+    if (!isLocalMode && onTriggerFlashbang) {
+      const opponent = state.players.find(p => p.id !== player.id);
+      onTriggerFlashbang(opponent?.id || 'all');
+    }
   };
 
   const eligiblePlayers = state.players.filter(
@@ -157,8 +166,36 @@ export function AuctionArena({
         settings={state.settings}
         activeTurnPlayerId={isLocalMode ? localTurnPlayerId : socketId}
         onSelectPlayerTurn={setLocalTurnPlayerId}
+        onDiscardCharacter={onDiscardCharacter}
         isLocalMode={isLocalMode}
       />
+
+      {/* 🎲 CHAOS AUCTION EVENT ANNOUNCEMENT BANNER */}
+      {state.activeChaosEvent && (
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-purple-950/90 via-amber-950/90 to-red-950/90 border-2 border-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.4)] flex flex-col sm:flex-row items-center justify-between gap-3 animate-fadeIn">
+          <div className="flex items-center gap-3 text-center sm:text-left">
+            <div className="p-2 rounded-xl bg-amber-500/20 border border-amber-400 text-amber-300 animate-bounce">
+              <Zap className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 justify-center sm:justify-start">
+                <span className="font-heading font-black text-xs uppercase tracking-widest text-amber-400">
+                  🎲 CHAOS AUCTION EVENT:
+                </span>
+                <span className="font-heading font-black text-sm text-white uppercase">
+                  {state.activeChaosEvent.name}
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-0.5">
+                {state.activeChaosEvent.description}
+              </p>
+            </div>
+          </div>
+          <span className="px-3 py-1 rounded-xl bg-amber-400 text-black text-xs font-heading font-black uppercase shadow tracking-wider shrink-0 animate-pulse">
+            {state.activeChaosEvent.badge}
+          </span>
+        </div>
+      )}
 
       {/* MULTI-PLAYER SPLIT SCREEN VIEW (2, 3, 4+ PLAYERS) */}
       {isSplitScreen && humanPlayers.length >= 2 ? (
@@ -166,12 +203,18 @@ export function AuctionArena({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
             <div className="lg:col-span-8">
               {char && (
-                <CharacterCard 
-                  character={char} 
-                  size="lg" 
-                  isSpotlight={true} 
-                  startingMoney={state.settings.startingMoney} 
-                />
+                state.auction.isMysteryCrate ? (
+                  <MysteryCrateCard
+                    isRevealing={!state.auction.isActive && !!state.auction.unboxedCharacter}
+                  />
+                ) : (
+                  <CharacterCard 
+                    character={char} 
+                    size="lg" 
+                    isSpotlight={true} 
+                    startingMoney={state.settings.startingMoney} 
+                  />
+                )
               )}
             </div>
             <div className="lg:col-span-4 glass-panel p-4 sm:p-5 rounded-2xl border border-white/10 flex flex-col justify-center">

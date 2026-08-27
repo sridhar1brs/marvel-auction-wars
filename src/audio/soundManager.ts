@@ -30,6 +30,23 @@ class SoundManager {
     }
   }
 
+  public setSoundEnabled(enabled: boolean) {
+    this.isMuted = !enabled;
+    if (this.audioElement) {
+      this.audioElement.muted = this.isMuted;
+    }
+    if (this.bgmMasterGain && this.ctx) {
+      this.bgmMasterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.20, this.ctx.currentTime);
+    }
+  }
+
+  public setVolume(volumePercent: number) {
+    const clamped = Math.max(0, Math.min(100, volumePercent)) / 100;
+    if (this.audioElement) {
+      this.audioElement.volume = clamped * 0.5;
+    }
+  }
+
   public toggleMute(): boolean {
     this.isMuted = !this.isMuted;
     
@@ -494,6 +511,133 @@ class SoundManager {
       osc.start(now + t);
       osc.stop(now + t + d);
     });
+  }
+
+  // 12. Infinity Stone Ignition Sound (Power, Space, Reality, Soul, Time, Mind)
+  public playInfinityStone(step: number) {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    try {
+      const freqs = [220.00, 293.66, 349.23, 440.00, 523.25, 659.25];
+      const baseFreq = freqs[step % freqs.length] || 440.00;
+      const now = this.ctx.currentTime;
+
+      // Pure cosmic sine + overtone shimmer
+      const osc = this.ctx.createOscillator();
+      const oscHarmonic = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      oscHarmonic.type = 'triangle';
+
+      osc.frequency.setValueAtTime(baseFreq, now);
+      osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, now + 0.35);
+
+      oscHarmonic.frequency.setValueAtTime(baseFreq * 2, now);
+      oscHarmonic.frequency.exponentialRampToValueAtTime(baseFreq * 2.5, now + 0.35);
+
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.35, now + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+      osc.connect(gain);
+      oscHarmonic.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      oscHarmonic.start(now);
+      osc.stop(now + 0.50);
+      oscHarmonic.stop(now + 0.50);
+    } catch {
+      // Audio fallback
+    }
+  }
+
+  // 13. Cinematic Cosmic Snap Impact
+  public playCosmicSnap() {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+
+      // 1. Crisp Snap transient click
+      const snapOsc = this.ctx.createOscillator();
+      const snapGain = this.ctx.createGain();
+      snapOsc.type = 'sawtooth';
+      snapOsc.frequency.setValueAtTime(2400, now);
+      snapOsc.frequency.exponentialRampToValueAtTime(100, now + 0.06);
+      snapGain.gain.setValueAtTime(0.8, now);
+      snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+      snapOsc.connect(snapGain);
+      snapGain.connect(this.ctx.destination);
+      snapOsc.start(now);
+      snapOsc.stop(now + 0.08);
+
+      // 2. Deep Sub-Bass Shockwave Rumble (55Hz -> 20Hz)
+      const subOsc = this.ctx.createOscillator();
+      const subGain = this.ctx.createGain();
+      subOsc.type = 'sine';
+      subOsc.frequency.setValueAtTime(65, now + 0.02);
+      subOsc.frequency.exponentialRampToValueAtTime(25, now + 1.2);
+      subGain.gain.setValueAtTime(0.001, now + 0.02);
+      subGain.gain.linearRampToValueAtTime(0.7, now + 0.06);
+      subGain.gain.exponentialRampToValueAtTime(0.001, now + 1.4);
+      subOsc.connect(subGain);
+      subGain.connect(this.ctx.destination);
+      subOsc.start(now + 0.02);
+      subOsc.stop(now + 1.45);
+
+      // 3. Cosmic Shimmer Resonant Chime Chord
+      [523.25, 659.25, 783.99, 1046.50].forEach((f, idx) => {
+        const chordOsc = this.ctx!.createOscillator();
+        const chordGain = this.ctx!.createGain();
+        chordOsc.type = 'sine';
+        chordOsc.frequency.setValueAtTime(f, now + 0.05);
+        chordGain.gain.setValueAtTime(0.001, now + 0.05);
+        chordGain.gain.linearRampToValueAtTime(0.25 - idx * 0.04, now + 0.12);
+        chordGain.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
+        chordOsc.connect(chordGain);
+        chordGain.connect(this.ctx!.destination);
+        chordOsc.start(now + 0.05);
+        chordOsc.stop(now + 1.85);
+      });
+    } catch {
+      // Audio fallback
+    }
+  }
+
+  public playVictoryFanfare() {
+    this.playVictory();
+  }
+
+  public playDefeat() {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      const notes = [392.00, 369.99, 349.23, 311.13]; // Descending defeat notes
+      notes.forEach((freq, idx) => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+        gain.gain.setValueAtTime(0.15, now + idx * 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.35);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now + idx * 0.12);
+        osc.stop(now + idx * 0.12 + 0.35);
+      });
+    } catch {
+      // Audio fallback
+    }
   }
 }
 

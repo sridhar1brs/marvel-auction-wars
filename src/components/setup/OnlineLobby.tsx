@@ -1,7 +1,9 @@
-import { useState } from 'react';
-import { GameState, BotPersonality } from '../../types/game';
-import { Copy, Check, Users, Bot, Play, Globe, Sliders, DollarSign, Layers, Clock, ArrowLeft } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { GameState, BotPersonality, Player, ChatMessage } from '../../types/game';
+import { Copy, Check, Users, Bot, Play, Globe, Sliders, DollarSign, Layers, Clock, ArrowLeft, Zap, User, MessageSquare, Send, Eye, Shield, Swords } from 'lucide-react';
 import { soundManager } from '../../audio/soundManager';
+import { PlayerProfileModal } from '../common/PlayerProfileModal';
+import { useAuth } from '../../context/AuthContext';
 
 interface Props {
   state: GameState;
@@ -9,11 +11,12 @@ interface Props {
   isConnected?: boolean;
   onSetReady: (isReady: boolean) => void;
   onAddBot: (personality: BotPersonality) => void;
-  onUpdateSettings: (settings: { startingMoney?: number; characterLimit?: number; auctionTimerSeconds?: number }) => void;
+  onUpdateSettings: (settings: { startingMoney?: number; characterLimit?: number; auctionTimerSeconds?: number; chaosAuctionEnabled?: boolean }) => void;
   onStartGame: () => void;
   onLeaveRoom: () => void;
   onCreateRoom: (playerName: string, avatar: string) => void;
   onJoinRoom: (roomId: string, playerName: string, avatar: string) => void;
+  onSendMessage?: (message: string) => void;
   isInRoom: boolean;
   error?: string | null;
 }
@@ -29,13 +32,29 @@ export function OnlineLobby({
   onLeaveRoom,
   onCreateRoom,
   onJoinRoom,
+  onSendMessage,
   isInRoom,
   error,
 }: Props) {
-  const [playerName, setPlayerName] = useState('Player 1');
+  const { user } = useAuth();
+  const [playerName, setPlayerName] = useState(() => user?.displayName || user?.username || 'Player 1');
   const [roomCodeInput, setRoomCodeInput] = useState('');
   const [copied, setCopied] = useState(false);
   const [botPersonality, setBotPersonality] = useState<BotPersonality>('Balanced');
+  const [selectedProfilePlayer, setSelectedProfilePlayer] = useState<Player | null>(null);
+  const [lobbyChatText, setLobbyChatText] = useState('');
+  const [isSpectatorRole, setIsSpectatorRole] = useState(false);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (user?.displayName || user?.username) {
+      setPlayerName(user.displayName || user.username);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [state.spectatorChat]);
 
   const me = state.players.find(p => p.id === socketId) || state.players[0];
   const isHost = me?.isHost || false;
@@ -94,7 +113,7 @@ export function OnlineLobby({
             }}
             className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-white font-heading font-black text-sm sm:text-base uppercase tracking-wider shadow-glow-blue transition-all"
           >
-            CREATE NEW ROOM
+            CREATE NEW ROOM (1-10 PLAYERS)
           </button>
 
           <div className="flex items-center gap-3">
@@ -103,23 +122,32 @@ export function OnlineLobby({
             <div className="flex-1 h-[1px] bg-white/10" />
           </div>
 
-          {/* Join Room Form */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={roomCodeInput}
-              onChange={e => setRoomCodeInput(e.target.value.toUpperCase())}
-              placeholder="ROOM CODE (e.g. MARVEL-4821 or 4821)"
-              maxLength={20}
-              className="flex-1 bg-black/60 border border-white/15 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm text-white font-mono tracking-widest text-center focus:outline-none focus:border-blue-500"
-            />
+          {/* Join Room Form with Fixed MARVEL- Prefix */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1 flex items-center bg-black/70 border border-blue-500/40 rounded-xl overflow-hidden focus-within:border-cyan-400 focus-within:ring-1 focus-within:ring-cyan-400/50 shadow-inner">
+              <span className="bg-blue-950/90 text-cyan-300 font-mono font-black text-xs sm:text-sm px-3 py-2.5 border-r border-blue-500/30 select-none tracking-widest">
+                MARVEL-
+              </span>
+              <input
+                type="text"
+                value={roomCodeInput.replace(/^MARVEL-/i, '')}
+                onChange={e => {
+                  const val = e.target.value.replace(/^MARVEL-/i, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                  setRoomCodeInput(val);
+                }}
+                placeholder="4821"
+                maxLength={8}
+                className="flex-1 bg-transparent px-3 py-2.5 text-xs sm:text-sm text-white font-mono font-black tracking-widest focus:outline-none placeholder-slate-600"
+              />
+            </div>
             <button
               onClick={() => {
-                if (!roomCodeInput.trim()) return;
+                const cleanSuffix = roomCodeInput.replace(/^MARVEL-/i, '').trim();
+                if (!cleanSuffix) return;
                 soundManager.playClick();
-                onJoinRoom(roomCodeInput.trim(), playerName, '🦸‍♂️');
+                onJoinRoom(`MARVEL-${cleanSuffix}`, playerName, '🦸‍♂️');
               }}
-              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-heading font-black text-xs uppercase rounded-xl border border-white/15 transition-colors"
+              className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-heading font-black text-xs uppercase rounded-xl border border-cyan-400/40 shadow-glow-blue transition-all"
             >
               JOIN
             </button>
@@ -147,7 +175,7 @@ export function OnlineLobby({
 
         <div className="text-center min-w-0">
           <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 block truncate">
-            ROOM LOBBY (2 TO 10 PLAYERS)
+            ROOM LOBBY (1 TO 10 PLAYERS)
           </span>
           <h1 className="text-xl sm:text-3xl font-heading font-black text-white tracking-widest font-mono truncate">
             {state.roomId}
@@ -183,9 +211,14 @@ export function OnlineLobby({
             {state.players.map((p, idx) => (
               <div
                 key={p.id}
-                className={`flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-colors ${
+                onClick={() => {
+                  soundManager.playClick();
+                  setSelectedProfilePlayer(p);
+                }}
+                className={`flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all cursor-pointer hover:border-cyan-400/60 hover:bg-slate-900/80 ${
                   p.id === socketId ? 'bg-blue-950/40 border-blue-500/60' : 'bg-black/50 border-white/10'
                 }`}
+                title="Click to view player dossier & stats"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span className="text-lg p-1.5 bg-slate-900 rounded-lg border border-white/5 shrink-0">
@@ -193,6 +226,9 @@ export function OnlineLobby({
                   </span>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[9px] bg-amber-500 text-black font-black px-1.5 py-0.2 rounded font-mono shadow-sm">
+                        LVL {p.level || p.profile?.level || 1}
+                      </span>
                       <span className="font-extrabold text-xs sm:text-sm text-white truncate max-w-[100px] sm:max-w-none">
                         {p.name} {p.id === socketId && '(You)'}
                       </span>
@@ -206,6 +242,9 @@ export function OnlineLobby({
                           AI ({p.botPersonality})
                         </span>
                       )}
+                      <span className="text-[8px] text-cyan-400 hover:underline">
+                        [Dossier]
+                      </span>
                     </div>
                     <span className="text-[10px] text-slate-400 block truncate">
                       Player #{idx + 1} • Starting: ${state.settings.startingMoney}
@@ -260,25 +299,60 @@ export function OnlineLobby({
             </h2>
           </div>
 
-          {/* Starting Money Slider */}
-          <div className="space-y-1">
+          {/* Starting Money Slider ($10 - $1000) */}
+          <div className="space-y-2">
             <div className="flex items-center justify-between text-xs font-bold">
               <span className="text-slate-300 flex items-center gap-1">
                 <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
-                Starting Funds ($10 - $150)
+                Starting Funds ($10 - $1000)
               </span>
-              <span className="text-emerald-400 font-black text-sm">${state.settings.startingMoney}</span>
+              <div className="flex items-center gap-2">
+                {isHost ? (
+                  <input
+                    type="number"
+                    min={10}
+                    max={1000}
+                    value={state.settings.startingMoney}
+                    onChange={e => onUpdateSettings({ startingMoney: Math.min(1000, Math.max(10, Number(e.target.value) || 10)) })}
+                    className="w-20 bg-black/60 border border-emerald-500/40 px-2 py-0.5 rounded-lg text-emerald-400 font-black text-xs text-right focus:outline-none focus:border-emerald-400"
+                  />
+                ) : (
+                  <span className="text-emerald-400 font-black text-sm">${state.settings.startingMoney}</span>
+                )}
+              </div>
             </div>
             {isHost ? (
-              <input
-                type="range"
-                min={10}
-                max={150}
-                step={5}
-                value={state.settings.startingMoney}
-                onChange={e => onUpdateSettings({ startingMoney: Number(e.target.value) })}
-                className="w-full accent-emerald-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
-              />
+              <>
+                <input
+                  type="range"
+                  min={10}
+                  max={1000}
+                  step={5}
+                  value={state.settings.startingMoney}
+                  onChange={e => onUpdateSettings({ startingMoney: Number(e.target.value) })}
+                  className="w-full accent-emerald-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
+                />
+                {/* Quick Presets */}
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {[10, 25, 50, 100, 250, 500, 750, 1000].map(val => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => {
+                        soundManager.playClick();
+                        onUpdateSettings({ startingMoney: val });
+                      }}
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition-all cursor-pointer ${
+                        state.settings.startingMoney === val
+                          ? 'bg-emerald-600 text-white border-emerald-400 shadow-sm'
+                          : 'bg-black/50 text-slate-300 border-white/10 hover:border-emerald-500/40'
+                      }`}
+                    >
+                      ${val}
+                    </button>
+                  ))}
+                </div>
+              </>
             ) : (
               <div className="text-[11px] text-slate-400 italic">Controlled by room host</div>
             )}
@@ -354,9 +428,9 @@ export function OnlineLobby({
                   soundManager.playClick();
                   onStartGame();
                 }}
-                disabled={state.players.length < 2}
+                disabled={state.players.length < 1}
                 className={`w-full py-3.5 rounded-xl font-heading font-black text-sm sm:text-base uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl transition-all ${
-                  state.players.length >= 2
+                  state.players.length >= 1
                     ? 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-white shadow-glow-blue hover:scale-[1.02] active:scale-[0.98]'
                     : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5'
                 }`}
@@ -367,8 +441,115 @@ export function OnlineLobby({
             )}
           </div>
         </div>
-
       </div>
+
+      {/* Embedded Live Lobby Chat & Banter */}
+      <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-white/10 space-y-3 bg-black/60">
+        <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-purple-400" />
+            <h3 className="text-xs sm:text-sm font-heading font-black text-white uppercase tracking-wider">
+              LIVE LOBBY CHAT & BANTER ({state.spectatorChat?.length || 0})
+            </h3>
+          </div>
+          <span className="text-[10px] text-purple-300 font-mono">
+            💬 Real-time Player Communication
+          </span>
+        </div>
+
+        {/* Message Feed */}
+        <div className="h-32 sm:h-36 overflow-y-auto space-y-2 pr-1 custom-scrollbar bg-slate-950/60 p-3 rounded-xl border border-white/5">
+          {(!state.spectatorChat || state.spectatorChat.length === 0) ? (
+            <div className="h-full flex items-center justify-center text-slate-500 text-xs font-mono">
+              No messages yet. Say hello or challenge your rivals!
+            </div>
+          ) : (
+            state.spectatorChat.map((msg) => {
+              const isMe = msg.senderId === socketId;
+              return (
+                <div
+                  key={msg.id}
+                  className={`flex flex-col text-xs ${isMe ? 'items-end' : 'items-start'}`}
+                >
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="text-[10px] text-slate-400 font-bold">
+                      {msg.senderAvatar} {msg.senderName}
+                    </span>
+                    <span className="text-[9px] text-slate-600 font-mono">
+                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <div
+                    className={`px-3 py-1.5 rounded-xl max-w-[85%] break-words font-medium ${
+                      isMe
+                        ? 'bg-blue-600 text-white rounded-br-none shadow-sm'
+                        : 'bg-slate-800 text-slate-200 rounded-bl-none border border-white/10'
+                    }`}
+                  >
+                    {msg.message}
+                  </div>
+                </div>
+              );
+            })
+          )}
+          <div ref={chatBottomRef} />
+        </div>
+
+        {/* Quick Reaction Chips */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
+          {['🔥 Ready to duel!', '💰 Saving for Mythics!', '⚡ Good luck everyone!', '🛡️ Unbeatable squad incoming!'].map((chip) => (
+            <button
+              key={chip}
+              onClick={() => {
+                if (onSendMessage) {
+                  soundManager.playClick();
+                  onSendMessage(chip);
+                }
+              }}
+              className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-white/10 text-[10px] text-slate-300 hover:text-white font-bold whitespace-nowrap transition-colors"
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+
+        {/* Message Input Field */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!lobbyChatText.trim() || !onSendMessage) return;
+            soundManager.playClick();
+            onSendMessage(lobbyChatText.trim());
+            setLobbyChatText('');
+          }}
+          className="flex items-center gap-2"
+        >
+          <input
+            type="text"
+            value={lobbyChatText}
+            onChange={(e) => setLobbyChatText(e.target.value)}
+            placeholder="Type a message to room players..."
+            maxLength={180}
+            className="flex-1 bg-black/70 border border-white/15 px-3.5 py-2 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-medium"
+          />
+          <button
+            type="submit"
+            disabled={!lobbyChatText.trim()}
+            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-heading font-black text-xs uppercase rounded-xl transition-all shadow-md flex items-center gap-1.5"
+          >
+            <Send className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">SEND</span>
+          </button>
+        </form>
+      </div>
+
+      {/* Player Profile Modal */}
+      {selectedProfilePlayer && (
+        <PlayerProfileModal
+          player={selectedProfilePlayer}
+          onClose={() => setSelectedProfilePlayer(null)}
+        />
+      )}
     </div>
   );
 }

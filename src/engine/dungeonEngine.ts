@@ -12,7 +12,10 @@ export const DEFAULT_DUNGEON_SETTINGS: DungeonSettings = {
     gradeAMax: 40,
     cosmicStart: 41
   },
-  startingHealingPotions: 3
+  startingHealingPotions: 3,
+  gameplayMode: 'solo',
+  playerCount: 1,
+  playerNames: ['Player 1']
 };
 
 // Select appropriate enemy for current wave based on custom wave milestones

@@ -4,7 +4,10 @@ export interface CharacterSkill {
   id: string;
   name: string;
   description: string;
-  cost: number; // $6 - $15 (Non-P2W balance)
+  cost: number; // $6 - $15 (Auction Wars)
+  astraCost: number; // 500 - 10,000 Astra (Ascension Mode)
+  requiredLevel: number; // Character Level requirement (5, 10, 20, 30, 40)
+  characterId: string;
   icon: string;
   bonusPower: number;
   triggerRate: number;
@@ -12,7 +15,7 @@ export interface CharacterSkill {
 }
 
 // Tailored custom skills for iconic characters
-const ICONIC_CHARACTER_SKILLS: Record<string, CharacterSkill[]> = {
+const ICONIC_CHARACTER_SKILLS_RAW: Record<string, Omit<CharacterSkill, 'characterId' | 'requiredLevel' | 'astraCost'>[]> = {
   // Iron Man
   'char-b-002': [
     { id: 'sk-im-1', name: 'Unibeam Overcharge', description: 'Discharges 100% chest reactor output for searing direct energy impact.', cost: 8, icon: '⚡', bonusPower: 8, triggerRate: 0.6, effectType: 'attack' },
@@ -48,96 +51,27 @@ const ICONIC_CHARACTER_SKILLS: Record<string, CharacterSkill[]> = {
   // Thanos
   'char-m-010': [
     { id: 'sk-than-1', name: 'Titan Armor Fortification', description: 'Dense celestial armor absorbs raw energy and physical impacts.', cost: 10, icon: '🛡️', bonusPower: 9, triggerRate: 0.55, effectType: 'shield' },
-    { id: 'sk-than-2', name: 'Cosmic Ray Disintegration', description: 'Fires twin devastating plasma beams from cosmic eyes.', cost: 11, icon: '👁️', bonusPower: 10, triggerRate: 0.5, effectType: 'attack' },
-    { id: 'sk-than-3', name: 'Space Stone Singularity', description: 'Opens a gravitational vortex pulling opponent defense into nothingness.', cost: 12, icon: '🌌', bonusPower: 11, triggerRate: 0.5, effectType: 'tactical' },
-    { id: 'sk-than-4', name: 'Soul Siphon', description: 'Drains life essence from the enemy, replenishing Titan vitality.', cost: 12, icon: '🟣', bonusPower: 8, triggerRate: 0.6, effectType: 'lifesteal' },
-    { id: 'sk-than-5', name: 'Infinity Gauntlet Decimation', description: 'Channels all 6 stones for a catastrophic cosmic annihilation strike.', cost: 15, icon: '💎', bonusPower: 15, triggerRate: 0.4, effectType: 'critical' }
-  ],
-  // Thor
-  'char-a-001': [
-    { id: 'sk-thor-1', name: 'God of Thunder Lightning', description: 'Calls down thunderous Asgardian lightning from storm clouds.', cost: 9, icon: '⚡', bonusPower: 9, triggerRate: 0.6, effectType: 'attack' },
-    { id: 'sk-thor-2', name: 'Mjolnir Spinning Shield', description: 'Spins the enchanted uru hammer to create an impenetrable kinetic barrier.', cost: 10, icon: '🔨', bonusPower: 8, triggerRate: 0.5, effectType: 'shield' },
-    { id: 'sk-thor-3', name: 'Stormbreaker Cleave', description: 'Channels bifrost storm energy to slice through cosmic shielding.', cost: 11, icon: '🪓', bonusPower: 10, triggerRate: 0.55, effectType: 'attack' },
-    { id: 'sk-thor-4', name: 'All-Father Blessing', description: 'Channels Odinforce to revitalize stamina and clear debuffs.', cost: 10, icon: '👑', bonusPower: 7, triggerRate: 0.5, effectType: 'tactical' },
-    { id: 'sk-thor-5', name: 'God Blast Unleashed', description: 'Unleashes the full divine essence of Thor in a cataclysmic solar blast.', cost: 14, icon: '💥', bonusPower: 14, triggerRate: 0.4, effectType: 'critical' }
-  ],
-  // Scarlet Witch
-  'char-a-002': [
-    { id: 'sk-sw-1', name: 'Chaos Magic Hex Bolt', description: 'Fires reality-distorting chaos bolts that bypass conventional armor.', cost: 9, icon: '🔴', bonusPower: 9, triggerRate: 0.6, effectType: 'attack' },
-    { id: 'sk-sw-2', name: 'Probability Hex Shield', description: 'Alters probability vectors to cause incoming strikes to miss entirely.', cost: 11, icon: '🔮', bonusPower: 8, triggerRate: 0.55, effectType: 'speed_evasion' },
-    { id: 'sk-sw-3', name: 'Telekinetic Rupture', description: 'Crushes opponent armor at the subatomic level with telekinesis.', cost: 10, icon: '🖐️', bonusPower: 9, triggerRate: 0.5, effectType: 'attack' },
-    { id: 'sk-sw-4', name: 'Life Force Transmutation', description: 'Absorbs vitality from reality warping to heal herself.', cost: 11, icon: '✨', bonusPower: 7, triggerRate: 0.6, effectType: 'lifesteal' },
-    { id: 'sk-sw-5', name: 'No More Mutants (Reality Warp)', description: 'Rewrites local universal constants for devastating critical chaos damage.', cost: 15, icon: '🌌', bonusPower: 15, triggerRate: 0.4, effectType: 'critical' }
-  ],
-  // Deadpool
-  'char-b-006': [
-    { id: 'sk-dp-1', name: 'Akimbo Katanas', description: 'Dual carbonadium katanas slice opponent armor into confetti.', cost: 7, icon: '⚔️', bonusPower: 7, triggerRate: 0.6, effectType: 'attack' },
-    { id: 'sk-dp-2', name: 'Chimichanga Regeneration', description: 'Absurd regenerative healing factor laughs off lethal damage.', cost: 11, icon: '🌯', bonusPower: 7, triggerRate: 0.65, effectType: 'lifesteal' },
-    { id: 'sk-dp-3', name: 'Fourth Wall Glitch', description: 'Walks outside the comic panels to dodge incoming attacks.', cost: 10, icon: '📺', bonusPower: 8, triggerRate: 0.55, effectType: 'speed_evasion' },
-    { id: 'sk-dp-4', name: 'Bottomless Bag of Guns', description: 'Pulls out an absurd oversized rocket launcher for bonus firepower.', cost: 9, icon: '💣', bonusPower: 9, triggerRate: 0.5, effectType: 'attack' },
-    { id: 'sk-dp-5', name: 'Deadpool Maximum Effort', description: 'Chaotic acrobatic bullet barrage dealing unpredictable critical devastation.', cost: 13, icon: '💥', bonusPower: 12, triggerRate: 0.45, effectType: 'critical' }
+    { id: 'sk-than-2', name: 'Power Stone Obliteration', description: 'Harnesses raw purple cosmic singularity to atomize enemy vanguard.', cost: 12, icon: '🟣', bonusPower: 11, triggerRate: 0.6, effectType: 'attack' },
+    { id: 'sk-than-3', name: 'Space Stone Singularity', description: 'Manipulates space-time coordinates to distort enemy attack trajectories.', cost: 11, icon: '🌌', bonusPower: 8, triggerRate: 0.5, effectType: 'speed_evasion' },
+    { id: 'sk-than-4', name: 'Reality Stone Transmutation', description: 'Warps opponent matter into bubbles, reducing incoming strike power.', cost: 13, icon: '🔴', bonusPower: 10, triggerRate: 0.45, effectType: 'tactical' },
+    { id: 'sk-than-5', name: 'Inevitable Decimation Snap', description: 'Channels all six Infinity Stones into an absolute reality-ending snap.', cost: 15, icon: '🧤', bonusPower: 15, triggerRate: 0.35, effectType: 'critical' }
   ]
 };
 
-// Procedural dynamic skill generator for all 301 characters based on lore, archetype & powers
-export function getSkillsForCharacter(char: Character): CharacterSkill[] {
-  if (char.id.startsWith('fusion-')) {
-    return [
-      {
-        id: `sk-${char.id}-1`,
-        name: `💥 DUAL FINISHER: ${char.alias?.replace('⚡ ', '') || 'Harmonic Clash'}`,
-        description: `Unleashes coordinated dual strike dealing catastrophic amplified critical damage!`,
-        cost: 14,
-        icon: '💥',
-        bonusPower: 20,
-        triggerRate: 0.9,
-        effectType: 'critical'
-      },
-      {
-        id: `sk-${char.id}-2`,
-        name: `🛡️ HARMONIC CROSS-BARRIER`,
-        description: `Overlapping kinetic forcefields absorb incoming attacks and grant invulnerability.`,
-        cost: 12,
-        icon: '🛡️',
-        bonusPower: 16,
-        triggerRate: 0.85,
-        effectType: 'shield'
-      },
-      {
-        id: `sk-${char.id}-3`,
-        name: `⚡ SYNCHRONIZED PINCER BLITZ`,
-        description: `High-velocity duo flanking blitz completely bypassing enemy defense.`,
-        cost: 13,
-        icon: '⚡',
-        bonusPower: 18,
-        triggerRate: 0.85,
-        effectType: 'speed_evasion'
-      },
-      {
-        id: `sk-${char.id}-4`,
-        name: `🩸 DUO VITALITY RESONANCE`,
-        description: `Dual bio-frequency resonance rapidly siphons enemy life force to restore health.`,
-        cost: 14,
-        icon: '🩸',
-        bonusPower: 17,
-        triggerRate: 0.8,
-        effectType: 'lifesteal'
-      },
-      {
-        id: `sk-${char.id}-5`,
-        name: `🌌 OVERDRIVE MULTIVERSE SURGE`,
-        description: `Overclocks combined power outputs for an unstoppable cosmic shockwave!`,
-        cost: 15,
-        icon: '🌌',
-        bonusPower: 25,
-        triggerRate: 0.8,
-        effectType: 'tactical'
-      }
-    ];
-  }
+const LEVEL_REQUIREMENTS = [5, 10, 20, 30, 40];
+const ASTRA_COSTS = [500, 1000, 2500, 5000, 10000];
 
-  if (ICONIC_CHARACTER_SKILLS[char.id]) {
-    return ICONIC_CHARACTER_SKILLS[char.id];
+export function getSkillsForCharacter(char: Character): CharacterSkill[] {
+  if (!char) return [];
+
+  // Check iconic preset
+  if (ICONIC_CHARACTER_SKILLS_RAW[char.id]) {
+    return ICONIC_CHARACTER_SKILLS_RAW[char.id].map((skill, idx) => ({
+      ...skill,
+      characterId: char.id,
+      requiredLevel: LEVEL_REQUIREMENTS[idx] || 5,
+      astraCost: ASTRA_COSTS[idx] || 500
+    }));
   }
 
   const name = char.name;
@@ -158,6 +92,9 @@ export function getSkillsForCharacter(char: Character): CharacterSkill[] {
       name: `${ab1} Mastery`,
       description: `Channels signature offensive prowess for a heightened strike.`,
       cost: baseCost,
+      astraCost: ASTRA_COSTS[0],
+      requiredLevel: LEVEL_REQUIREMENTS[0], // Level 5
+      characterId: char.id,
       icon: '⚔️',
       bonusPower: 6 + pwrTier,
       triggerRate: 0.6,
@@ -168,6 +105,9 @@ export function getSkillsForCharacter(char: Character): CharacterSkill[] {
       name: `${name} Kinetic Ward`,
       description: `Erects a protective kinetic aura absorbing incoming damage.`,
       cost: baseCost + 2,
+      astraCost: ASTRA_COSTS[1],
+      requiredLevel: LEVEL_REQUIREMENTS[1], // Level 10
+      characterId: char.id,
       icon: '🛡️',
       bonusPower: 5 + pwrTier,
       triggerRate: 0.5,
@@ -178,6 +118,9 @@ export function getSkillsForCharacter(char: Character): CharacterSkill[] {
       name: `${name} Acrobatic Evasion`,
       description: `Performs fluid evasive maneuvers to dodge enemy offensive bursts.`,
       cost: baseCost + 3,
+      astraCost: ASTRA_COSTS[2],
+      requiredLevel: LEVEL_REQUIREMENTS[2], // Level 20
+      characterId: char.id,
       icon: '⚡',
       bonusPower: 6 + pwrTier,
       triggerRate: 0.55,
@@ -188,6 +131,9 @@ export function getSkillsForCharacter(char: Character): CharacterSkill[] {
       name: `${ab2 || `${name} Vitality Surge`}`,
       description: `Recovers combat vitality and siphons opponent stamina.`,
       cost: baseCost + 4,
+      astraCost: ASTRA_COSTS[3],
+      requiredLevel: LEVEL_REQUIREMENTS[3], // Level 30
+      characterId: char.id,
       icon: '💉',
       bonusPower: 6 + pwrTier,
       triggerRate: 0.5,
@@ -198,6 +144,9 @@ export function getSkillsForCharacter(char: Character): CharacterSkill[] {
       name: `Prime ${name} Overdrive`,
       description: `Unleashes maximum unlocked potential for a devastating critical blow.`,
       cost: Math.min(15, baseCost + 6),
+      astraCost: ASTRA_COSTS[4],
+      requiredLevel: LEVEL_REQUIREMENTS[4], // Level 40
+      characterId: char.id,
       icon: '💥',
       bonusPower: 10 + pwrTier,
       triggerRate: 0.4,

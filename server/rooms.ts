@@ -3,16 +3,20 @@ import {
   Player, 
   GameSettings, 
   AuctionState, 
-  TournamentMatch,
-  Character,
-  GradeVoteOption,
-  BattleActionType,
-  BattleRound,
+  TournamentMatch, 
+  Character, 
+  GradeVoteOption, 
+  BattleActionType, 
+  BattleRound, 
+  ChatMessage, 
+  PlayerStatus,
+  ChaosEvent
 } from '../src/types/game';
 import { ALL_CHARACTERS } from '../src/data/characters/index';
 import { validateBid, validateSkipVote, calculateBotBid } from './auctionEngine';
 import { generateTournamentBracket, advanceTournamentMatches } from './tournamentEngine';
 import { simulateRoundDuel, getTierMatchedPairings } from './battleEngine';
+import { getRandomChaosEvent } from '../src/data/chaosEvents';
 
 export class GameRoom {
   public state: GameState;
@@ -23,6 +27,7 @@ export class GameRoom {
 
   constructor(roomId: string, hostPlayer: Player, onStateChange: (state: GameState) => void) {
     this.onStateChange = onStateChange;
+    hostPlayer.isHost = true;
     this.state = {
       roomId,
       isOnline: true,
@@ -112,7 +117,11 @@ export class GameRoom {
   }
 
   public updateSettings(settings: Partial<GameSettings>) {
-    this.state.settings = { ...this.state.settings, ...settings };
+    const validated = { ...settings };
+    if (validated.startingMoney !== undefined) {
+      validated.startingMoney = Math.min(1000, Math.max(10, Number(validated.startingMoney) || 10));
+    }
+    this.state.settings = { ...this.state.settings, ...validated };
     this.notifyState();
   }
 
@@ -249,13 +258,40 @@ export class GameRoom {
       isMythicRevealed: isMythic,
     };
 
+    // Trigger Chaos Auction Event if enabled
+    if (this.state.settings.chaosAuctionEnabled) {
+      const chaosEvent = getRandomChaosEvent();
+      this.state.activeChaosEvent = chaosEvent;
+      
+      if (chaosEvent.effectType === 'speed_auction') {
+        this.state.auction.timeRemaining = 5;
+      } else if (chaosEvent.effectType === 'cheap_round') {
+        nextChar.startingPrice = Math.max(2, nextChar.startingPrice - 4);
+      } else if (chaosEvent.effectType === 'expensive_round') {
+        nextChar.startingPrice += 5;
+      } else if (chaosEvent.effectType === 'deadpool_chaos') {
+        nextChar.startingPrice = 1;
+      } else if (chaosEvent.effectType === 'super_soldier_serum') {
+        nextChar.maxHp = 130;
+        nextChar.currentHp = 130;
+      } else if (chaosEvent.effectType === 'random_grade') {
+        nextChar.overallPower += 5;
+      } else if (chaosEvent.effectType === 'double_money') {
+        this.state.players.forEach(p => { p.money += 10; });
+      }
+    } else {
+      this.state.activeChaosEvent = null;
+    }
+
     this.state.phase = (isMythic && !isBlindMode) ? 'AUCTION_REVEAL_MYTHIC' : 'AUCTION';
+    this.syncPlayerStatuses();
     this.notifyState();
 
     if (isMythic && !isBlindMode) {
       setTimeout(() => {
         if (this.state.phase === 'AUCTION_REVEAL_MYTHIC') {
           this.state.phase = 'AUCTION';
+          this.syncPlayerStatuses();
           this.notifyState();
           this.startTimer();
         }
@@ -335,6 +371,10 @@ export class GameRoom {
     const player = this.state.players.find(p => p.id === playerId);
     if (!player) return { success: false, error: 'Player not found.' };
 
+    if (player.flashbangedUntil && Date.now() < player.flashbangedUntil) {
+      return { success: false, error: 'FLASHBANGED: Actions locked for 4 seconds.' };
+    }
+
     const validation = validateBid(player, amount, this.state.auction, this.state.settings);
     if (!validation.valid) {
       return { success: false, error: validation.error };
@@ -373,8 +413,55 @@ export class GameRoom {
       return { success: false, isSkipped: false, error: 'No active auction.' };
     }
 
-    // Instant Skip: 1 person skip immediately advances the card as requested!
-    this.state.auction.statusMessage = `⏭️ CARD SKIPPED BY ${player.name.toUpperCase()}!`;
+    if (player.flashbangedUntil && Date.now() < player.flashbangedUntil) {
+      return { success: false, isSkipped: false, error: 'FLASHBANGED: Actions locked for 4 seconds.' };
+    }
+
+    // Leading bidder cannot vote to skip their own winning card
+    if (this.state.auction.highestBidderId === player.id) {
+      return { success: false, isSkipped: false, error: 'Leading bidder cannot vote to skip.' };
+    }
+
+    // Prevent duplicate votes from the same player
+    if (!this.state.auction.skipVotes.includes(playerId)) {
+      this.state.auction.skipVotes.push(playerId);
+    }
+
+    const eligiblePlayers = this.state.players.filter(
+      p => p.collection.length < this.state.settings.characterLimit
+    );
+
+    // Skip ONLY when ALL eligible players have voted
+    const allVoted = eligiblePlayers.length > 0 && eligiblePlayers.every(p => this.state.auction.skipVotes.includes(p.id));
+
+    if (allVoted) {
+      this.state.auction.statusMessage = `⏭️ CARD SKIPPED BY UNANIMOUS VOTE!`;
+      this.state.auction.isActive = false;
+      this.stopTimer();
+
+      if (this.state.auction.currentCharacter) {
+        this.state.skippedCharacters.push(this.state.auction.currentCharacter);
+      }
+
+      this.notifyState();
+
+      setTimeout(() => {
+        this.startNextAuction();
+      }, 500);
+
+      return { success: true, isSkipped: true };
+    }
+
+    this.state.auction.statusMessage = `🗳️ ${player.name} voted to skip (${this.state.auction.skipVotes.length}/${eligiblePlayers.length})`;
+    this.notifyState();
+    return { success: true, isSkipped: false };
+  }
+
+  public instantSkipLot(): { success: boolean } {
+    if (!this.state.auction.isActive || !this.state.auction.currentCharacter) {
+      return { success: false };
+    }
+    this.state.auction.statusMessage = `⚡ CARD INSTANTLY SKIPPED!`;
     this.state.auction.isActive = false;
     this.stopTimer();
 
@@ -383,12 +470,114 @@ export class GameRoom {
     }
 
     this.notifyState();
-
     setTimeout(() => {
       this.startNextAuction();
     }, 400);
 
-    return { success: true, isSkipped: true };
+    return { success: true };
+  }
+
+  public concedeLot(playerId: string): { success: boolean; error?: string } {
+    if (!this.state.auction.isActive || !this.state.auction.currentCharacter) {
+      return { success: false, error: 'No active auction.' };
+    }
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player) return { success: false, error: 'Player not found.' };
+
+    if (player.flashbangedUntil && Date.now() < player.flashbangedUntil) {
+      return { success: false, error: 'FLASHBANGED: Actions locked for 4 seconds.' };
+    }
+
+    if (this.state.auction.highestBidderId && this.state.auction.currentBid > 0) {
+      this.state.auction.statusMessage = `🏳️ ${player.name} CONCEDED LOT TO ${this.state.auction.highestBidderName?.toUpperCase()}!`;
+      this.handleAuctionTimeExpired();
+    } else {
+      this.state.auction.statusMessage = `🏳️ ${player.name} CONCEDED LOT!`;
+      this.instantSkipLot();
+    }
+
+    return { success: true };
+  }
+
+  public triggerFlashbang(attackerId: string, targetId?: string): { success: boolean; error?: string } {
+    const attacker = this.state.players.find(p => p.id === attackerId);
+    if (!attacker) return { success: false, error: 'Player not found.' };
+
+    if (attacker.flashbangedUntil && Date.now() < attacker.flashbangedUntil) {
+      return { success: false, error: 'Cannot detonate while blinded.' };
+    }
+
+    const cost = Math.max(2, Math.round(this.state.settings.startingMoney * 0.05));
+    const hasRelic = attacker.relics && (attacker.relics.includes('art-001-1') || attacker.relics.includes('art-026'));
+    if (attacker.money < cost && !hasRelic) {
+      return { success: false, error: `Insufficient funds for Flashbang ($${cost} required).` };
+    }
+
+    if (attacker.money >= cost) {
+      attacker.money -= cost;
+    }
+
+    const lockUntil = Date.now() + 4000;
+    this.state.players.forEach(p => {
+      if (p.id !== attackerId && (!targetId || targetId === 'all' || p.id === targetId)) {
+        p.flashbangedUntil = lockUntil;
+        p.flashbangedBy = attacker.name;
+      }
+    });
+
+    this.notifyState();
+    return { success: true };
+  }
+
+  public useHealingPotion(playerId: string, heroId?: string): { success: boolean; error?: string } {
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player) return { success: false, error: 'Player not found.' };
+
+    const isPotionItem = (item?: any) => {
+      if (!item) return false;
+      const id = (typeof item === 'string' ? item : item.id || '').toLowerCase();
+      const name = (typeof item === 'object' && item.name ? item.name : '').toLowerCase();
+      return (
+        ['art-heal-01', 'art-heal-02', 'art-heal-03', 'art-025', 'relic-health-potion'].includes(id) ||
+        id.includes('heal') ||
+        id.includes('potion') ||
+        id.includes('serum') ||
+        id.includes('elixir') ||
+        name.includes('heal') ||
+        name.includes('potion') ||
+        name.includes('serum') ||
+        name.includes('elixir')
+      );
+    };
+
+    // Check ownership in relics inventory, general inventory, or equipped on any hero
+    const ownedRelicPotion = player.relics ? player.relics.find(isPotionItem) : undefined;
+    const heroWithPotion = player.collection.find(c => isPotionItem(c.equippedArtifact));
+
+    if (!ownedRelicPotion && !heroWithPotion) {
+      return { success: false, error: 'Healing Potion not owned in inventory.' };
+    }
+
+    const hero = heroId 
+      ? player.collection.find(c => c.id === heroId)
+      : player.collection.find(c => (c.currentHp ?? 100) < (c.maxHp ?? 100) && (c.currentHp ?? 100) > 0) || player.collection[0];
+
+    if (!hero) return { success: false, error: 'No valid hero to heal.' };
+
+    const currentHp = hero.currentHp ?? 100;
+    const maxHp = hero.maxHp ?? 100;
+    hero.currentHp = Math.min(maxHp, currentHp + 40);
+
+    // Consume 1 potion from player's inventory or equipped slot
+    if (ownedRelicPotion && player.relics) {
+      const idx = player.relics.indexOf(ownedRelicPotion);
+      if (idx !== -1) player.relics.splice(idx, 1);
+    } else if (heroWithPotion) {
+      heroWithPotion.equippedArtifact = null;
+    }
+
+    this.notifyState();
+    return { success: true };
   }
 
   private startTimer() {
@@ -441,9 +630,43 @@ export class GameRoom {
         // Strict duplicate protection
         const alreadyOwned = winner.collection.some(c => c.id === char.id);
         if (!alreadyOwned) {
-          winner.money = Math.max(0, winner.money - finalBid);
+          let actualDeduction = finalBid;
+          const chaos = this.state.activeChaosEvent;
+
+          // 🛡️ Vibranium Rebate: 50% Cashback Refund
+          if (chaos && chaos.effectType === 'vibranium_rebate') {
+            actualDeduction = Math.max(0, finalBid - Math.floor(finalBid * 0.5));
+          }
+
+          // 🕸️ Web-Snare Tax
+          if (chaos && chaos.effectType === 'web_snare_tax' && winner.money >= 2) {
+            actualDeduction += 2;
+            char.stats.speed += 4;
+          }
+
+          // 📈 Premium Lot: +3 Permanent Power
+          if (chaos && chaos.effectType === 'expensive_round') {
+            char.overallPower += 3;
+          }
+
+          winner.money = Math.max(0, winner.money - actualDeduction);
           winner.collection.push(char);
           winner.stats.moneySpent += finalBid;
+
+          // 🎁 Dual Crate Bonus Drop: Add 1 bonus ally
+          if (chaos && chaos.effectType === 'double_auction' && this.state.availableCharacters.length > 0 && winner.collection.length < this.state.settings.characterLimit) {
+            const bonusChar = this.state.availableCharacters.shift();
+            if (bonusChar && !winner.collection.some(c => c.id === bonusChar.id)) {
+              winner.collection.push(bonusChar);
+              this.state.purchasedCharacters.push(bonusChar);
+            }
+          }
+
+          // 👑 Asgardian Bounty Cache: Free Healing Potion
+          if (chaos && chaos.effectType === 'god_tier_bounty') {
+            winner.relics = winner.relics || [];
+            winner.relics.push('relic-health-potion');
+          }
         }
 
         if (!this.state.purchasedCharacters.some(c => c.id === char.id)) {
@@ -478,21 +701,6 @@ export class GameRoom {
     }, 2000);
   }
 
-  public instantSkipLot() {
-    if (!this.state.auction.isActive) return;
-    this.stopTimer();
-    this.handleAuctionTimeExpired();
-  }
-
-  public concedeLot(playerId: string) {
-    if (!this.state.auction.isActive) return;
-    const highestBidderId = this.state.auction.highestBidderId;
-    if (highestBidderId && highestBidderId !== playerId) {
-      this.stopTimer();
-      this.handleAuctionTimeExpired();
-    }
-  }
-
   public proceedToBattles() {
     // Guarantee every player has at least 1 hero to enter battle!
     this.state.players.forEach((p, idx) => {
@@ -519,6 +727,22 @@ export class GameRoom {
       player.money = updatedMoney;
       this.notifyState();
     }
+  }
+
+  public discardCharacter(playerId: string, characterId: string): { success: boolean; error?: string } {
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player) return { success: false, error: 'Player not found.' };
+
+    const initialCount = player.collection.length;
+    player.collection = player.collection.filter(c => c.id !== characterId);
+
+    if (player.collection.length === initialCount) {
+      return { success: false, error: 'Character not found in collection.' };
+    }
+
+    // Strictly $0 refund: player.money remains identical!
+    this.notifyState();
+    return { success: true };
   }
 
   // Interactive Battle Execution for current match
@@ -549,20 +773,32 @@ export class GameRoom {
     this.notifyState();
   }
 
-  // Interactive player tactical move execution with READY lock
+  public playMatch(matchId: string) {
+    this.playCurrentMatch(matchId);
+  }
+
+  // Interactive player tactical move execution with READY lock and strict authorization
   public executeBattleAction(
     playerId: string,
     action: BattleActionType,
-    fighterIndex?: number
-  ): { success: boolean; alreadyReady?: boolean } {
+    fighterIndex?: number,
+    skillId?: string
+  ): { success: boolean; error?: string; alreadyReady?: boolean } {
     const match = this.state.tournamentMatches.find(m => m.id === this.state.currentMatchId);
     if (!match || !match.player1 || !match.player2 || match.status === 'COMPLETED') {
-      return { success: false };
+      return { success: false, error: 'No active match in progress.' };
     }
 
     const isP1 = match.player1.id === playerId;
     const isP2 = match.player2.id === playerId;
-    if (!isP1 && !isP2) return { success: false };
+    if (!isP1 && !isP2) {
+      return { success: false, error: 'Unauthorized: Spectators cannot control fighters.' };
+    }
+
+    const player = isP1 ? match.player1 : match.player2;
+    if (player.flashbangedUntil && Date.now() < player.flashbangedUntil) {
+      return { success: false, error: 'FLASHBANGED: Actions locked for 4 seconds.' };
+    }
 
     // Idempotent check: if already locked and ready, ignore duplicate clicks
     if (isP1 && match.player1Ready && match.player1Action) {
@@ -570,6 +806,25 @@ export class GameRoom {
     }
     if (isP2 && match.player2Ready && match.player2Action) {
       return { success: true, alreadyReady: true };
+    }
+
+    // Validate fighter selection within owned collection
+    const currentHeroIdx = fighterIndex !== undefined 
+      ? fighterIndex 
+      : (isP1 ? (match.player1SelectedHeroIndex ?? 0) : (match.player2SelectedHeroIndex ?? 0));
+
+    const selectedHero = player.collection[currentHeroIdx] || player.collection[0];
+    if (!selectedHero) {
+      return { success: false, error: 'Selected hero not found in player inventory.' };
+    }
+
+    // Validate 1-time skill usage if using a signature skill
+    if (skillId) {
+      selectedHero.usedSkillIds = selectedHero.usedSkillIds || [];
+      if (selectedHero.usedSkillIds.includes(skillId)) {
+        return { success: false, error: 'Skill already used in this duel (1-time limit).' };
+      }
+      selectedHero.usedSkillIds.push(skillId);
     }
 
     if (isP1) {
@@ -632,7 +887,17 @@ export class GameRoom {
     const p1Action = match.player1Action || 'ATTACK';
     const p2Action = match.player2Action || 'ATTACK';
 
-    const roundResult = simulateRoundDuel(p1, p1Hero, p2, p2Hero, roundNumber, p1Action, p2Action);
+    const roundResult = simulateRoundDuel(
+      p1,
+      p1Hero,
+      p2,
+      p2Hero,
+      roundNumber,
+      p1Action,
+      p2Action,
+      match.player1SkillId,
+      match.player2SkillId
+    );
 
     // Synchronize HP changes back to hero objects
     p1Hero.currentHp = roundResult.player1HpRemaining;
@@ -645,6 +910,8 @@ export class GameRoom {
     // Reset pending action locks for the next turn
     match.player1Action = undefined;
     match.player2Action = undefined;
+    match.player1SkillId = undefined;
+    match.player2SkillId = undefined;
     match.player1Ready = p1.isBot ? true : false;
     match.player2Ready = p2.isBot ? true : false;
 
@@ -734,13 +1001,149 @@ export class GameRoom {
       iterations++;
       const p1Alive = match.player1.collection.some(c => (c.currentHp ?? 100) > 0);
       const p2Alive = match.player2.collection.some(c => (c.currentHp ?? 100) > 0);
-      if (!p1Alive || !p2Alive) break;
-
       match.player1Action = 'ATTACK';
       match.player2Action = 'ATTACK';
       this.resolveCurrentDuelClash(match);
     }
     return { success: true };
+  }
+
+  public isSpectator(playerId: string): boolean {
+    if (this.state.phase !== 'BATTLE_FIGHT' && this.state.phase !== 'BATTLE_SELECT') {
+      return false;
+    }
+    const currentMatch = this.state.tournamentMatches.find(m => m.id === this.state.currentMatchId);
+    if (!currentMatch) return false;
+    return currentMatch.player1?.id !== playerId && currentMatch.player2?.id !== playerId;
+  }
+
+  // 1. Spectator Chat (TODO-EXP-01)
+  public sendSpectatorChat(playerId: string, message: string): { success: boolean; error?: string } {
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player) return { success: false, error: 'PLAYER_NOT_FOUND' };
+    if (!message || !message.trim()) return { success: false, error: 'EMPTY_MESSAGE' };
+
+    const chatMsg: ChatMessage = {
+      id: `${Date.now()}-${playerId}`,
+      senderId: player.id,
+      senderName: player.name,
+      senderAvatar: player.avatar,
+      message: message.trim().slice(0, 200),
+      timestamp: Date.now(),
+      isSpectator: this.isSpectator(playerId),
+    };
+
+    if (!this.state.spectatorChat) {
+      this.state.spectatorChat = [];
+    }
+
+    this.state.spectatorChat.push(chatMsg);
+    if (this.state.spectatorChat.length > 100) {
+      this.state.spectatorChat = this.state.spectatorChat.slice(-100);
+    }
+
+    this.notifyState();
+    return { success: true };
+  }
+
+  // 2. Rematch Voting (TODO-EXP-03)
+  public voteRematch(playerId: string): { success: boolean; allVoted: boolean } {
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player) return { success: false, allVoted: false };
+
+    if (!this.state.rematchVotes) {
+      this.state.rematchVotes = [];
+    }
+
+    if (!this.state.rematchVotes.includes(playerId)) {
+      this.state.rematchVotes.push(playerId);
+    }
+
+    const humanPlayers = this.state.players.filter(p => !p.isBot && !p.isDisconnected);
+    const shouldReset = humanPlayers.length === 0 || humanPlayers.every(p => this.state.rematchVotes?.includes(p.id));
+
+    if (shouldReset) {
+      this.resetGame();
+      return { success: true, allVoted: true };
+    }
+
+    this.notifyState();
+    return { success: true, allVoted: false };
+  }
+
+  // 3. Host Match Settings (TODO-EXP-05)
+  public updateHostSettings(playerId: string, newSettings: Partial<GameSettings>): { success: boolean; error?: string } {
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player || !player.isHost) {
+      return { success: false, error: 'UNAUTHORIZED_NOT_HOST' };
+    }
+
+    this.state.settings = {
+      ...this.state.settings,
+      ...newSettings,
+    };
+    this.notifyState();
+    return { success: true };
+  }
+
+  // 4. Performance-Based Match MVP (TODO-EXP-07)
+  public calculateMatchMVP(): Player | null {
+    if (!this.state.players || this.state.players.length === 0) return null;
+
+    let bestScore = -1;
+    let mvpPlayer: Player | null = null;
+
+    for (const p of this.state.players) {
+      // Score factors: Battles Won (100 pts), Money Spent Efficiency, Squad Power
+      const squadPower = p.collection.reduce((sum, c) => sum + c.overallPower, 0);
+      const battlesScore = (p.stats?.battlesWon || 0) * 100;
+      const damageScore = (p.stats?.damageDealt || 0) * 2;
+      const efficiencyScore = Math.max(0, p.money * 5);
+      const totalScore = battlesScore + damageScore + squadPower + efficiencyScore;
+
+      if (totalScore > bestScore) {
+        bestScore = totalScore;
+        mvpPlayer = p;
+      }
+    }
+
+    return mvpPlayer;
+  }
+
+  // 5. Live Player Status Synchronization (TODO-EXP-02)
+  public syncPlayerStatuses() {
+    const currentMatch = this.state.tournamentMatches.find(m => m.id === this.state.currentMatchId);
+
+    this.state.players.forEach(p => {
+      if (p.isDisconnected) {
+        p.status = 'DISCONNECTED';
+        return;
+      }
+
+      if (this.state.phase === 'ONLINE_LOBBY') {
+        p.status = p.isReady ? 'READY' : 'ONLINE';
+      } else if (this.state.phase === 'AUCTION' || this.state.phase === 'AUCTION_REVEAL_MYTHIC') {
+        p.status = 'BIDDING';
+      } else if (this.state.phase === 'BATTLE_FIGHT' || this.state.phase === 'BATTLE_SELECT') {
+        if (currentMatch) {
+          const isFighter1 = currentMatch.player1?.id === p.id;
+          const isFighter2 = currentMatch.player2?.id === p.id;
+          if (isFighter1 || isFighter2) {
+            p.status = (isFighter1 ? currentMatch.player1Ready : currentMatch.player2Ready) ? 'READY' : 'CHOOSING';
+          } else {
+            // Check if player was eliminated from tournament
+            const isEliminated = this.state.tournamentMatches.some(
+              m => m.status === 'COMPLETED' && m.winner && m.winner.id !== p.id && (m.player1?.id === p.id || m.player2?.id === p.id)
+            );
+            p.status = isEliminated ? 'ELIMINATED' : 'SPECTATING';
+          }
+        } else {
+          p.status = 'WAITING';
+        }
+      } else {
+        p.status = 'ONLINE';
+      }
+    });
   }
 
   public resetGame() {
@@ -755,6 +1158,9 @@ export class GameRoom {
     this.state.champion = null;
     this.state.lastVotedCheckpoint = 0;
     this.state.queuedGrade = null;
+    this.state.rematchVotes = [];
+    this.state.spectatorChat = [];
+    this.state.activeChaosEvent = null;
     this.gradeVotes = {};
     this.state.players.forEach(p => {
       p.money = this.state.settings.startingMoney;
@@ -762,11 +1168,15 @@ export class GameRoom {
       p.isReady = p.isBot;
       p.stats = { battlesWon: 0, moneySpent: 0, highestBid: 0 };
     });
+    this.syncPlayerStatuses();
     this.notifyState();
   }
 
-  private notifyState() {
-    this.onStateChange({ ...this.state });
+  public notifyState() {
+    this.syncPlayerStatuses();
+    if (this.onStateChange) {
+      this.onStateChange({ ...this.state });
+    }
   }
 }
 

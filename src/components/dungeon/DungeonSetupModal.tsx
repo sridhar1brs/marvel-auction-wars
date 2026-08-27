@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { DungeonSettings } from '../../types/dungeon';
 import { DEFAULT_DUNGEON_SETTINGS } from '../../engine/dungeonEngine';
-import { Swords, Flame, Sparkles, Shield, ArrowRight, ArrowLeft, Sliders, Play, RotateCcw } from 'lucide-react';
+import { Swords, Flame, Sparkles, Shield, ArrowRight, ArrowLeft, Sliders, Play, RotateCcw, Users, User } from 'lucide-react';
 import { soundManager } from '../../audio/soundManager';
 
 interface Props {
@@ -10,6 +10,9 @@ interface Props {
 }
 
 export function DungeonSetupModal({ onStartDungeon, onBack }: Props) {
+  const [gameplayMode, setGameplayMode] = useState<'solo' | 'same_device'>('solo');
+  const [playerCount, setPlayerCount] = useState<number>(2);
+  const [playerNames, setPlayerNames] = useState<string[]>(['Player 1', 'Player 2', 'Player 3', 'Player 4']);
   const [totalWaves, setTotalWaves] = useState<number>(3);
   const [rerollFrequency, setRerollFrequency] = useState<number>(1);
   const [gradeCMax, setGradeCMax] = useState<number>(15);
@@ -18,8 +21,19 @@ export function DungeonSetupModal({ onStartDungeon, onBack }: Props) {
   const [cosmicStart, setCosmicStart] = useState<number>(41);
   const [startingPotions, setStartingPotions] = useState<number>(3);
 
+  const handleNameChange = (index: number, name: string) => {
+    const updated = [...playerNames];
+    updated[index] = name;
+    setPlayerNames(updated);
+  };
+
   const handleStart = () => {
     soundManager.playClick();
+    const effectiveCount = gameplayMode === 'solo' ? 1 : playerCount;
+    const effectiveNames = gameplayMode === 'solo' 
+      ? [playerNames[0] || 'Solo Explorer'] 
+      : playerNames.slice(0, effectiveCount).map((name, i) => name.trim() || `Player ${i + 1}`);
+
     onStartDungeon({
       totalWaves,
       rerollFrequency,
@@ -29,20 +43,23 @@ export function DungeonSetupModal({ onStartDungeon, onBack }: Props) {
         gradeAMax,
         cosmicStart
       },
-      startingHealingPotions: startingPotions
+      startingHealingPotions: startingPotions,
+      gameplayMode,
+      playerCount: effectiveCount,
+      playerNames: effectiveNames
     });
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-8 animate-fadeIn">
+    <div className="w-full max-w-4xl mx-auto px-4 py-8 animate-fadeIn space-y-6">
       {/* Header Bar */}
-      <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-[#1C1508] via-[#2A1D0B] to-[#120D04] p-5 rounded-3xl border border-amber-500/50 shadow-[0_0_30px_rgba(245,158,11,0.2)] mb-6">
+      <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-[#1C1508] via-[#2A1D0B] to-[#120D04] p-5 rounded-3xl border border-amber-500/50 shadow-[0_0_30px_rgba(245,158,11,0.2)]">
         <button
           onClick={() => {
             soundManager.playClick();
             onBack();
           }}
-          className="px-4 py-2 bg-black/60 hover:bg-stone-800 text-amber-300 hover:text-amber-200 rounded-xl border border-amber-500/40 transition-all flex items-center gap-2 text-xs font-black uppercase"
+          className="px-4 py-2 bg-black/60 hover:bg-stone-800 text-amber-300 hover:text-amber-200 rounded-xl border border-amber-500/40 transition-all flex items-center gap-2 text-xs font-black uppercase cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4 text-amber-400" />
           <span>Exit to Menu</span>
@@ -59,6 +76,111 @@ export function DungeonSetupModal({ onStartDungeon, onBack }: Props) {
         </div>
 
         <div className="w-20 shrink-0" />
+      </div>
+
+      {/* Mode Selector: Solo vs Same Device Co-op */}
+      <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-amber-500/30 bg-[#0C0E14]/90 space-y-4">
+        <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+          <Users className="w-5 h-5 text-amber-400" />
+          <h2 className="text-base sm:text-lg font-heading font-black text-white uppercase tracking-wide">
+            DUNGEON MULTIPLAYER MODE
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Solo Option */}
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playClick();
+              setGameplayMode('solo');
+            }}
+            className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+              gameplayMode === 'solo'
+                ? 'bg-amber-950/80 border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.4)]'
+                : 'bg-black/40 border-white/10 hover:bg-slate-900/60'
+            }`}
+          >
+            <div className="flex items-center gap-2.5 mb-1.5">
+              <User className="w-5 h-5 text-amber-400" />
+              <span className="font-heading font-black text-white text-base">SOLO EXPLORER</span>
+            </div>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              1 Player. Summon a single hero and test your tactical endurance solo against all dungeon waves.
+            </p>
+          </button>
+
+          {/* Same-Device Multiplayer Option */}
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playClick();
+              setGameplayMode('same_device');
+            }}
+            className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+              gameplayMode === 'same_device'
+                ? 'bg-amber-950/80 border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.4)]'
+                : 'bg-black/40 border-white/10 hover:bg-slate-900/60'
+            }`}
+          >
+            <div className="flex items-center gap-2.5 mb-1.5">
+              <Users className="w-5 h-5 text-amber-400" />
+              <span className="font-heading font-black text-white text-base">SAME-DEVICE MULTIPLAYER</span>
+            </div>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              2 to 4 Players on 1 Screen. Each player randomizes their own hero and takes turns attacking the boss!
+            </p>
+          </button>
+        </div>
+
+        {/* Player Count & Names for Same-Device Mode */}
+        {gameplayMode === 'same_device' && (
+          <div className="pt-3 border-t border-white/10 space-y-3 animate-fadeIn">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-black text-amber-300 uppercase tracking-wide">
+                Number of Local Players:
+              </label>
+              <div className="flex items-center gap-2">
+                {[2, 3, 4].map(count => (
+                  <button
+                    key={count}
+                    type="button"
+                    onClick={() => {
+                      soundManager.playClick();
+                      setPlayerCount(count);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all border cursor-pointer ${
+                      playerCount === count
+                        ? 'bg-amber-500 text-black border-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
+                        : 'bg-black/50 text-slate-300 border-white/10 hover:border-amber-500/40'
+                    }`}
+                  >
+                    {count} PLAYERS
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Player Name Inputs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
+              {Array.from({ length: playerCount }).map((_, idx) => (
+                <div key={idx} className="flex items-center gap-2 bg-black/60 p-2.5 rounded-xl border border-white/10">
+                  <span className="w-6 h-6 rounded-lg bg-amber-950 text-amber-300 font-mono text-xs font-black flex items-center justify-center shrink-0 border border-amber-500/30">
+                    P{idx + 1}
+                  </span>
+                  <input
+                    type="text"
+                    maxLength={16}
+                    value={playerNames[idx] || `Player ${idx + 1}`}
+                    onChange={e => handleNameChange(idx, e.target.value)}
+                    className="w-full bg-transparent text-xs text-white font-bold outline-none placeholder-slate-500"
+                    placeholder={`Player ${idx + 1} Name`}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Main Grid: Wave Setup & Milestone Customizer */}
@@ -101,7 +223,7 @@ export function DungeonSetupModal({ onStartDungeon, onBack }: Props) {
                   key={preset}
                   type="button"
                   onClick={() => setTotalWaves(preset)}
-                  className={`py-1.5 rounded-lg text-xs font-black transition-all border ${
+                  className={`py-1.5 rounded-lg text-xs font-black transition-all border cursor-pointer ${
                     totalWaves === preset
                       ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
                       : 'bg-black/40 text-slate-300 border-white/10 hover:border-amber-500/40'
@@ -131,7 +253,7 @@ export function DungeonSetupModal({ onStartDungeon, onBack }: Props) {
                   key={freq}
                   type="button"
                   onClick={() => setRerollFrequency(freq)}
-                  className={`py-2 rounded-xl text-xs font-black transition-all border flex flex-col items-center justify-center ${
+                  className={`py-2 rounded-xl text-xs font-black transition-all border flex flex-col items-center justify-center cursor-pointer ${
                     rerollFrequency === freq
                       ? 'bg-cyan-500 text-black border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)]'
                       : 'bg-black/40 text-slate-300 border-white/10 hover:border-cyan-500/40'
@@ -148,35 +270,35 @@ export function DungeonSetupModal({ onStartDungeon, onBack }: Props) {
           <div className="space-y-2 pt-2 border-t border-white/10">
             <div className="flex items-center justify-between">
               <label className="text-xs font-black text-emerald-300 uppercase tracking-wide flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                <Shield className="w-3.5 h-3.5 text-emerald-400" />
                 Starting Healing Potions:
               </label>
               <span className="text-xs font-black text-emerald-300 bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-0.5 rounded-lg">
-                {startingPotions} Potions (+40 HP each)
+                {startingPotions} Potions (+45 HP each)
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
-              {[1, 3, 5, 8].map(cnt => (
+            <div className="grid grid-cols-4 gap-2">
+              {[1, 3, 5, 10].map(p => (
                 <button
-                  key={cnt}
+                  key={p}
                   type="button"
-                  onClick={() => setStartingPotions(cnt)}
-                  className={`flex-1 py-1.5 rounded-xl text-xs font-black transition-all border ${
-                    startingPotions === cnt
-                      ? 'bg-emerald-500 text-black border-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.4)]'
+                  onClick={() => setStartingPotions(p)}
+                  className={`py-2 rounded-xl text-xs font-black transition-all border cursor-pointer ${
+                    startingPotions === p
+                      ? 'bg-emerald-500 text-black border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)]'
                       : 'bg-black/40 text-slate-300 border-white/10 hover:border-emerald-500/40'
                   }`}
                 >
-                  🧪 {cnt}
+                  {p} POTIONS
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Right Column: Grade Milestone Customizer */}
-        <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-purple-500/30 bg-[#0C0E14]/90 space-y-4">
+        {/* Right Column: Milestone Configuration */}
+        <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-amber-500/30 bg-[#0C0E14]/90 space-y-4">
           <div className="flex items-center gap-2 border-b border-white/10 pb-3">
             <Shield className="w-5 h-5 text-purple-400" />
             <div>
@@ -270,7 +392,7 @@ export function DungeonSetupModal({ onStartDungeon, onBack }: Props) {
       <div className="mt-8 text-center">
         <button
           onClick={handleStart}
-          className="group px-10 py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-red-600 to-amber-500 hover:from-amber-400 hover:to-red-500 text-white font-heading font-black text-lg sm:text-xl uppercase tracking-widest shadow-[0_0_35px_rgba(245,158,11,0.5)] transform hover:scale-105 transition-all inline-flex items-center gap-3"
+          className="group px-10 py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-red-600 to-amber-500 hover:from-amber-400 hover:to-red-500 text-white font-heading font-black text-lg sm:text-xl uppercase tracking-widest shadow-[0_0_35px_rgba(245,158,11,0.5)] transform hover:scale-105 transition-all inline-flex items-center gap-3 cursor-pointer"
         >
           <Swords className="w-6 h-6 text-amber-200 group-hover:rotate-12 transition-transform" />
           <span>ENTER ANCIENT RUINS DUNGEON</span>

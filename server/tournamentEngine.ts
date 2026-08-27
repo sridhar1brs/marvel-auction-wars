@@ -282,6 +282,16 @@ export function advanceTournamentMatches(matches: TournamentMatch[]): {
   const updated = [...matches];
   let champion: Player | null = null;
 
+  // Helper to fully restore player collection HP (TODO-036)
+  const fullHealPlayer = (player: Player | null) => {
+    if (!player) return;
+    player.collection.forEach(c => {
+      c.currentHp = c.maxHp || 100;
+      c.isFainted = false;
+      c.usedSkillIds = [];
+    });
+  };
+
   const r16Matches = updated.filter(m => m.roundName === 'Round of 16');
   const qfMatches = updated.filter(m => m.roundName === 'Quarterfinals');
   const semiMatches = updated.filter(m => m.roundName === 'Semifinals');
@@ -292,8 +302,14 @@ export function advanceTournamentMatches(matches: TournamentMatch[]): {
     for (let i = 0; i < 4; i++) {
       const m1 = r16Matches[i * 2];
       const m2 = r16Matches[i * 2 + 1];
-      if (m1?.winner) qfMatches[i].player1 = m1.winner;
-      if (m2?.winner) qfMatches[i].player2 = m2.winner;
+      if (m1?.winner) {
+        fullHealPlayer(m1.winner);
+        qfMatches[i].player1 = m1.winner;
+      }
+      if (m2?.winner) {
+        fullHealPlayer(m2.winner);
+        qfMatches[i].player2 = m2.winner;
+      }
       if (qfMatches[i].player1 && qfMatches[i].player2 && qfMatches[i].status === 'PENDING') {
         qfMatches[i].status = 'READY';
       }
@@ -302,14 +318,26 @@ export function advanceTournamentMatches(matches: TournamentMatch[]): {
 
   // Check QF -> Semis advancement
   if (qfMatches.length > 0 && semiMatches.length > 0) {
-    if (qfMatches[0].winner) semiMatches[0].player1 = qfMatches[0].winner;
-    if (qfMatches[1].winner) semiMatches[0].player2 = qfMatches[1].winner;
+    if (qfMatches[0].winner) {
+      fullHealPlayer(qfMatches[0].winner);
+      semiMatches[0].player1 = qfMatches[0].winner;
+    }
+    if (qfMatches[1].winner) {
+      fullHealPlayer(qfMatches[1].winner);
+      semiMatches[0].player2 = qfMatches[1].winner;
+    }
     if (semiMatches[0].player1 && semiMatches[0].player2 && semiMatches[0].status === 'PENDING') {
       semiMatches[0].status = 'READY';
     }
 
-    if (qfMatches[2].winner) semiMatches[1].player1 = qfMatches[2].winner;
-    if (qfMatches[3].winner) semiMatches[1].player2 = qfMatches[3].winner;
+    if (qfMatches[2].winner) {
+      fullHealPlayer(qfMatches[2].winner);
+      semiMatches[1].player1 = qfMatches[2].winner;
+    }
+    if (qfMatches[3].winner) {
+      fullHealPlayer(qfMatches[3].winner);
+      semiMatches[1].player2 = qfMatches[3].winner;
+    }
     if (semiMatches[1].player1 && semiMatches[1].player2 && semiMatches[1].status === 'PENDING') {
       semiMatches[1].status = 'READY';
     }
@@ -317,8 +345,14 @@ export function advanceTournamentMatches(matches: TournamentMatch[]): {
 
   // Check Semis -> Final advancement
   if (semiMatches.length > 0 && finalMatch) {
-    if (semiMatches[0].winner) finalMatch.player1 = semiMatches[0].winner;
-    if (semiMatches[1].winner) finalMatch.player2 = semiMatches[1].winner;
+    if (semiMatches[0].winner) {
+      fullHealPlayer(semiMatches[0].winner);
+      finalMatch.player1 = semiMatches[0].winner;
+    }
+    if (semiMatches[1].winner) {
+      fullHealPlayer(semiMatches[1].winner);
+      finalMatch.player2 = semiMatches[1].winner;
+    }
     if (finalMatch.player1 && finalMatch.player2 && finalMatch.status === 'PENDING') {
       finalMatch.status = 'READY';
     }
@@ -326,6 +360,7 @@ export function advanceTournamentMatches(matches: TournamentMatch[]): {
 
   // Check Final -> Champion
   if (finalMatch && finalMatch.winner) {
+    fullHealPlayer(finalMatch.winner);
     champion = finalMatch.winner;
   }
 

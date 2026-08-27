@@ -24,11 +24,17 @@ export function useSocket() {
 
     socket.on('connect', () => {
       setIsConnected(true);
-      setLastError(null);
+      console.log('[Socket] Connected to server:', socket.id);
+
+      const token = localStorage.getItem('mcu_auth_token');
+      if (token) {
+        socket.emit('authenticate_socket', { token });
+      }
     });
 
     socket.on('disconnect', () => {
       setIsConnected(false);
+      console.log('[Socket] Disconnected');
     });
 
     socket.on('connect_error', (err) => {
@@ -48,7 +54,8 @@ export function useSocket() {
   const createRoom = (playerName: string, avatar: string): Promise<{ success: boolean; roomId?: string; error?: string }> => {
     return new Promise((resolve) => {
       if (!socketRef.current) return resolve({ success: false, error: 'Socket not initialized' });
-      socketRef.current.emit('create_room', { playerName, avatar }, (res: { success: boolean; roomId?: string; state?: GameState; error?: string }) => {
+      const authToken = localStorage.getItem('mcu_auth_token') || undefined;
+      socketRef.current.emit('create_room', { playerName, avatar, authToken }, (res: { success: boolean; roomId?: string; state?: GameState; error?: string }) => {
         if (res.success && res.state) {
           setOnlineState(res.state);
         }
@@ -64,7 +71,8 @@ export function useSocket() {
     }
     return new Promise((resolve) => {
       if (!socketRef.current) return resolve({ success: false, error: 'Socket not initialized' });
-      socketRef.current.emit('join_room', { roomId: normalizedCode, playerName, avatar }, (res: { success: boolean; state?: GameState; error?: string }) => {
+      const authToken = localStorage.getItem('mcu_auth_token') || undefined;
+      socketRef.current.emit('join_room', { roomId: normalizedCode, playerName, avatar, authToken }, (res: { success: boolean; state?: GameState; error?: string }) => {
         if (res.success && res.state) {
           setOnlineState(res.state);
         } else if (res.error) {
@@ -152,9 +160,25 @@ export function useSocket() {
     socketRef.current?.emit('play_match', { matchId });
   };
 
-  const executeBattleAction = (action: any, fighterIndex?: number): Promise<{ success: boolean; error?: string }> => {
+  const executeBattleAction = (action: any, fighterIndex?: number, skillId?: string): Promise<{ success: boolean; error?: string }> => {
     return new Promise((resolve) => {
-      socketRef.current?.emit('execute_battle_action', { action, fighterIndex }, (res: { success: boolean; error?: string }) => {
+      socketRef.current?.emit('execute_battle_action', { action, fighterIndex, skillId }, (res: { success: boolean; error?: string }) => {
+        resolve(res || { success: true });
+      });
+    });
+  };
+
+  const triggerFlashbang = (targetId: string): Promise<{ success: boolean; error?: string }> => {
+    return new Promise((resolve) => {
+      socketRef.current?.emit('trigger_flashbang', { targetId }, (res: { success: boolean; error?: string }) => {
+        resolve(res || { success: true });
+      });
+    });
+  };
+
+  const useHealingPotion = (heroId?: string): Promise<{ success: boolean; error?: string }> => {
+    return new Promise((resolve) => {
+      socketRef.current?.emit('use_healing_potion', { heroId }, (res: { success: boolean; error?: string }) => {
         resolve(res || { success: true });
       });
     });
@@ -166,6 +190,22 @@ export function useSocket() {
 
   const proceedToBattles = () => {
     socketRef.current?.emit('proceed_to_battles');
+  };
+
+  const sendSpectatorChat = (message: string) => {
+    socketRef.current?.emit('send_spectator_chat', { message });
+  };
+
+  const voteRematch = () => {
+    socketRef.current?.emit('vote_rematch');
+  };
+
+  const updateHostSettings = (settings: Partial<GameSettings>) => {
+    socketRef.current?.emit('update_host_settings', { settings });
+  };
+
+  const discardCharacter = (playerId: string, characterId: string) => {
+    socketRef.current?.emit('discard_character', { playerId, characterId });
   };
 
   const restartGame = () => {
@@ -188,14 +228,20 @@ export function useSocket() {
     voteSkip,
     instantSkipAuction,
     concedeAuction,
+    triggerFlashbang,
+    useHealingPotion,
     submitGradeVote,
     playMatch,
     concedeMatch,
     skipMatch,
     executeBattleAction,
     updateCollection,
+    discardCharacter,
     proceedToBattles,
     restartGame,
+    sendSpectatorChat,
+    voteRematch,
+    updateHostSettings,
   };
 }
 

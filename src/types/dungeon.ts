@@ -10,6 +10,9 @@ export interface DungeonSettings {
     cosmicStart: number;
   };
   startingHealingPotions: number;
+  gameplayMode: 'solo' | 'same_device';
+  playerCount: number; // 1 to 4
+  playerNames: string[];
 }
 
 export type DungeonPhase = 
@@ -31,11 +34,25 @@ export interface DungeonCombatLog {
   message: string;
 }
 
+export interface DungeonPlayer {
+  id: string;
+  name: string;
+  avatar: string;
+  hero: Character | null;
+  hp: number;
+  maxHp: number;
+  usedSkillIds: string[];
+  isAlive: boolean;
+  hasRandomized?: boolean;
+}
+
 export interface DungeonState {
   settings: DungeonSettings;
   phase: DungeonPhase;
   currentWave: number;
-  playerHero: Character | null;
+  players: DungeonPlayer[];
+  activePlayerIndex: number;
+  playerHero: Character | null; // Compatibility with single-player view
   enemyHero: Character | null;
   playerHp: number;
   playerMaxHp: number;

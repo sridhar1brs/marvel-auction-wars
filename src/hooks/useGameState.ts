@@ -16,6 +16,7 @@ import { voiceManager } from '../audio/voiceManager';
 import { validateBid, validateSkipVote, calculateBotBid } from '../../server/auctionEngine';
 import { generateTournamentBracket, advanceTournamentMatches } from '../../server/tournamentEngine';
 import { simulateRoundDuel, getTierMatchedPairings } from '../../server/battleEngine';
+import { getRandomChaosEvent } from '../data/chaosEvents';
 import { useSocket } from './useSocket';
 
 const DEFAULT_SETTINGS: GameSettings = {
@@ -298,7 +299,24 @@ export function useGameState() {
         soundManager.playAbilityTrigger();
       }
 
-      // The queued grade applies to THIS NEXT ROUND ONLY, and is cleared immediately
+      // 🎲 CHAOS AUCTION GAME MODE (20 MULTIVERSE RULES)
+      let activeChaosEvent = null;
+      if (prev.settings.gameMode === 'chaos_auction') {
+        activeChaosEvent = getRandomChaosEvent();
+        if (activeChaosEvent.effectType === 'cheap_round') {
+          nextChar.startingPrice = Math.max(2, nextChar.startingPrice - 4);
+        } else if (activeChaosEvent.effectType === 'expensive_round') {
+          nextChar.startingPrice += 5;
+        } else if (activeChaosEvent.effectType === 'deadpool_chaos') {
+          nextChar.startingPrice = 1;
+        } else if (activeChaosEvent.effectType === 'super_soldier_serum') {
+          nextChar.maxHp = 130;
+          nextChar.currentHp = 130;
+        } else if (activeChaosEvent.effectType === 'random_grade') {
+          nextChar.overallPower += 5;
+        }
+      }
+
       const nextQueuedGrade = null;
 
       return {
@@ -306,13 +324,14 @@ export function useGameState() {
         availableCharacters: available,
         skippedCharacters: skipped,
         queuedGrade: nextQueuedGrade,
+        activeChaosEvent,
         phase: (isMythic && !isBlindMode) ? 'AUCTION_REVEAL_MYTHIC' : 'AUCTION',
         auction: {
           currentCharacter: nextChar,
           currentBid: 0,
           highestBidderId: null,
           highestBidderName: null,
-          timeRemaining: prev.settings.auctionTimerSeconds,
+          timeRemaining: (activeChaosEvent && activeChaosEvent.effectType === 'speed_auction') ? 5 : prev.settings.auctionTimerSeconds,
           isActive: true,
           bidsHistory: [],
           skipVotes: [],
@@ -350,10 +369,43 @@ export function useGameState() {
           const alreadyOwned = p.collection.some(c => c.id === char.id);
           if (alreadyOwned) return p;
 
+          let actualDeduction = finalBid;
+          const chaos = prev.activeChaosEvent;
+
+          // 🛡️ Vibranium Rebate: 50% Cashback Refund
+          if (chaos && chaos.effectType === 'vibranium_rebate') {
+            actualDeduction = Math.max(0, finalBid - Math.floor(finalBid * 0.5));
+          }
+
+          // 🕸️ Web-Snare Tax
+          if (chaos && chaos.effectType === 'web_snare_tax' && p.money >= 2) {
+            actualDeduction += 2;
+            char.stats.speed += 4;
+          }
+
+          // 📈 Premium Lot: +3 Permanent Power
+          if (chaos && chaos.effectType === 'expensive_round') {
+            char.overallPower += 3;
+          }
+
+          const newCollection = [...p.collection, char];
+
+          // 🎁 Dual Crate Bonus Drop: Add 1 bonus ally
+          if (chaos && chaos.effectType === 'double_auction' && prev.availableCharacters.length > 0 && newCollection.length < prev.settings.characterLimit) {
+            const bonusChar = prev.availableCharacters[0];
+            if (bonusChar && !newCollection.some(c => c.id === bonusChar.id)) {
+              newCollection.push(bonusChar);
+              if (!updatedPurchased.some(c => c.id === bonusChar.id)) {
+                updatedPurchased.push(bonusChar);
+              }
+            }
+          }
+
           return {
             ...p,
-            money: Math.max(0, p.money - finalBid),
-            collection: [...p.collection, char],
+            money: Math.max(0, p.money - actualDeduction),
+            collection: newCollection,
+            relics: (chaos && chaos.effectType === 'god_tier_bounty') ? [...(p.relics || []), 'relic-health-potion'] : p.relics,
             stats: {
               ...p.stats,
               moneySpent: p.stats.moneySpent + finalBid,
@@ -508,9 +560,13 @@ export function useGameState() {
   };
 
   const updateLocalSettings = (settings: Partial<GameSettings>) => {
+    const validated = { ...settings };
+    if (validated.startingMoney !== undefined) {
+      validated.startingMoney = Math.min(1000, Math.max(10, Number(validated.startingMoney) || 10));
+    }
     setLocalState(prev => ({
       ...prev,
-      settings: { ...prev.settings, ...settings },
+      settings: { ...prev.settings, ...validated },
     }));
   };
 
@@ -704,7 +760,9 @@ export function useGameState() {
     action1: BattleActionType,
     action2: BattleActionType,
     selectedHero1Index: number = 0,
-    selectedHero2Index: number = 0
+    selectedHero2Index: number = 0,
+    p1SkillId?: string,
+    p2SkillId?: string
   ) => {
     if (isOnlineMode) {
       const matches = socketHook.onlineState?.tournamentMatches || [];
@@ -713,7 +771,8 @@ export function useGameState() {
       const isP1 = match.player1.id === socketHook.socket?.id;
       const myAction = isP1 ? action1 : action2;
       const myHeroIdx = isP1 ? selectedHero1Index : selectedHero2Index;
-      socketHook.executeBattleAction(myAction, myHeroIdx);
+      const mySkillId = isP1 ? p1SkillId : p2SkillId;
+      socketHook.executeBattleAction(myAction, myHeroIdx, mySkillId);
       return;
     }
 
@@ -731,7 +790,9 @@ export function useGameState() {
       p2Char,
       currentRoundNum,
       action1,
-      action2
+      action2,
+      p1SkillId,
+      p2SkillId
     );
 
     match.rounds.push(result);
@@ -782,6 +843,25 @@ export function useGameState() {
       ...prev,
       tournamentMatches: [...prev.tournamentMatches],
     }));
+  };
+
+  const triggerFlashbang = async (targetId: string) => {
+    if (isOnlineMode) {
+      return await socketHook.triggerFlashbang(targetId);
+    }
+    const target = localState.players.find(p => p.id === targetId);
+    if (!target) return { success: false, error: 'Target not found' };
+    target.flashbangedUntil = Date.now() + 4000;
+    target.flashbangedBy = 'Local Opponent';
+    setLocalState(prev => ({ ...prev, players: [...prev.players] }));
+    return { success: true };
+  };
+
+  const useHealingPotion = async (heroId?: string) => {
+    if (isOnlineMode) {
+      return await socketHook.useHealingPotion(heroId);
+    }
+    return { success: true };
   };
 
   const concedeCurrentAuction = () => {
@@ -940,6 +1020,68 @@ export function useGameState() {
     }));
   };
 
+  const sendSpectatorChat = (message: string) => {
+    if (isOnlineMode) {
+      socketHook.sendSpectatorChat(message);
+    } else {
+      const activePlayer = localState.players[activePlayerTurnIndex] || localState.players[0];
+      const chatMsg = {
+        id: `${Date.now()}-local`,
+        senderId: activePlayer.id,
+        senderName: activePlayer.name,
+        senderAvatar: activePlayer.avatar,
+        message: message.trim().slice(0, 200),
+        timestamp: Date.now(),
+        isSpectator: false,
+      };
+      setLocalState(prev => ({
+        ...prev,
+        spectatorChat: [...(prev.spectatorChat || []), chatMsg].slice(-100),
+      }));
+    }
+  };
+
+  const discardCharacter = (playerId: string, characterId: string) => {
+    if (isOnlineMode) {
+      socketHook.discardCharacter(playerId, characterId);
+      return;
+    }
+
+    setLocalState(prev => {
+      const updatedPlayers = prev.players.map(p => {
+        if (p.id === playerId) {
+          return {
+            ...p,
+            collection: p.collection.filter(c => c.id !== characterId),
+            // Strictly $0 refund: p.money remains unchanged!
+          };
+        }
+        return p;
+      });
+
+      return {
+        ...prev,
+        players: updatedPlayers,
+      };
+    });
+  };
+
+  const voteRematch = () => {
+    if (isOnlineMode) {
+      socketHook.voteRematch();
+    } else {
+      restartGame();
+    }
+  };
+
+  const updateHostSettings = (settings: Partial<GameSettings>) => {
+    if (isOnlineMode) {
+      socketHook.updateHostSettings(settings);
+    } else {
+      updateLocalSettings(settings);
+    }
+  };
+
   return {
     state: currentState,
     isOnlineMode,
@@ -956,13 +1098,19 @@ export function useGameState() {
     voteSkip,
     instantSkipCurrentAuction,
     concedeCurrentAuction,
+    triggerFlashbang,
+    useHealingPotion,
     submitGradeVotes,
     executeBattleRoundAction,
     concedeCurrentMatch,
     skipCurrentMatch,
     playMatch,
+    discardCharacter,
     restartGame,
     updatePlayerCollection,
     proceedFromShopToBattles,
+    sendSpectatorChat,
+    voteRematch,
+    updateHostSettings,
   };
 }

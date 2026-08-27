@@ -21,11 +21,17 @@ import { DungeonSetupModal } from './components/dungeon/DungeonSetupModal';
 import { DungeonArena } from './components/dungeon/DungeonArena';
 import { DungeonSettings } from './types/dungeon';
 import { GeminiChatbot } from './components/common/GeminiChatbot';
+import { LevelUpModal } from './components/common/LevelUpModal';
+import { useAuth } from './context/AuthContext';
+import { SpectatorChatDrawer } from './components/battle/SpectatorChatDrawer';
+import { AscensionHub } from './components/ascension/AscensionHub';
+import { MatchLeaveConfirmModal } from './components/common/MatchLeaveConfirmModal';
 import { GamePhase } from './types/game';
 import { soundManager } from './audio/soundManager';
 import { Sparkles, Swords, Film } from 'lucide-react';
 
 export function App() {
+  const { isLevelUpOpen, levelUpData, closeLevelUpModal } = useAuth();
   const {
     state,
     isOnlineMode,
@@ -42,10 +48,18 @@ export function App() {
     concedeCurrentAuction,
     submitGradeVotes,
     executeBattleRoundAction,
+    concedeCurrentMatch,
+    skipCurrentMatch,
+    useHealingPotion,
+    triggerFlashbang,
     playMatch,
+    discardCharacter,
     restartGame,
     updatePlayerCollection,
     proceedFromShopToBattles,
+    sendSpectatorChat,
+    voteRematch,
+    updateHostSettings,
   } = useGameState();
 
   const [showBootIntro, setShowBootIntro] = useState(true);
@@ -53,9 +67,19 @@ export function App() {
   const [previousPhaseBeforeBrowse, setPreviousPhaseBeforeBrowse] = useState<GamePhase>('HOME');
   const [deviceView, setDeviceView] = useState<'pc' | 'phone'>('pc');
   const [dungeonSettings, setDungeonSettings] = useState<DungeonSettings | null>(null);
+  const [showLeaveConfirmModal, setShowLeaveConfirmModal] = useState(false);
+  const [pendingTargetPhase, setPendingTargetPhase] = useState<GamePhase | null>(null);
+
+  const isMatchInProgress = ['AUCTION', 'AUCTION_WINNER', 'BATTLE_SELECT', 'BATTLE_FIGHT', 'BATTLE_ROUND_RESULT', 'DUNGEON', 'BOSS_RAID'].includes(state.phase);
 
   const handleNavigate = (targetPhase: GamePhase) => {
     soundManager.playClick();
+    if (isMatchInProgress && targetPhase !== state.phase) {
+      setPendingTargetPhase(targetPhase);
+      setShowLeaveConfirmModal(true);
+      return;
+    }
+
     if (targetPhase === 'HOW_TO_PLAY') {
       setShowHowToPlay(true);
     } else if (targetPhase === 'ENCYCLOPEDIA') {
@@ -68,10 +92,32 @@ export function App() {
 
   const handleReturnHome = () => {
     soundManager.playClick();
+    if (isMatchInProgress) {
+      setPendingTargetPhase('HOME');
+      setShowLeaveConfirmModal(true);
+      return;
+    }
+
     if (isOnlineMode) {
       setIsOnlineMode(false);
     }
     setPhase('HOME');
+  };
+
+  const handleConfirmLeaveMatch = () => {
+    setShowLeaveConfirmModal(false);
+    if (isOnlineMode) {
+      setIsOnlineMode(false);
+    }
+    const target = pendingTargetPhase || 'HOME';
+    setPendingTargetPhase(null);
+    if (target === 'HOW_TO_PLAY') {
+      setShowHowToPlay(true);
+    } else if (target === 'ENCYCLOPEDIA') {
+      setPhase('ENCYCLOPEDIA');
+    } else {
+      setPhase(target);
+    }
   };
 
   return (
@@ -81,19 +127,33 @@ export function App() {
         <MarvelCinematicIntro onComplete={() => setShowBootIntro(false)} />
       )}
 
+      {/* Leave Match Confirmation Modal */}
+      {showLeaveConfirmModal && (
+        <MatchLeaveConfirmModal
+          isOpen={showLeaveConfirmModal}
+          onConfirmLeave={handleConfirmLeaveMatch}
+          onStay={() => {
+            setShowLeaveConfirmModal(false);
+            setPendingTargetPhase(null);
+          }}
+        />
+      )}
+
       {/* Scanline Comic Overlay */}
       <div className="fixed inset-0 scanlines pointer-events-none z-30" />
 
       {/* Navigation Header */}
-      <Navbar
-        phase={state.phase}
-        roomId={state.roomId}
-        isOnline={isOnlineMode}
-        onNavigate={handleNavigate}
-        onHomeClick={handleReturnHome}
-        deviceView={deviceView}
-        onToggleDeviceView={() => setDeviceView(prev => prev === 'pc' ? 'phone' : 'pc')}
-      />
+      {state.phase !== 'ASCENSION' && (
+        <Navbar
+          phase={state.phase}
+          roomId={state.roomId}
+          isOnline={isOnlineMode}
+          onNavigate={handleNavigate}
+          onHomeClick={handleReturnHome}
+          deviceView={deviceView}
+          onToggleDeviceView={() => setDeviceView(prev => prev === 'pc' ? 'phone' : 'pc')}
+        />
+      )}
 
       {/* Main Content Router */}
       <main className={`flex-1 relative z-20 transition-all duration-300 w-full overflow-x-hidden ${
@@ -101,12 +161,23 @@ export function App() {
           ? 'max-w-[430px] w-full mx-auto my-3 rounded-[36px] border-4 border-slate-700/80 shadow-[0_0_60px_rgba(0,0,0,0.95)] overflow-x-hidden bg-[#06080E] ring-1 ring-white/10'
           : 'w-full overflow-x-hidden'
       }`}>
+        {/* 0. ASCENSION FLAGSHIP HUB */}
+        {state.phase === 'ASCENSION' && (
+          <AscensionHub onBackToHome={() => setPhase('HOME')} />
+        )}
+
         {/* 1. HOME SCREEN */}
         {state.phase === 'HOME' && (
           <HomeScreen
+            onPlayAscension={() => setPhase('ASCENSION')}
             onPlayLocal={() => {
               setIsOnlineMode(false);
               updateLocalSettings({ gameMode: 'classic', auctionTimerSeconds: 15 });
+              setPhase('LOCAL_SETUP');
+            }}
+            onPlayChaosAuction={() => {
+              setIsOnlineMode(false);
+              updateLocalSettings({ gameMode: 'chaos_auction', auctionTimerSeconds: 15 });
               setPhase('LOCAL_SETUP');
             }}
             onPlayBlindBidding={() => {
@@ -182,6 +253,7 @@ export function App() {
             }}
             onCreateRoom={socketHook.createRoom}
             onJoinRoom={socketHook.joinRoom}
+            onSendMessage={sendSpectatorChat}
             isInRoom={!!socketHook.onlineState}
             error={socketHook.lastError}
           />
@@ -229,6 +301,8 @@ export function App() {
             onVoteSkip={voteSkip}
             onInstantSkip={instantSkipCurrentAuction}
             onConcede={concedeCurrentAuction}
+            onTriggerFlashbang={triggerFlashbang}
+            onDiscardCharacter={discardCharacter}
             onOpenRelicShop={() => {
               setPreviousPhaseBeforeBrowse(state.phase);
               setPhase('EQUIPMENT_SHOP');
@@ -267,6 +341,7 @@ export function App() {
           <EquipmentShop
             players={state.players}
             onUpdatePlayerCollection={updatePlayerCollection}
+            onDiscardCharacter={discardCharacter}
             onProceedToBattles={proceedFromShopToBattles}
             onBack={() => setPhase(previousPhaseBeforeBrowse || 'HOME')}
             isLocalMode={!isOnlineMode}
@@ -288,6 +363,8 @@ export function App() {
           <TournamentBracket
             state={state}
             onPlayMatch={playMatch}
+            isOnlineMode={isOnlineMode}
+            currentUserId={socketHook.socket?.id}
           />
         )}
 
@@ -297,6 +374,11 @@ export function App() {
             state={state}
             onReturnToTree={() => setPhase('TOURNAMENT_TREE')}
             onExecuteAction={executeBattleRoundAction}
+            onConcedeMatch={concedeCurrentMatch}
+            onSkipMatch={skipCurrentMatch}
+            onUseHealingPotion={useHealingPotion}
+            onTriggerFlashbang={triggerFlashbang}
+            onSendSpectatorChat={sendSpectatorChat}
             isOnlineMode={isOnlineMode}
             controllingPlayerId={socketHook.socket?.id}
           />
@@ -308,6 +390,7 @@ export function App() {
             champion={state.champion}
             state={state}
             onPlayAgain={restartGame}
+            onVoteRematch={voteRematch}
           />
         )}
 
@@ -351,6 +434,17 @@ export function App() {
         )}
       </main>
 
+      {/* Global Multiplayer Spectator Chat & Roster Hub (Accessible in all online phases except BATTLE_FIGHT where it is already integrated) */}
+      {(isOnlineMode || state.isOnline) && state.phase !== 'BATTLE_FIGHT' && (
+        <SpectatorChatDrawer
+          players={state.players}
+          messages={state.spectatorChat || []}
+          currentUserId={socketHook.socket?.id}
+          isSpectator={!state.players.some(p => p.id === socketHook.socket?.id && !p.isBot && p.status !== 'SPECTATING')}
+          onSendMessage={sendSpectatorChat}
+        />
+      )}
+
       {/* How to Play Modal */}
       {showHowToPlay && (
         <HowToPlayModal onClose={() => setShowHowToPlay(false)} />
@@ -358,6 +452,17 @@ export function App() {
 
       {/* Global J.A.R.V.I.S. AI Tactical Assistant */}
       <GeminiChatbot state={state} />
+
+      {/* Global Level-Up Promotion Modal */}
+      {isLevelUpOpen && levelUpData && (
+        <LevelUpModal
+          isOpen={isLevelUpOpen}
+          onClose={closeLevelUpModal}
+          oldLevel={levelUpData.oldLevel}
+          newLevel={levelUpData.newLevel}
+          username={levelUpData.user.displayName || levelUpData.user.username}
+        />
+      )}
     </div>
   );
 }

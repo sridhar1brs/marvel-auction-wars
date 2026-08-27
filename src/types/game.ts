@@ -24,9 +24,12 @@ export interface ArtifactItem {
   id: string;
   name: string;
   cost: number;
+  astraCost?: number;
+  rarity?: 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY' | 'MYTHIC';
   icon: string;
   description: string;
   bonusPower?: number;
+  statModifiers?: { power?: number; hp?: number; defense?: number; speed?: number };
   effectType: 
     | 'double_roll' 
     | 'shield_negate' 
@@ -89,14 +92,16 @@ export interface Character {
   overallPower: number;  // 50-99 scale
   equippedArtifact?: ArtifactItem | null;
   equippedSkills?: any[];
+  usedSkillIds?: string[]; // Authoritative tracking of 1-time signature skills used in combat
   currentHp?: number;    // Default 100
   maxHp?: number;        // Default 100
   isFainted?: boolean;
+  lastStandActive?: boolean; // Comeback mechanic: activated when HP <= 25%
   bounty?: BountyReward;
 }
 
 export type BotPersonality = 'Aggressive' | 'Value' | 'Cosmic' | 'Balanced';
-export type GameMode = 'classic' | 'blind_bidding' | 'boss_raid' | 'blitz';
+export type GameMode = 'classic' | 'blind_bidding' | 'boss_raid' | 'blitz' | 'chaos_auction';
 export type ArenaBackgroundId = 'wakanda' | 'asgard' | 'quantum' | 'avengers' | 'knowhere';
 
 export interface BossRaidState {
@@ -113,15 +118,144 @@ export interface BossRaidState {
   isTeamWiped: boolean;
 }
 
+export type PlayerStatus = 
+  | 'ONLINE' 
+  | 'CHOOSING' 
+  | 'READY' 
+  | 'IN_BATTLE' 
+  | 'SPECTATING' 
+  | 'BIDDING' 
+  | 'WAITING' 
+  | 'DISCONNECTED' 
+  | 'ELIMINATED';
+
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar: string;
+  message: string;
+  timestamp: number;
+  isSpectator?: boolean;
+}
+
+export type ChaosEffectType = 
+  | 'double_money' 
+  | 'expensive_round' 
+  | 'cheap_round' 
+  | 'hidden_character' 
+  | 'speed_auction' 
+  | 'no_skip' 
+  | 'double_auction' 
+  | 'random_grade' 
+  | 'market_chaos'
+  | 'vibranium_rebate'
+  | 'overdrive_clash'
+  | 'quantum_reroll'
+  | 'god_tier_bounty'
+  | 'infinity_gem'
+  | 'super_soldier_serum'
+  | 'web_snare_tax'
+  | 'bloodstone_drain'
+  | 'mjolnir_blessing'
+  | 'deadpool_chaos'
+  | 'agamotto_prevision';
+
+export interface ChaosEvent {
+  id: string;
+  name: string;
+  description: string;
+  effectType: ChaosEffectType;
+  badge: string;
+  multiplier?: number;
+}
+
+export interface PlayerProfile {
+  id: string;
+  username: string;
+  displayName?: string;
+  avatar: string;
+  level: number;
+  xp: number;
+  currentLevelXp?: number;
+  xpForNextLevel?: number;
+  progressPercent?: number;
+  matchesPlayed: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  favoriteCharacterId?: string;
+  charactersPurchased: number;
+  battlesWon: number;
+  battlesLost?: number;
+  mvpAwards: number;
+  tournamentWins: number;
+  totalMoneySpent?: number;
+  highestBid?: number;
+  dungeonMaxWave?: number;
+  dungeonPeak?: number;
+  astra: number;
+  ascensionCoins?: number; // Legacy alias for backward compatibility
+  role?: 'admin' | 'player';
+  isAdmin?: boolean;
+  rankedTier?: string;
+  rankedDivision?: number;
+  rankedRating?: number;
+  placementMatchesPlayed?: number; // 0 to 10
+  placementMatchesTotal?: number; // 10
+  isPlacementsCompleted?: boolean;
+  highestRank?: string;
+  highestRating?: number;
+  currentWinStreak?: number;
+  bestWinStreak?: number;
+  totalDamageDealt?: number;
+  bossesDefeated?: number;
+  dungeonsCompleted?: number;
+  customAvatarUrl?: string;
+  bio?: string;
+  favoriteGameMode?: string;
+  playtimeSeconds?: number;
+  playtimeFormatted?: string;
+  createdAt?: number;
+  lastActiveAt?: number;
+}
+
+export interface RedeemCode {
+  code: string; // 10 characters uppercase alphanumeric (e.g. A7K9X2PQ4M)
+  astraReward: number;
+  maxUses: number;
+  usedCount: number;
+  expiresAt: string; // YYYY-MM-DD
+  isActive: boolean;
+  createdAt: number;
+  redeemedBy: string[]; // Array of user IDs
+  creatorUsername?: string;
+}
+
+export interface AdminActionLog {
+  id: string;
+  action: string;
+  details: string;
+  adminUsername: string;
+  timestamp: number;
+}
+
 export interface Player {
   id: string;
   name: string;
   avatar: string;
   money: number;
   collection: Character[];
+  relics?: string[]; // Owned artifact/relic IDs (e.g. 'art-025' for Healing Potion, 'art-026' for Flashbang)
+  usedSkillIds?: string[]; // Authoritative 1-time skill usages
+  flashbangedUntil?: number; // Timestamp until which player actions are locked
+  flashbangedBy?: string; // Name/ID of player who detonated flashbang
   isHost: boolean;
   isReady: boolean;
   isBot: boolean;
+  level?: number;
+  status?: PlayerStatus;
+  profile?: PlayerProfile;
   botPersonality?: BotPersonality;
   isDisconnected?: boolean;
   activeSynergies?: SynergyBonus[];
@@ -129,6 +263,9 @@ export interface Player {
     battlesWon: number;
     moneySpent: number;
     highestBid: number;
+    damageDealt?: number;
+    damageReceived?: number;
+    charactersDefeated?: number;
   };
 }
 
@@ -148,10 +285,12 @@ export interface GameSettings {
   antiSnipingSeconds: number;
   gameMode?: GameMode;
   mysteryCratesEnabled?: boolean;
+  chaosAuctionEnabled?: boolean;
 }
 
 export type GamePhase =
   | 'HOME'
+  | 'ASCENSION'
   | 'MODE_SELECT'
   | 'LOCAL_SETUP'
   | 'ONLINE_LOBBY'
@@ -243,6 +382,8 @@ export interface TournamentMatch {
   player2SelectedHeroIndex?: number;
   player1Action?: BattleActionType;
   player2Action?: BattleActionType;
+  player1SkillId?: string;
+  player2SkillId?: string;
   player1Ready?: boolean;
   player2Ready?: boolean;
 }
@@ -265,4 +406,7 @@ export interface GameState {
   auctionRoundCount?: number;
   queuedGrade?: GradeVoteOption | null;
   lastVotedCheckpoint?: number;
+  spectatorChat?: ChatMessage[];
+  activeChaosEvent?: ChaosEvent | null;
+  rematchVotes?: string[]; // Player IDs who voted to rematch
 }
