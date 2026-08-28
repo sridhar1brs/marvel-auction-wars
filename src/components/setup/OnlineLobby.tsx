@@ -58,6 +58,7 @@ export function OnlineLobby({
 
   const me = state.players.find(p => p.id === socketId) || state.players[0];
   const isHost = me?.isHost || false;
+  const canStart = state.players.length >= 2 && state.players.filter(p => !p.isDisconnected).every(p => p.isBot || p.isReady);
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(state.roomId);
@@ -428,15 +429,15 @@ export function OnlineLobby({
                   soundManager.playClick();
                   onStartGame();
                 }}
-                disabled={state.players.length < 1}
+                disabled={!canStart}
                 className={`w-full py-3.5 rounded-xl font-heading font-black text-sm sm:text-base uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl transition-all ${
-                  state.players.length >= 1
+                  canStart
                     ? 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-white shadow-glow-blue hover:scale-[1.02] active:scale-[0.98]'
                     : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5'
                 }`}
               >
                 <Play className="w-5 h-5 fill-current" />
-                <span>START ONLINE DRAFT ({state.players.length} PLAYERS)</span>
+                <span>{canStart ? `START ONLINE DRAFT (${state.players.length} PLAYERS)` : 'WAITING FOR ALL PLAYERS TO READY'}</span>
               </button>
             )}
           </div>

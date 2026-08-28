@@ -20,6 +20,8 @@ import { MysteryWheel } from './MysteryWheel';
 import { TeamBuilder } from './TeamBuilder';
 import { CharacterMastery } from './CharacterMastery';
 import { CrateOpening } from './CrateOpening';
+import { NewPlayerChooser } from './NewPlayerChooser';
+import { CharacterTokenForge } from './CharacterTokenForge';
 import { soundManager } from '../../audio/soundManager';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -45,6 +47,7 @@ export type AscensionTab =
   | 'MYSTERY_WHEEL'
   | 'TEAM_BUILDER'
   | 'MASTERY'
+  | 'TOKEN_FORGE'
   | 'ADMIN';
 
 interface Props {
@@ -58,8 +61,9 @@ export function AscensionHub({ onBackToHome }: Props) {
   const [isRedeemOpen, setIsRedeemOpen] = useState(false);
   const [isCrateOpen, setIsCrateOpen] = useState(false);
   const [availableCrates, setAvailableCrates] = useState<any[]>([]);
+  const [showNewPlayerChooser, setShowNewPlayerChooser] = useState(false);
 
-  const isAdmin = user?.role === 'admin' || user?.isAdmin;
+  const isAdmin = user?.username?.toLowerCase() === 'darksenseify' && user?.role === 'admin' && user?.isAdmin;
 
   // Count unclaimed items for badge indicators
   const unclaimedMissions = (user?.dailyMissions || []).filter(m => m.isCompleted && !m.isClaimed).length
@@ -70,18 +74,21 @@ export function AscensionHub({ onBackToHome }: Props) {
 
   // Check for available level crates
   useEffect(() => {
-    const CRATE_LEVELS = [5, 10, 15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100];
-    const CRATE_TYPES: Record<number, 'ASTRA' | 'MYSTERY_CARD' | 'LEGENDARY'> = {
-      5: 'ASTRA', 10: 'ASTRA', 15: 'MYSTERY_CARD', 20: 'ASTRA',
-      25: 'MYSTERY_CARD', 30: 'LEGENDARY', 35: 'ASTRA', 40: 'MYSTERY_CARD',
-      50: 'LEGENDARY', 60: 'LEGENDARY', 70: 'LEGENDARY', 80: 'LEGENDARY',
-      90: 'LEGENDARY', 100: 'LEGENDARY',
-    };
-    const crates = CRATE_LEVELS.map(lvl => ({
-      level: lvl,
-      type: CRATE_TYPES[lvl],
-      canClaim: userLevel >= lvl && !claimedLevelCrates.includes(lvl),
-    }));
+    const crates = [
+      ...Array.from({ length: user?.crateInventory?.shard || 0 }, (_, index) => ({
+        level: 0, type: 'SHARD_CRATE' as const, canClaim: true, inventory: true, id: `shard-${index}`,
+      })),
+      ...Array.from({ length: user?.crateInventory?.character || 0 }, (_, index) => ({
+        level: 0, type: 'CHARACTER_CRATE' as const, canClaim: true, inventory: true, id: `character-${index}`,
+      })),
+      ...[5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100].map(lvl => ({
+        level: lvl,
+        type: lvl % 25 === 0 ? 'CHARACTER_CRATE' as const : 'SHARD_CRATE' as const,
+        canClaim: userLevel >= lvl && !claimedLevelCrates.includes(lvl),
+        inventory: false,
+        id: `level-${lvl}`,
+      })),
+    ];
     setAvailableCrates(crates);
   }, [userLevel, claimedLevelCrates]);
 
@@ -92,6 +99,7 @@ export function AscensionHub({ onBackToHome }: Props) {
     if (user) {
       getDailyMissions();
       getWeeklyChallenges();
+      setShowNewPlayerChooser(!user.onboardingCompleted && user.ownedCharacters.length === 0);
     }
   }, []);
 
@@ -115,6 +123,7 @@ export function AscensionHub({ onBackToHome }: Props) {
     { id: 'MYSTERY_WHEEL',label: 'Wheel',        icon: <RotateCcw className="w-4 h-4 text-orange-400" />, badge: (user?.wheelSpins || 0) > 0 ? user!.wheelSpins : undefined, isNew: true },
     { id: 'TEAM_BUILDER', label: 'Teams',        icon: <Users className="w-4 h-4 text-emerald-400" />, isNew: true },
     { id: 'MASTERY',      label: 'Mastery',      icon: <Star className="w-4 h-4 text-amber-400" />,    isNew: true },
+    { id: 'TOKEN_FORGE',  label: 'Token Forge',  icon: <Hammer className="w-4 h-4 text-cyan-400" />,   isNew: true },
   ];
 
   const handleTabClick = (tabId: AscensionTab) => {
@@ -129,13 +138,12 @@ export function AscensionHub({ onBackToHome }: Props) {
       <AscensionHeader
         onBackToHome={onBackToHome}
         onOpenProfile={() => setIsProfileOpen(true)}
-        onOpenRedeem={() => setIsRedeemOpen(true)}
       />
 
       {/* 2. Top Navigation Tabs Bar */}
       <nav className="sticky top-[53px] z-30 bg-[#070A16]/95 backdrop-blur-md border-b border-white/10 shadow-md">
         {/* Main Tabs Row */}
-        <div className="w-full max-w-[1700px] mx-auto px-3 sm:px-6 pt-2 pb-1 flex items-center gap-1.5 flex-wrap overflow-x-auto no-scrollbar">
+        <div className="w-full max-w-[1700px] mx-auto px-3 sm:px-6 pt-2 pb-2 grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2">
           {MAIN_TABS.map(t => {
             const isActive = activeTab === t.id;
             return (
@@ -143,9 +151,9 @@ export function AscensionHub({ onBackToHome }: Props) {
                 key={t.id}
                 type="button"
                 onClick={() => handleTabClick(t.id)}
-                className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-heading font-black uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer flex-shrink-0 ${
+                className={`relative min-w-0 h-9 flex items-center justify-center gap-1.5 px-2 sm:px-3 rounded-xl text-[10px] sm:text-xs font-heading font-black uppercase tracking-wide transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-black shadow-glow-cyan scale-105'
+                    ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-black shadow-glow-cyan'
                     : 'bg-black/40 text-slate-300 hover:text-white border border-white/5 hover:border-white/20'
                 }`}
               >
@@ -164,7 +172,7 @@ export function AscensionHub({ onBackToHome }: Props) {
           <button
             type="button"
             onClick={() => { soundManager.playClick(); setIsRedeemOpen(true); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-heading font-black uppercase tracking-wider bg-purple-950/60 hover:bg-purple-900 text-purple-200 border border-purple-500/40 transition-all flex-shrink-0 cursor-pointer"
+            className="min-w-0 h-9 flex items-center justify-center gap-1.5 px-2 sm:px-3 rounded-xl text-[10px] sm:text-xs font-heading font-black uppercase tracking-wide bg-purple-950/60 hover:bg-purple-900 text-purple-200 border border-purple-500/40 transition-all cursor-pointer"
           >
             <KeyRound className="w-3.5 h-3.5 text-amber-400" />
             <span>Redeem</span>
@@ -174,7 +182,7 @@ export function AscensionHub({ onBackToHome }: Props) {
           <button
             type="button"
             onClick={() => { soundManager.playClick(); setIsCrateOpen(true); }}
-            className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-heading font-black uppercase tracking-wider transition-all flex-shrink-0 cursor-pointer ${
+            className={`relative min-w-0 h-9 flex items-center justify-center gap-1.5 px-2 sm:px-3 rounded-xl text-[10px] sm:text-xs font-heading font-black uppercase tracking-wide transition-all cursor-pointer ${
               claimableCratesCount > 0
                 ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-black animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.4)]'
                 : 'bg-amber-950/60 hover:bg-amber-900/60 text-amber-200 border border-amber-500/30'
@@ -193,9 +201,9 @@ export function AscensionHub({ onBackToHome }: Props) {
             <button
               type="button"
               onClick={() => handleTabClick('ADMIN')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-heading font-black uppercase tracking-wider transition-all flex-shrink-0 cursor-pointer ${
+              className={`min-w-0 flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl text-[10px] sm:text-xs font-heading font-black uppercase tracking-wide transition-all cursor-pointer ${
                 activeTab === 'ADMIN'
-                  ? 'bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-lg scale-105'
+                  ? 'bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-lg'
                   : 'bg-red-950/60 hover:bg-red-900/60 text-red-200 border border-red-500/30'
               }`}
             >
@@ -206,8 +214,8 @@ export function AscensionHub({ onBackToHome }: Props) {
         </div>
 
         {/* v4.0 NEW Systems Sub-Row */}
-        <div className="w-full max-w-[1700px] mx-auto px-3 sm:px-6 pb-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-          <span className="text-[9px] font-black uppercase tracking-widest text-slate-600 flex-shrink-0 mr-1">NEW v4.0 →</span>
+        <div className="w-full max-w-[1700px] mx-auto px-3 sm:px-6 pb-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          <span className="col-span-2 sm:col-span-3 lg:col-span-6 text-[9px] font-black uppercase tracking-widest text-slate-600 flex items-center h-4">NEW v4.0 →</span>
           {V4_TABS.map(t => {
             const isActive = activeTab === t.id;
             return (
@@ -215,9 +223,9 @@ export function AscensionHub({ onBackToHome }: Props) {
                 key={t.id}
                 type="button"
                 onClick={() => handleTabClick(t.id)}
-                className={`relative flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] font-heading font-black uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer flex-shrink-0 ${
+                className={`relative min-w-0 h-9 flex items-center justify-center gap-1.5 px-2 rounded-xl text-[10px] sm:text-xs font-heading font-black uppercase tracking-wide transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-gradient-to-r from-violet-600 to-purple-700 text-white scale-105 shadow-glow-purple'
+                    ? 'bg-gradient-to-r from-violet-600 to-purple-700 text-white shadow-glow-purple'
                     : 'bg-violet-950/40 text-violet-300 hover:text-white border border-violet-500/20 hover:border-violet-500/50'
                 }`}
               >
@@ -261,6 +269,7 @@ export function AscensionHub({ onBackToHome }: Props) {
         {activeTab === 'MYSTERY_WHEEL' && <MysteryWheel />}
         {activeTab === 'TEAM_BUILDER'  && <TeamBuilder />}
         {activeTab === 'MASTERY'       && <CharacterMastery />}
+        {activeTab === 'TOKEN_FORGE'   && <CharacterTokenForge />}
       </main>
 
       {/* 4. Modals */}
@@ -284,6 +293,7 @@ export function AscensionHub({ onBackToHome }: Props) {
           }}
         />
       )}
+      {showNewPlayerChooser && <NewPlayerChooser onComplete={() => setShowNewPlayerChooser(false)} />}
     </div>
   );
 }

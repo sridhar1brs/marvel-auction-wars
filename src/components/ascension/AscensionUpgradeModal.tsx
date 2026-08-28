@@ -21,18 +21,16 @@ export function AscensionUpgradeModal({ character, onClose }: Props) {
 
   const isMythic = character.grade === 'MYTHIC' || character.alignment === 'Cosmic';
   const currentLevel = (user?.characterLevels || {})[character.id] || 1;
-  const shardsOwned = (user?.characterShards || {})[character.id] || 0;
   const boosts = (user?.characterStatsBoosts || {})[character.id] || { power: 0, hp: 0, defense: 0, speed: 0 };
 
   const requiredCoins = currentLevel * 150;
-  const requiredShards = Math.min(10, Math.floor(currentLevel / 5) + 1);
-  const canAfford = (user?.ascensionCoins || 0) >= requiredCoins && shardsOwned >= requiredShards;
+  const canAfford = (user?.astra || 0) >= requiredCoins;
 
   const handleUpgrade = async () => {
     if (isMythic) return;
     if (!canAfford) {
       soundManager.playAttackHit();
-      setStatusMessage({ type: 'error', text: 'Insufficient Ascension Coins or Character Shards!' });
+      setStatusMessage({ type: 'error', text: 'Insufficient Astra!' });
       return;
     }
 
@@ -182,10 +180,7 @@ export function AscensionUpgradeModal({ character, onClose }: Props) {
                 <span className="text-[10px] text-slate-400 font-bold uppercase block">UPGRADE COST (LVL {currentLevel + 1})</span>
                 <div className="flex items-center gap-3 font-mono font-black mt-0.5">
                   <span className="text-amber-300 flex items-center gap-1">
-                    🪙 {requiredCoins.toLocaleString()} Coins
-                  </span>
-                  <span className="text-purple-300 flex items-center gap-1">
-                    🧩 {requiredShards} Shards ({shardsOwned} owned)
+                    ✨ {requiredCoins.toLocaleString()} Astra ({(user?.astra || 0).toLocaleString()} owned)
                   </span>
                 </div>
               </div>

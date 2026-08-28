@@ -223,6 +223,10 @@ export interface PlayerProfile {
 export interface RedeemCode {
   code: string; // 10 characters uppercase alphanumeric (e.g. A7K9X2PQ4M)
   astraReward: number;
+  rewardType?: 'ASTRA' | 'CHARACTER' | 'SHARD' | 'CRATE';
+  rewardAmount?: number;
+  characterId?: string;
+  crateType?: string;
   maxUses: number;
   usedCount: number;
   expiresAt: string; // YYYY-MM-DD
@@ -409,4 +413,46 @@ export interface GameState {
   spectatorChat?: ChatMessage[];
   activeChaosEvent?: ChaosEvent | null;
   rematchVotes?: string[]; // Player IDs who voted to rematch
+}
+
+/** State exchanged by the Socket.IO Ascension battle service.  Character
+ * stats are always populated by the server from ALL_CHARACTERS. */
+export type AscensionBattlePhase = 'LOBBY' | 'MATCHMAKING' | 'BATTLE' | 'RESULT' | 'CANCELLED';
+
+export interface AscensionBattlePlayer {
+  id: string;
+  profileId?: string;
+  name: string;
+  avatar: string;
+  rating: number;
+  team: Character[];
+  isHost: boolean;
+  isReady: boolean;
+  isConnected: boolean;
+}
+
+export interface AscensionBattleState {
+  roomId: string;
+  mode: 'casual' | 'ranked';
+  format: '1v1' | '2v2' | '3v3' | '4v4' | '5v5' | 'custom';
+  phase: AscensionBattlePhase;
+  maxPlayers: number;
+  hostId: string;
+  players: AscensionBattlePlayer[];
+  currentRound: number;
+  activePlayerIds: string[];
+  selectedHeroIndexes: Record<string, number>;
+  pendingActions: Record<string, BattleActionType>;
+  rounds: BattleRound[];
+  combatLogs: string[];
+  winnerId?: string;
+  rewards?: Record<string, {
+    isWin: boolean;
+    astraAwarded: number;
+    xpAwarded: number;
+    ratingDelta: number;
+    newRating: number;
+    newTier: string;
+  }>;
+  error?: string;
 }

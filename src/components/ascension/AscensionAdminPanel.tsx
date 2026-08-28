@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { RedeemCode, AdminActionLog } from '../../types/game';
+import { ALL_CHARACTERS } from '../../data/characters/index';
 
 export const AscensionAdminPanel: React.FC = () => {
   const { user, fetchAdminStats, fetchAdminCodes, createAdminCode, toggleAdminCode, deleteAdminCode } = useAuth();
@@ -14,6 +15,11 @@ export const AscensionAdminPanel: React.FC = () => {
   // Form State
   const [newCodeInput, setNewCodeInput] = useState('');
   const [astraReward, setAstraReward] = useState<number>(5000);
+  const [rewardType, setRewardType] = useState<'ASTRA' | 'CHARACTER' | 'SHARD' | 'CRATE'>('ASTRA');
+  const [characterId, setCharacterId] = useState('');
+  const [crateType, setCrateType] = useState<'SHARD_CRATE' | 'CHARACTER_CRATE'>('SHARD_CRATE');
+  const [crateTier, setCrateTier] = useState<'RARE' | 'EPIC' | 'LEGENDARY' | 'MYTHIC'>('RARE');
+  const [shardCategory, setShardCategory] = useState<'RARE' | 'EPIC' | 'MYTHIC' | 'HERO' | 'VILLAIN' | 'COSMIC'>('RARE');
   const [maxUses, setMaxUses] = useState<number>(1000);
   const [expiresAt, setExpiresAt] = useState('2026-12-31');
   const [isActive, setIsActive] = useState(true);
@@ -59,14 +65,10 @@ export const AscensionAdminPanel: React.FC = () => {
     loadAdminData();
   }, [isAdmin]);
 
-  // Generate 10-char random code
+  // Let the server generate the authoritative secure 10-digit code.
   const generateRandomCode = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let res = '';
-    for (let i = 0; i < 10; i++) {
-      res += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setNewCodeInput(res);
+    setNewCodeInput('');
+    setCreateFeedback({ success: true, msg: 'A secure unique 10-digit code will be generated when you publish.' });
   };
 
   // Handle Create Code
@@ -78,6 +80,10 @@ export const AscensionAdminPanel: React.FC = () => {
     const res = await createAdminCode({
       code: newCodeInput ? newCodeInput.toUpperCase() : undefined,
       astraReward: Number(astraReward) || 5000,
+      rewardType,
+      rewardAmount: Number(astraReward) || 0,
+      characterId: rewardType === 'CHARACTER' ? characterId : rewardType === 'SHARD' ? shardCategory : undefined,
+      crateType: rewardType === 'CRATE' ? `${crateType}_${crateTier}` : undefined,
       maxUses: Number(maxUses) || 1000,
       expiresAt: expiresAt || '2026-12-31',
       isActive
@@ -240,7 +246,7 @@ export const AscensionAdminPanel: React.FC = () => {
             <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="text-xs font-bold text-slate-300 uppercase">
-                  10-Character Code
+                  10-Digit Code
                 </label>
                 <button
                   type="button"
@@ -255,7 +261,8 @@ export const AscensionAdminPanel: React.FC = () => {
                 maxLength={10}
                 value={newCodeInput}
                 onChange={(e) => setNewCodeInput(e.target.value.toUpperCase())}
-                placeholder="Leave blank for random (e.g. A7K9X2PQ4M)"
+                inputMode="numeric"
+                placeholder="Leave blank for a secure random code"
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-mono font-bold text-amber-300 uppercase tracking-widest placeholder-slate-600 focus:outline-none focus:border-amber-400"
               />
             </div>
@@ -267,9 +274,9 @@ export const AscensionAdminPanel: React.FC = () => {
               </label>
               <input
                 type="number"
-                min={100}
-                max={1000000}
-                step={500}
+                min={0}
+                max={1000000000}
+                step={1}
                 value={astraReward}
                 onChange={(e) => setAstraReward(Number(e.target.value))}
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-purple-400"
@@ -290,6 +297,58 @@ export const AscensionAdminPanel: React.FC = () => {
                   </button>
                 ))}
               </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Reward Type</label>
+                <select value={rewardType} onChange={e => setRewardType(e.target.value as typeof rewardType)}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-purple-400">
+                  <option value="ASTRA">Coins / Astra</option>
+                  <option value="CHARACTER">Specific Character</option>
+                  <option value="SHARD">Category Shards</option>
+                  <option value="CRATE">Crate</option>
+                </select>
+              </div>
+              {rewardType === 'CHARACTER' && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Character (350-character database)</label>
+                  <select required value={characterId} onChange={e => setCharacterId(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-purple-400">
+                    <option value="">Select character…</option>
+                    {ALL_CHARACTERS.map(character => <option key={character.id} value={character.id}>{character.name} ({character.grade})</option>)}
+                  </select>
+                </div>
+              )}
+              {rewardType === 'CRATE' && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Crate Type</label>
+                  <select value={crateType} onChange={e => setCrateType(e.target.value as typeof crateType)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-purple-400">
+                    <option value="CHARACTER_CRATE">Character Card Crate</option>
+                    <option value="SHARD_CRATE">Shard Crate</option>
+                  </select>
+                  <select value={crateTier} onChange={e => setCrateTier(e.target.value as typeof crateTier)}
+                    className="w-full mt-2 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-purple-400">
+                    <option value="RARE">Rare Crate</option>
+                    <option value="EPIC">Epic Crate</option>
+                    <option value="LEGENDARY">Legendary Crate</option>
+                    <option value="MYTHIC">Mythic Crate</option>
+                  </select>
+                </div>
+              )}
+              {rewardType === 'SHARD' && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Shard Category</label>
+                  <select value={shardCategory} onChange={e => setShardCategory(e.target.value as typeof shardCategory)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-purple-400">
+                    <option value="RARE">Rare</option>
+                    <option value="EPIC">Epic</option>
+                    <option value="MYTHIC">Mythic</option>
+                    <option value="HERO">Hero</option>
+                    <option value="VILLAIN">Villain</option>
+                    <option value="COSMIC">Cosmic Draft</option>
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Max Uses */}
@@ -408,7 +467,7 @@ export const AscensionAdminPanel: React.FC = () => {
                           </button>
                         </td>
                         <td className="p-3 font-bold text-purple-300">
-                          ✨ {c.astraReward?.toLocaleString()} ASTRA
+                          {c.rewardType === 'CHARACTER' ? `🦸 ${c.characterId}` : c.rewardType === 'CRATE' ? `📦 ${c.crateType}` : c.rewardType === 'SHARD' ? `🔷 ${c.rewardAmount} shards` : `✨ ${c.astraReward?.toLocaleString()} ASTRA`}
                         </td>
                         <td className="p-3 text-slate-400">
                           <span className={c.usedCount >= c.maxUses ? 'text-rose-400 font-bold' : ''}>

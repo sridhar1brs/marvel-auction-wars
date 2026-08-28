@@ -63,7 +63,7 @@ export const RedeemCodeModal: React.FC<RedeemCodeModalProps> = ({ isOpen, onClos
             Redeem Promotional Code
           </h3>
           <p className="text-xs text-slate-400 mt-1">
-            Enter your 10-character promotional key to claim exclusive Astra rewards & tactical supply drops.
+            Enter your 10-digit promotional key to claim exclusive Astra rewards & tactical supply drops.
           </p>
         </div>
 
@@ -71,7 +71,7 @@ export const RedeemCodeModal: React.FC<RedeemCodeModalProps> = ({ isOpen, onClos
         <form onSubmit={handleRedeem} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-purple-300 uppercase tracking-wider mb-2">
-              10-Character Key
+              10-Digit Key
             </label>
             <div className="relative">
               <input
@@ -82,7 +82,8 @@ export const RedeemCodeModal: React.FC<RedeemCodeModalProps> = ({ isOpen, onClos
                   setCode(e.target.value.toUpperCase());
                   setResult(null);
                 }}
-                placeholder="e.g. A7K9X2PQ4M"
+                inputMode="numeric"
+                placeholder="e.g. 4829173056"
                 className="w-full bg-slate-950/90 border border-purple-500/40 rounded-xl px-4 py-3 text-center text-lg font-mono font-bold tracking-widest text-amber-300 placeholder-slate-600 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all uppercase"
                 autoFocus
               />

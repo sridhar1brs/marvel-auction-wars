@@ -17,7 +17,7 @@ const ACHIEVEMENT_DEFINITIONS: Record<string, { title: string; description: stri
   crate_opener_25:  { title: 'Crate Fanatic',      description: 'Open 25 crates',                          target: 25,  rewardType: 'cardShards',  rewardAmount: 500,   icon: '🎁',  category: 'Exploration' },
   ranked_bronze:    { title: 'Bronze Contender',   description: 'Reach Bronze rank',                       target: 1,   rewardType: 'astra',       rewardAmount: 1000,  icon: '🥉',  category: 'Ranked' },
   ranked_gold:      { title: 'Gold Warrior',       description: 'Reach Gold rank',                         target: 1,   rewardType: 'astra',       rewardAmount: 3000,  icon: '🥇',  category: 'Ranked' },
-  ranked_diamond:   { title: 'Diamond Elite',      description: 'Reach Diamond rank',                      target: 1,   rewardType: 'astra',       rewardAmount: 8000,  icon: '💎',  category: 'Ranked' },
+  ranked_vibranium: { title: 'Vibranium Elite',   description: 'Reach Vibranium rank',                    target: 1,   rewardType: 'astra',       rewardAmount: 8000,  icon: '💠',  category: 'Ranked' },
   ranked_ascender:  { title: 'Ascender',           description: 'Reach the legendary Ascender rank',       target: 1,   rewardType: 'astra',       rewardAmount: 50000, icon: '⚡',  category: 'Ranked' },
   multiversal:      { title: 'Multiversal',        description: 'Play all 3 game modes',                   target: 3,   rewardType: 'astra',       rewardAmount: 2000,  icon: '🌌',  category: 'Exploration' },
   mvp_5:            { title: 'MVP',                description: 'Earn 5 MVP awards',                       target: 5,   rewardType: 'astra',       rewardAmount: 3000,  icon: '⭐',  category: 'Combat' },

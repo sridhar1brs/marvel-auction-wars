@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useSocket } from '../../hooks/useSocket';
 import { ALL_CHARACTERS } from '../../data/characters/index';
 import { Character } from '../../types/game';
 import { soundManager } from '../../audio/soundManager';
@@ -9,9 +10,26 @@ import {
   Trophy, Lock, Swords, Shield, Zap, Sparkles, Award, 
   Flame, CheckCircle2, ChevronRight, Crown, AlertTriangle, Play
 } from 'lucide-react';
+import { ALL_RANK_DEFINITIONS, getRankLabel } from '../../data/ascensionProgression';
+
+const getRankArtwork = (tier: string, division: number): React.CSSProperties => {
+  if (tier === 'ASCENDER') {
+    return {
+      backgroundImage: "url('/images/ranks/ascender.png')",
+      backgroundSize: '500% auto',
+      backgroundPosition: '50% 50%',
+    };
+  }
+  return {
+    backgroundImage: `url('/images/ranks/${tier.toLowerCase()}.png')`,
+    backgroundSize: '500% auto',
+    backgroundPosition: `${((division - 1) / 4) * 100}% 50%`,
+  };
+};
 
 export function AscensionRankedArena() {
-  const { user, recordAscensionMatch } = useAuth();
+  const { user, refreshProfile } = useAuth();
+  const socket = useSocket();
   const [matchFormat, setMatchFormat] = useState<'1v1' | '2v2' | '3v3'>('1v1');
   const [battleState, setBattleState] = useState<'IDLE' | 'MATCHMAKING' | 'DUEL' | 'RESULT'>('IDLE');
   const [queueTimer, setQueueTimer] = useState<number>(0);
@@ -21,6 +39,7 @@ export function AscensionRankedArena() {
   const [opponentRating, setOpponentRating] = useState<number>(1000);
   const [combatLogs, setCombatLogs] = useState<string[]>([]);
   const [lastMatchResult, setLastMatchResult] = useState<{ isWin: boolean; ratingDelta: number; astraAwarded: number; newRating: number; newTier: string } | null>(null);
+  const [isResolving, setIsResolving] = useState(false);
 
   const commanderLevel = user?.level || 1;
   const isLocked = commanderLevel < 10;
@@ -53,9 +72,6 @@ export function AscensionRankedArena() {
     } else if (tier === 'VIBRANIUM') {
       badgeColor = 'from-teal-900 to-emerald-950 border-teal-400 text-teal-200';
       icon = '💠';
-    } else if (tier === 'DIAMOND') {
-      badgeColor = 'from-cyan-900 to-blue-950 border-cyan-400 text-cyan-200';
-      icon = '💎';
     } else if (tier === 'PLATINUM') {
       badgeColor = 'from-slate-600 to-cyan-900 border-slate-300 text-white';
       icon = '⚔️';
@@ -73,6 +89,41 @@ export function AscensionRankedArena() {
     return { tier, division, rating, isPlacements, placementsPlayed, badgeColor, icon };
   }, [user]);
 
+  useEffect(() => {
+    const state = socket.ascensionState;
+    if (!state || state.mode !== 'ranked') return;
+    if (state.phase === 'MATCHMAKING') setBattleState('MATCHMAKING');
+    if (state.phase === 'BATTLE') setBattleState('DUEL');
+    if (state.phase === 'RESULT') {
+      const isWin = state.winnerId === socket.socket?.id;
+      const reward = state.rewards?.[socket.socket?.id || ''];
+      setLastMatchResult({
+        isWin,
+        ratingDelta: reward?.ratingDelta || 0,
+        astraAwarded: reward?.astraAwarded || 0,
+        newRating: reward?.newRating || rankInfo.rating,
+        newTier: reward?.newTier || rankInfo.tier
+      });
+      setBattleState('RESULT');
+    }
+    const me = state.players.find(player => player.id === socket.socket?.id);
+    const rival = state.players.find(player => player.id !== socket.socket?.id);
+    if (me?.team?.length) setPlayerTeam(me.team);
+    if (rival) {
+      setOpponentName(rival.name);
+      setOpponentRating(rival.rating);
+      setOpponentTeam(rival.team);
+    }
+    if (state.combatLogs.length) setCombatLogs(state.combatLogs.slice(-20));
+  }, [socket.ascensionState, socket.socket, rankInfo.rating, rankInfo.tier]);
+
+  useEffect(() => {
+    if (socket.ascensionResult) {
+      refreshProfile();
+      socket.setAscensionResult(null);
+    }
+  }, [socket.ascensionResult, refreshProfile, socket]);
+
   // Handle Matchmaking Start
   const startMatchmaking = () => {
     if (playerTeam.length !== teamSize) return;
@@ -81,66 +132,15 @@ export function AscensionRankedArena() {
     setBattleState('MATCHMAKING');
     setQueueTimer(0);
 
-    const opponentPool = ['NovaSentinel', 'ThanosDisciple', 'ValkyriePrime', 'CosmicRider', 'AsgardWarlord', 'TitanCrusher', 'ShadowSpider'];
-    const randomOpponent = opponentPool[Math.floor(Math.random() * opponentPool.length)];
-    const oppRating = Math.max(100, (user?.rankedRating || 1000) + Math.floor(Math.random() * 200 - 100));
-
-    // Simulated matchmaking countdown (1.5s - 3s)
-    setTimeout(() => {
-      soundManager.playVictoryFanfare();
-      setOpponentName(randomOpponent);
-      setOpponentRating(oppRating);
-
-      // Pick Opponent Team
-      const pool = ALL_CHARACTERS.slice().sort(() => 0.5 - Math.random());
-      setOpponentTeam(pool.slice(0, teamSize));
-
-      setCombatLogs([
-        `🏆 RANKED MATCH FOUND!`,
-        `⚔️ ${user?.displayName || user?.username} (${rankInfo.rating} MMR) VS ${randomOpponent} (${oppRating} MMR)`,
-        `⚡ Format: Competitive ${matchFormat} Standard`
-      ]);
-
-      setBattleState('DUEL');
-    }, 2200);
+    socket.queueAscension('ranked', matchFormat, playerTeam.map(hero => hero.id));
   };
 
   const handleExecuteTurn = async () => {
-    const hero1 = playerTeam[0] || ALL_CHARACTERS[0];
-    const oppHero = opponentTeam[0] || ALL_CHARACTERS[1];
-
+    if (isResolving || battleState !== 'DUEL') return;
+    setIsResolving(true);
     soundManager.playAttackHit();
-
-    const pBoost = user?.characterStatsBoosts[hero1.id]?.power || 0;
-    const pRoll = hero1.overallPower + pBoost + Math.floor(Math.random() * 25);
-    const oppRoll = oppHero.overallPower + Math.floor(Math.random() * 25);
-
-    const isWin = pRoll >= oppRoll;
-
-    const res = await recordAscensionMatch({
-      isWin,
-      matchFormat,
-      isRanked: true,
-      isMvp: isWin && Math.random() > 0.5,
-      isComeback: isWin && pRoll - oppRoll > 15,
-      damageDealt: pRoll * 12
-    });
-
-    if (isWin) {
-      soundManager.playVictoryFanfare();
-    } else {
-      soundManager.playDefeat();
-    }
-
-    setLastMatchResult({
-      isWin,
-      ratingDelta: isWin ? 25 : -15,
-      astraAwarded: res?.astraAwarded || (isWin ? 1000 : 350),
-      newRating: res?.newRating || rankInfo.rating,
-      newTier: res?.newTier || rankInfo.tier
-    });
-
-    setBattleState('RESULT');
+    await socket.submitAscensionAction('SPECIAL', 0);
+    setIsResolving(false);
   };
 
   // 1. LOCKED VIEW (Level < 10)
@@ -176,6 +176,25 @@ export function AscensionRankedArena() {
             Play Casual Battles, Dungeon Runs, and complete matches to level up!
           </p>
         </div>
+
+        <section className="mt-6 max-w-4xl mx-auto p-5 bg-slate-900/90 border border-cyan-500/30 rounded-2xl shadow-xl text-left">
+          <div className="mb-3">
+            <h3 className="text-lg font-extrabold text-white">Full Rank Progression</h3>
+            <p className="text-xs text-slate-400">Rating required for every division</p>
+          </div>
+          <div className="overflow-x-auto pb-3 -mx-1 px-1">
+            <div className="flex gap-3 min-w-max">
+              {ALL_RANK_DEFINITIONS.map(rank => (
+                <div key={rank.id} className="w-32 p-3 rounded-xl border border-white/10 bg-black/30 text-center font-mono text-slate-400">
+                  <div className="w-20 h-20 mx-auto mb-2 rounded-xl bg-slate-950 border border-cyan-500/30 bg-no-repeat" style={getRankArtwork(rank.tier, rank.division)} aria-label={`${rank.label} logo`} />
+                  <div className="font-black text-xs text-white">{rank.label}</div>
+                  <div className="text-[10px] mt-1 text-cyan-300">{rank.requiredRating.toLocaleString()} XP</div>
+                  <div className="text-[9px] mt-0.5 text-slate-500">needed to reach</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
       </div>
     );
   }
@@ -198,7 +217,7 @@ export function AscensionRankedArena() {
                 ? '⚡ ASCENDER'
                 : rankInfo.isPlacements
                 ? 'UNRANKED PLACEMENTS'
-                : `${rankInfo.tier} ${rankInfo.division}`}
+                : getRankLabel(rankInfo.tier, rankInfo.division)}
             </h2>
             <div className="flex items-center gap-3 mt-1 text-xs font-bold font-mono">
               <span className="text-amber-300">⭐ {rankInfo.rating.toLocaleString()} MMR</span>
@@ -324,6 +343,31 @@ export function AscensionRankedArena() {
                 })}
               </div>
             )}
+
+            <section className="p-5 bg-slate-900/90 border border-cyan-500/30 rounded-2xl shadow-xl">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="text-lg font-extrabold text-white">Full Rank Progression</h3>
+                  <p className="text-xs text-slate-400">Rating required for every division</p>
+                </div>
+                <span className="text-xs text-cyan-300 font-mono">{rankInfo.rating.toLocaleString()} MMR</span>
+              </div>
+              <div className="overflow-x-auto pb-3 -mx-1 px-1">
+                <div className="flex gap-3 min-w-max">
+                  {ALL_RANK_DEFINITIONS.map(rank => {
+                    const active = rankInfo.tier === rank.tier && rankInfo.division === rank.division;
+                    return (
+                      <div key={rank.id} className={`w-32 p-3 rounded-xl border text-center font-mono ${active ? 'border-amber-400 bg-amber-500/20 text-amber-200 shadow-glow-gold' : 'border-white/10 bg-black/30 text-slate-400'}`}>
+                        <div className="w-20 h-20 mx-auto mb-2 rounded-xl bg-slate-950 border border-white/15 bg-no-repeat" style={getRankArtwork(rank.tier, rank.division)} aria-label={`${rank.label} logo`} />
+                        <div className="font-black text-xs text-white">{rank.label}</div>
+                        <div className="text-[10px] mt-1 text-cyan-300">{rank.requiredRating.toLocaleString()} XP</div>
+                        <div className="text-[9px] mt-0.5 text-slate-500">needed to reach</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
           </div>
         </div>
       )}
@@ -340,6 +384,9 @@ export function AscensionRankedArena() {
           <p className="text-sm text-purple-300 font-mono">
             Scanning Global {rankInfo.tier} Ladder • Matching MMR ({rankInfo.rating} Rating)
           </p>
+          <button onClick={() => { socket.cancelAscensionQueue(); setBattleState('IDLE'); }} className="rounded-xl border border-white/20 px-4 py-2 text-xs font-bold text-slate-300">
+            CANCEL SEARCH
+          </button>
         </div>
       )}
 
@@ -368,7 +415,8 @@ export function AscensionRankedArena() {
 
           <button
             onClick={handleExecuteTurn}
-            className="w-full py-4 bg-gradient-to-r from-amber-500 via-rose-600 to-purple-600 hover:from-amber-400 text-white font-black text-base uppercase tracking-wider rounded-2xl shadow-xl"
+            disabled={isResolving}
+            className="w-full py-4 bg-gradient-to-r from-amber-500 via-rose-600 to-purple-600 hover:from-amber-400 text-white font-black text-base uppercase tracking-wider rounded-2xl shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
           >
             ⚡ Strike & Resolve Match
           </button>

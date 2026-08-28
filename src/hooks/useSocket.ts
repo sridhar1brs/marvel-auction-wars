@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { GameState, GameSettings, BotPersonality } from '../types/game';
+import { GameState, GameSettings, BotPersonality, AscensionBattleState, BattleActionType } from '../types/game';
 
 export function useSocket() {
   const socketRef = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [onlineState, setOnlineState] = useState<GameState | null>(null);
+  const [ascensionState, setAscensionState] = useState<AscensionBattleState | null>(null);
+  const [ascensionResult, setAscensionResult] = useState<any>(null);
   const [lastError, setLastError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -45,6 +47,15 @@ export function useSocket() {
     socket.on('game_state_update', (state: GameState) => {
       setOnlineState(state);
     });
+    socket.on('ascension_state_update', (state: AscensionBattleState) => {
+      setAscensionState(state);
+    });
+    socket.on('ascension_match_found', (payload: { state?: AscensionBattleState }) => {
+      if (payload?.state) setAscensionState(payload.state);
+    });
+    socket.on('ascension_match_result', (result: any) => {
+      setAscensionResult(result);
+    });
 
     return () => {
       socket.disconnect();
@@ -83,6 +94,50 @@ export function useSocket() {
     });
   };
 
+  const ascensionRequest = <T extends object>(event: string, payload: object = {}): Promise<T & { success: boolean; error?: string }> => {
+    return new Promise(resolve => {
+      if (!socketRef.current) return resolve({ success: false, error: 'Socket not initialized' } as T & { success: boolean; error?: string });
+      socketRef.current.emit(event, payload, (res: T & { success: boolean; error?: string }) => {
+        if (res?.error) setLastError(res.error);
+        resolve(res);
+      });
+    });
+  };
+
+  const queueAscension = (mode: 'casual' | 'ranked', format: string, teamIds: string[]): Promise<any> =>
+    ascensionRequest('ascension_queue', { mode, format, teamIds, authToken: localStorage.getItem('mcu_auth_token') || undefined }).then(res => {
+      if ((res as any).state) setAscensionState((res as any).state);
+      return res;
+    });
+
+  const cancelAscensionQueue = (): Promise<any> => ascensionRequest('ascension_cancel_queue');
+
+  const createAscensionRoom = (mode: 'casual' | 'ranked', format: string, teamIds: string[]): Promise<any> =>
+    ascensionRequest('ascension_create_room', { mode, format, teamIds, authToken: localStorage.getItem('mcu_auth_token') || undefined }).then(res => {
+      if ((res as any).state) setAscensionState((res as any).state);
+      return res;
+    });
+
+  const joinAscensionRoom = (roomId: string, teamIds: string[]): Promise<any> =>
+    ascensionRequest('ascension_join_room', { roomId, teamIds, authToken: localStorage.getItem('mcu_auth_token') || undefined }).then(res => {
+      if ((res as any).state) setAscensionState((res as any).state);
+      return res;
+    });
+
+  const setAscensionTeam = (teamIds: string[]): Promise<any> => ascensionRequest('ascension_set_team', { teamIds });
+
+  const setAscensionReady = (isReady: boolean): Promise<any> => ascensionRequest('ascension_set_ready', { isReady });
+
+  const startAscensionBattle = (): Promise<any> => ascensionRequest('ascension_start_battle');
+
+  const submitAscensionAction = (action: BattleActionType, fighterIndex = 0, skillId?: string): Promise<any> =>
+    ascensionRequest('ascension_action', { action, fighterIndex, skillId });
+
+  const leaveAscensionRoom = (): Promise<any> => ascensionRequest('ascension_leave_room');
+
+  const reconnectAscensionRoom = (roomId: string): Promise<any> =>
+    ascensionRequest('ascension_reconnect', { roomId, authToken: localStorage.getItem('mcu_auth_token') || undefined });
+
   const setReady = (isReady: boolean) => {
     socketRef.current?.emit('set_ready', { isReady });
   };
@@ -95,8 +150,14 @@ export function useSocket() {
     socketRef.current?.emit('update_settings', settings);
   };
 
-  const startGame = () => {
-    socketRef.current?.emit('start_game');
+  const startGame = (): Promise<{ success: boolean; error?: string }> => {
+    return new Promise(resolve => {
+      if (!socketRef.current) return resolve({ success: false, error: 'Socket not initialized' });
+      socketRef.current?.emit('start_game', (res: { success: boolean; error?: string }) => {
+        if (res?.error) setLastError(res.error);
+        resolve(res || { success: false, error: 'Socket not initialized' });
+      });
+    });
   };
 
   const placeBid = (amount: number): Promise<{ success: boolean; error?: string }> => {
@@ -216,10 +277,23 @@ export function useSocket() {
     socket: socketRef.current,
     isConnected,
     onlineState,
+    ascensionState,
+    ascensionResult,
+    setAscensionResult,
     lastError,
     setLastError,
     createRoom,
     joinRoom,
+    queueAscension,
+    cancelAscensionQueue,
+    createAscensionRoom,
+    joinAscensionRoom,
+    setAscensionTeam,
+    setAscensionReady,
+    startAscensionBattle,
+    submitAscensionAction,
+    leaveAscensionRoom,
+    reconnectAscensionRoom,
     setReady,
     addBot,
     updateSettings,
@@ -244,4 +318,3 @@ export function useSocket() {
     updateHostSettings,
   };
 }
-

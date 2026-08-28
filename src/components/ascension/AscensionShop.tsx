@@ -9,9 +9,12 @@ import {
   Shield, Flame, Layers, AlertCircle, Award
 } from 'lucide-react';
 
-export type AscensionRarity = 'ALL' | 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY' | 'MYTHIC';
+export type AscensionRarity = 'ALL' | 'RARE' | 'EPIC' | 'LEGENDARY' | 'MYTHIC';
 
-export function getCharacterAscensionRarity(char: Character): { rarity: 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY' | 'MYTHIC'; cost: number; badgeColor: string } {
+export function getCharacterAscensionRarity(char: Character): { rarity: 'RARE' | 'EPIC' | 'LEGENDARY' | 'MYTHIC'; cost: number; badgeColor: string } {
+  if (char.name === 'J. Jonah Jameson') {
+    return { rarity: 'RARE', cost: 3500, badgeColor: 'from-blue-500 to-cyan-400' };
+  }
   if (char.grade === 'MYTHIC' || char.alignment === 'Cosmic') {
     return { rarity: 'MYTHIC', cost: 50000, badgeColor: 'from-amber-400 via-rose-500 to-purple-600' };
   }
@@ -24,10 +27,7 @@ export function getCharacterAscensionRarity(char: Character): { rarity: 'COMMON'
   if (char.grade === 'B' || char.overallPower >= 70) {
     return { rarity: 'RARE', cost: 3500, badgeColor: 'from-blue-500 to-cyan-400' };
   }
-  if (char.grade === 'C' && char.overallPower >= 60) {
-    return { rarity: 'UNCOMMON', cost: 1500, badgeColor: 'from-emerald-500 to-green-400' };
-  }
-  return { rarity: 'COMMON', cost: 500, badgeColor: 'from-slate-400 to-stone-300' };
+  return { rarity: 'RARE', cost: 1500, badgeColor: 'from-emerald-500 to-green-400' };
 }
 
 export function AscensionShop() {
@@ -149,7 +149,7 @@ export function AscensionShop() {
         
         {/* Rarity Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto w-full lg:w-auto pb-1 lg:pb-0">
-          {(['ALL', 'COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY', 'MYTHIC'] as AscensionRarity[]).map(rarity => (
+          {(['ALL', 'RARE', 'EPIC', 'LEGENDARY', 'MYTHIC'] as AscensionRarity[]).map(rarity => (
             <button
               key={rarity}
               type="button"

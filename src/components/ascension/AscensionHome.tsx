@@ -20,7 +20,7 @@ export function AscensionHome({ onNavigateTab }: Props) {
   const [loginClaimToast, setLoginClaimToast] = useState<{ success: boolean; text: string } | null>(null);
   const [isGiftingOpen, setIsGiftingOpen] = useState(false);
 
-  // Daily 7-Day rewards array in Astra
+  // Daily coin rewards (Astra remains the server-side legacy currency alias).
   const dailyRewards = [
     { day: 1, astra: 250, label: 'Day 1' },
     { day: 2, astra: 350, label: 'Day 2' },
@@ -40,13 +40,13 @@ export function AscensionHome({ onNavigateTab }: Props) {
   const handleClaimDaily = async () => {
     if (!user) {
       soundManager.playAttackHit();
-      setLoginClaimToast({ success: false, text: 'Please sign in to claim daily Astra rewards.' });
+      setLoginClaimToast({ success: false, text: 'Please sign in to claim your daily coins.' });
       return;
     }
 
     if (!canClaimToday) {
       soundManager.playAttackHit();
-      setLoginClaimToast({ success: false, text: "Today's Astra reward has already been claimed! Return tomorrow." });
+      setLoginClaimToast({ success: false, text: "Today's coin reward has already been claimed! Return tomorrow." });
       return;
     }
 
@@ -60,7 +60,7 @@ export function AscensionHome({ onNavigateTab }: Props) {
       soundManager.playVictoryFanfare();
       setLoginClaimToast({
         success: true,
-        text: `🎉 Successfully claimed +✨ ${(res.astraAwarded || res.coinsAwarded || 250).toLocaleString()} ASTRA! (Streak: Day ${res.streak})`
+        text: `🎉 Successfully claimed +🪙 ${(res.coinsAwarded || res.astraAwarded || 250).toLocaleString()} coins! (Streak: Day ${res.streak})`
       });
       setTimeout(() => setLoginClaimToast(null), 5000);
     } else {
@@ -94,7 +94,7 @@ export function AscensionHome({ onNavigateTab }: Props) {
           </h1>
 
           <p className="text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed">
-            Recruit 350 Marvel Heroes, level them up from 1 to 50, conquer 1v1–5v5 Online Battles, unlock competitive Ranked at Level 10, advance through the <strong>1,000-Level Horizontal Battle Pass</strong>, and become an <strong>⚡ ASCENDER</strong>!
+            Recruit 350 Marvel Heroes, level them up from 1 to 50, conquer 1v1–5v5 Online Battles, unlock competitive Ranked at Level 10, and advance through the <strong>100-Level Battle Pass</strong> to become an <strong>⚡ ASCENDER</strong>!
           </p>
 
           <div className="pt-2 flex flex-wrap items-center justify-center lg:justify-start gap-3">
@@ -156,7 +156,7 @@ export function AscensionHome({ onNavigateTab }: Props) {
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-amber-400" />
             <h2 className="font-heading font-black text-base sm:text-lg text-white uppercase tracking-wider">
-              DAILY ASTRA LOGIN SUPPLY DROP (7-DAY CYCLE)
+              DAILY CLAIM — COIN SUPPLY DROP (7-DAY CYCLE)
             </h2>
           </div>
           <div className="text-xs font-mono font-bold text-slate-300">
@@ -186,7 +186,7 @@ export function AscensionHome({ onNavigateTab }: Props) {
                 </div>
                 <div className="text-2xl my-1.5">{r.day === 7 ? '🌟' : '✨'}</div>
                 <div className="text-xs font-heading font-black text-amber-300">
-                  +{r.astra.toLocaleString()} ASTRA
+                  +{r.astra.toLocaleString()} COINS
                 </div>
 
                 <div className="mt-2 pt-1 border-t border-white/5 text-[9px] font-mono font-bold">
@@ -218,8 +218,8 @@ export function AscensionHome({ onNavigateTab }: Props) {
           ) : (
             <div className="text-xs text-slate-400">
               {canClaimToday
-                ? 'Claim your daily Astra reward now to increase your consecutive login streak!'
-                : '✅ You have claimed today’s Astra supply drop. Return tomorrow for the next tier!'}
+                ? 'Claim your daily coin reward now to increase your consecutive login streak!'
+                : '✅ You have claimed today’s coin supply drop. Return tomorrow for the next tier!'}
             </div>
           )}
 
@@ -229,7 +229,7 @@ export function AscensionHome({ onNavigateTab }: Props) {
             onClick={handleClaimDaily}
             className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-heading font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-yellow-400 text-black shadow-glow-gold"
           >
-            {isClaimingLogin ? 'CLAIMING...' : canClaimToday ? '✨ CLAIM TODAY (+ASTRA)' : '✓ CLAIMED TODAY'}
+            {isClaimingLogin ? 'CLAIMING...' : canClaimToday ? '🪙 CLAIM TODAY (+COINS)' : '✓ CLAIMED TODAY'}
           </button>
         </div>
       </div>
@@ -281,7 +281,7 @@ export function AscensionHome({ onNavigateTab }: Props) {
           </span>
         </div>
 
-        {/* Card 3: 1000 Level Battle Pass */}
+        {/* Card 3: 100 Level Battle Pass */}
         <div
           onClick={() => {
             soundManager.playClick();
@@ -293,10 +293,10 @@ export function AscensionHome({ onNavigateTab }: Props) {
             👑
           </div>
           <h3 className="font-heading font-black text-white text-base uppercase group-hover:text-purple-300 transition-colors">
-            1,000 Battle Pass
+            100-Level Battle Pass
           </h3>
           <p className="text-xs text-slate-300 leading-relaxed">
-            Progress horizontally through 1,000 tiers of Astra, Epic Heroes, and the Level 1000 Cosmic God jackpot!
+            Progress through 100 tiers of coins, Random Shard Crates, and Character Card Crates.
           </p>
           <span className="text-[11px] font-mono font-bold text-purple-400 flex items-center gap-1 pt-1">
             VIEW BATTLE PASS →

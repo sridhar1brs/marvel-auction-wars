@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ALL_CHARACTERS } from '../../data/characters/index';
 import { Character } from '../../types/game';
 import { useAuth } from '../../context/AuthContext';
+import { useSocket } from '../../hooks/useSocket';
 import { soundManager } from '../../audio/soundManager';
 import { CharacterPortrait } from '../common/CharacterPortrait';
 import { getSkillsForCharacter } from '../../data/skills/characterSkills';
@@ -17,7 +18,8 @@ export type PvPFormat =
   | '3v4' | '3v5' | '4v5';
 
 export function AscensionBattleArena() {
-  const { user, recordAscensionMatch } = useAuth();
+  const { user, refreshProfile } = useAuth();
+  const socket = useSocket();
   const [selectedFormat, setSelectedFormat] = useState<PvPFormat>('1v1');
   const [battleState, setBattleState] = useState<'SELECT_TEAM' | 'MATCHMAKING' | 'FIGHTING' | 'VICTORY' | 'DEFEAT'>('SELECT_TEAM');
 
@@ -26,9 +28,41 @@ export function AscensionBattleArena() {
   const [opponentName, setOpponentName] = useState<string>('Online Challenger');
   const [combatLogs, setCombatLogs] = useState<string[]>([]);
   const [lastMatchRewards, setLastMatchRewards] = useState<{ astra: number; xp: number } | null>(null);
+  const [isResolving, setIsResolving] = useState(false);
+  const [onlineMode, setOnlineMode] = useState<'casual' | 'custom'>('casual');
+  const [customRoomCode, setCustomRoomCode] = useState('');
+  const matchTokenRef = useRef<string>('');
 
   const ownedCharIds = useMemo(() => new Set(user?.ownedCharacters || []), [user?.ownedCharacters]);
   const availableRoster = useMemo(() => ALL_CHARACTERS.filter(c => ownedCharIds.has(c.id)), [ownedCharIds]);
+
+  useEffect(() => {
+    const state = socket.ascensionState;
+    if (!state) return;
+    if (state.phase === 'MATCHMAKING') setBattleState('MATCHMAKING');
+    if (state.phase === 'BATTLE') setBattleState('FIGHTING');
+    if (state.phase === 'RESULT') {
+      setBattleState(state.winnerId === socket.socket?.id ? 'VICTORY' : 'DEFEAT');
+      const reward = state.rewards?.[socket.socket?.id || ''];
+      if (reward) setLastMatchRewards({ astra: reward.astraAwarded, xp: reward.xpAwarded });
+    }
+    if (state.phase === 'LOBBY') setBattleState('SELECT_TEAM');
+    const me = state.players.find(player => player.id === socket.socket?.id);
+    const rival = state.players.find(player => player.id !== socket.socket?.id);
+    if (me?.team?.length) setPlayerTeam(me.team);
+    if (rival) {
+      setOpponentName(rival.name);
+      setEnemyTeam(rival.team);
+    }
+    if (state.combatLogs.length) setCombatLogs(state.combatLogs.slice(-20));
+  }, [socket.ascensionState, socket.socket]);
+
+  useEffect(() => {
+    if (socket.ascensionResult) {
+      refreshProfile();
+      socket.setAscensionResult(null);
+    }
+  }, [socket.ascensionResult, refreshProfile, socket]);
 
   // Derive Team Sizes based on format
   const [team1Size, team2Size] = useMemo(() => {
@@ -55,73 +89,20 @@ export function AscensionBattleArena() {
 
     soundManager.playClick();
     setBattleState('MATCHMAKING');
-
-    const rivals = ['CyberSpider', 'QuantumStark', 'WakandanShadow', 'CosmicGorgon', 'TitanStriker', 'InfinityBlade', 'ScarletMystic'];
-    const selectedRival = rivals[Math.floor(Math.random() * rivals.length)];
-
-    setTimeout(() => {
-      soundManager.playAbilityTrigger();
-      setOpponentName(selectedRival);
-
-      // Randomize Enemy Team
-      const randomPool = ALL_CHARACTERS.slice().sort(() => 0.5 - Math.random());
-      const generatedEnemyTeam = randomPool.slice(0, team2Size);
-      setEnemyTeam(generatedEnemyTeam);
-
-      setCombatLogs([
-        `🌐 ONLINE MULTIPLAYER MATCH FOUND!`,
-        `⚔️ Format: Casual PvP ${selectedFormat.toUpperCase()}`,
-        `🛡️ Your Team: ${playerTeam.map(c => c.name).join(', ')}`,
-        `⚡ Rival Team (${selectedRival}): ${generatedEnemyTeam.map(c => c.name).join(', ')}`
-      ]);
-
-      setBattleState('FIGHTING');
-    }, 2000);
+    matchTokenRef.current = `ascension-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    socket.queueAscension('casual', selectedFormat, playerTeam.map(hero => hero.id));
   };
 
   const handleExecuteTurnAction = async (skillIndex: number) => {
+    if (isResolving || battleState !== 'FIGHTING') return;
+    setIsResolving(true);
     const playerHero = playerTeam[0] || ALL_CHARACTERS[0];
-    const enemyHero = enemyTeam[0] || ALL_CHARACTERS[1];
     const skills = getSkillsForCharacter(playerHero);
     const chosenSkill = skills[skillIndex] || skills[0];
 
     soundManager.playAttackHit();
-
-    // Combat Resolution Formula with Upgraded Stats
-    const pBoost = user?.characterStatsBoosts[playerHero.id]?.power || 0;
-    const pRoll = playerHero.overallPower + pBoost + (chosenSkill?.bonusPower || 10) + Math.floor(Math.random() * 20);
-    const eRoll = enemyHero.overallPower + Math.floor(Math.random() * 20);
-
-    const isWin = pRoll >= eRoll;
-
-    setCombatLogs(prev => [
-      `💥 ${playerHero.name} triggered [${chosenSkill?.name || 'Assault'}]! Power Output: ${pRoll}`,
-      `🛡️ ${enemyHero.name} countered with Power: ${eRoll}`,
-      isWin ? `🏆 ${playerHero.name} overpowered the rival vanguard!` : `⚠️ ${enemyHero.name} broke through your defenses!`
-    ]);
-
-    const res = await recordAscensionMatch({
-      isWin,
-      matchFormat: selectedFormat.includes('v') ? (selectedFormat.split('v')[0] === selectedFormat.split('v')[1] ? selectedFormat as any : 'custom') : '1v1',
-      isRanked: false,
-      isMvp: isWin && Math.random() > 0.5,
-      isComeback: isWin && pRoll - eRoll > 15,
-      isFlawless: isWin && pRoll - eRoll > 25,
-      damageDealt: pRoll * 10
-    });
-
-    if (isWin) {
-      soundManager.playVictoryFanfare();
-      setBattleState('VICTORY');
-    } else {
-      soundManager.playDefeat();
-      setBattleState('DEFEAT');
-    }
-
-    setLastMatchRewards({
-      astra: res?.astraAwarded || (isWin ? 1000 : 350),
-      xp: res?.xpAwarded || (isWin ? 350 : 150)
-    });
+    await socket.submitAscensionAction('SPECIAL', 0, chosenSkill?.id);
+    setIsResolving(false);
   };
 
   return (
@@ -225,14 +206,78 @@ export function AscensionBattleArena() {
             </div>
 
             {/* Launch Online Matchmaking */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setOnlineMode('casual')}
+                className={`py-2 rounded-xl text-[10px] font-black uppercase border ${onlineMode === 'casual' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400' : 'text-slate-400 border-white/10'}`}
+              >
+                Quick Match
+              </button>
+              <button
+                type="button"
+                onClick={() => setOnlineMode('custom')}
+                className={`py-2 rounded-xl text-[10px] font-black uppercase border ${onlineMode === 'custom' ? 'bg-amber-500/20 text-amber-300 border-amber-400' : 'text-slate-400 border-white/10'}`}
+              >
+                Custom Room
+              </button>
+            </div>
             <button
               type="button"
               disabled={playerTeam.length !== team1Size}
-              onClick={handleStartOnlineMatchmaking}
+              onClick={() => {
+                if (onlineMode === 'custom') {
+                  socket.createAscensionRoom('casual', selectedFormat, playerTeam.map(hero => hero.id));
+                } else {
+                  handleStartOnlineMatchmaking();
+                }
+              }}
               className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 via-indigo-600 to-purple-600 hover:from-cyan-400 hover:to-purple-500 disabled:opacity-40 disabled:cursor-not-allowed text-black font-heading font-black text-sm uppercase tracking-wider shadow-glow-cyan transition-all cursor-pointer"
             >
-              {playerTeam.length === team1Size ? `🌐 Find Online ${selectedFormat} Match` : `Select ${team1Size - playerTeam.length} More Hero${team1Size - playerTeam.length > 1 ? 'es' : ''}`}
+              {playerTeam.length === team1Size ? (onlineMode === 'custom' ? 'CREATE CUSTOM ROOM' : `🌐 FIND ONLINE ${selectedFormat} MATCH`) : `Select ${team1Size - playerTeam.length} More Hero${team1Size - playerTeam.length > 1 ? 'es' : ''}`}
             </button>
+            {onlineMode === 'custom' && (
+              <div className="flex gap-2">
+                <input
+                  value={customRoomCode}
+                  onChange={event => setCustomRoomCode(event.target.value.toUpperCase())}
+                  placeholder="ASC-ROOM-123456"
+                  className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/50 px-3 py-2 text-[10px] font-mono text-white"
+                />
+                <button
+                  type="button"
+                  disabled={!customRoomCode || playerTeam.length !== team1Size}
+                  onClick={() => socket.joinAscensionRoom(customRoomCode, playerTeam.map(hero => hero.id))}
+                  className="rounded-xl border border-amber-400/50 px-3 py-2 text-[10px] font-black text-amber-300 disabled:opacity-40"
+                >
+                  JOIN
+                </button>
+              </div>
+            )}
+            {socket.ascensionState?.phase === 'LOBBY' && (
+              <div className="rounded-xl border border-amber-400/30 bg-black/40 p-3 space-y-2">
+                <div className="flex items-center justify-between text-[10px] font-mono text-amber-300">
+                  <span>ROOM {socket.ascensionState.roomId}</span>
+                  <span>{socket.ascensionState.players.length}/10 PLAYERS</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {socket.ascensionState.players.map(player => (
+                    <span key={player.id} className={`rounded-lg px-2 py-1 text-[10px] ${player.isReady ? 'bg-emerald-950 text-emerald-300' : 'bg-slate-900 text-slate-400'}`}>
+                      {player.name} {player.isReady ? '✓' : '…'}
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => socket.setAscensionReady(socket.ascensionState?.players.find(player => player.id === socket.socket?.id)?.isReady !== true)} className="flex-1 rounded-lg bg-emerald-600 py-2 text-[10px] font-black text-white">
+                    {socket.ascensionState?.players.find(player => player.id === socket.socket?.id)?.isReady ? 'UNREADY' : 'READY'}
+                  </button>
+                  {socket.ascensionState.hostId === socket.socket?.id && (
+                    <button onClick={() => socket.startAscensionBattle()} className="flex-1 rounded-lg bg-amber-500 py-2 text-[10px] font-black text-black">START BATTLE</button>
+                  )}
+                  <button onClick={() => { socket.leaveAscensionRoom(); setBattleState('SELECT_TEAM'); }} className="rounded-lg border border-rose-400/50 px-3 py-2 text-[10px] font-black text-rose-300">LEAVE</button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right Column: Character Selection */}
@@ -300,6 +345,9 @@ export function AscensionBattleArena() {
           <p className="text-xs text-cyan-300 font-mono">
             Connecting to Live Cross-Platform Matchmaking Lobby • Format: {selectedFormat.toUpperCase()}
           </p>
+          <button onClick={() => { socket.cancelAscensionQueue(); setBattleState('SELECT_TEAM'); }} className="rounded-xl border border-white/20 px-4 py-2 text-xs font-bold text-slate-300">
+            CANCEL SEARCH
+          </button>
         </div>
       )}
 
@@ -340,6 +388,7 @@ export function AscensionBattleArena() {
                 <button
                   key={skill.id}
                   onClick={() => handleExecuteTurnAction(idx)}
+                  disabled={isResolving}
                   className="p-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-cyan-500/30 hover:border-cyan-400 text-left transition-all group"
                 >
                   <div className="flex items-center gap-2">

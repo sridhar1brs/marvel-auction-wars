@@ -2,6 +2,15 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { getLevelFromXp, calculateMatchXp, formatPlaytime, MatchXpParams, XpBreakdown } from '../progression';
+import {
+  BATTLE_PASS_LEVELS,
+  BATTLE_PASS_XP_PER_LEVEL,
+  getBattlePassLevelForXp,
+  getBattlePassReward,
+  getCharacterShardCategory,
+  CharacterShardCategory,
+} from '../../src/data/ascensionProgression';
+import { ALL_CHARACTERS } from '../../src/data/characters/index';
 
 // ============================================================
 // NEW SYSTEM INTERFACES (v4.0 — Complete Overhaul)
@@ -139,13 +148,12 @@ const WHEEL_PRIZES: Array<WheelReward & { weight: number }> = [
 
 // Card Forge crafting categories
 const FORGE_CATEGORIES: Record<string, { label: string; cost: number; grades: string[]; description: string }> = {
-  'random_c':      { label: 'Common Draft', cost: 50,   grades: ['C'],           description: 'Craft a random C-grade character' },
-  'random_b':      { label: 'Rare Draft',   cost: 150,  grades: ['B'],           description: 'Craft a random B-grade character' },
-  'random_a':      { label: 'Epic Draft',   cost: 350,  grades: ['A'],           description: 'Craft a random A-grade character' },
-  'random_mythic': { label: 'Mythic Draft', cost: 1000, grades: ['MYTHIC'],      description: 'Craft a random MYTHIC character' },
-  'random_hero':   { label: 'Hero Draft',   cost: 100,  grades: ['C','B','A'],   description: 'Craft a random Hero-aligned character' },
-  'random_villain':{ label: 'Villain Draft',cost: 100,  grades: ['C','B','A'],   description: 'Craft a random Villain character' },
-  'random_cosmic': { label: 'Cosmic Draft', cost: 250,  grades: ['A','MYTHIC'],  description: 'Craft a random Cosmic tier character' },
+  'random_b':      { label: 'Rare Draft',   cost: 10, grades: ['B'],           description: 'Craft a random B-grade character' },
+  'random_a':      { label: 'Epic Draft',   cost: 10, grades: ['A'],           description: 'Craft a random A-grade character' },
+  'random_mythic': { label: 'Mythic Draft', cost: 10, grades: ['MYTHIC'],      description: 'Craft a random MYTHIC character' },
+  'random_hero':   { label: 'Hero Draft',   cost: 10, grades: ['C','B','A'],   description: 'Craft a random Hero-aligned character' },
+  'random_villain':{ label: 'Villain Draft',cost: 10, grades: ['C','B','A'],   description: 'Craft a random Villain character' },
+  'random_cosmic': { label: 'Cosmic Draft', cost: 10, grades: ['A','MYTHIC'],  description: 'Craft a random Cosmic tier character' },
 };
 
 // Card Shard values by grade (for duplicate conversion)
@@ -171,6 +179,10 @@ export interface GiftRecord {
 export interface RedeemCode {
   code: string; // Exactly 10 uppercase alphanumeric chars (e.g. A7K9X2PQ4M)
   astraReward: number;
+  rewardType?: 'ASTRA' | 'CHARACTER' | 'SHARD' | 'CRATE';
+  rewardAmount?: number;
+  characterId?: string;
+  crateType?: string;
   maxUses: number;
   usedCount: number;
   expiresAt: string; // YYYY-MM-DD
@@ -233,7 +245,7 @@ export interface UserAccount {
   
   // Competitive Ranked System
   rankedRating: number; // MMR (e.g. 0 - 5000+)
-  rankedTier: string; // UNRANKED, BRONZE, SILVER, GOLD, PLATINUM, DIAMOND, VIBRANIUM, COSMIC, CELESTIAL, ASCENDER
+  rankedTier: string; // UNRANKED, BRONZE, SILVER, GOLD, PLATINUM, VIBRANIUM, COSMIC, CELESTIAL, ASCENDER
   rankedDivision: number; // 5 -> 1 (Celestial has 3 -> 1; Ascender has 0)
   placementMatchesPlayed: number; // 0 to 10
   placementMatchesTotal: number; // 10
@@ -243,9 +255,14 @@ export interface UserAccount {
   highestRating: number;
   
   // Battle Pass & Daily
-  battlePassLevel: number; // 1 - 1000
+  battlePassLevel: number; // 1 - 100
   battlePassXp: number;
   battlePassClaimed: number[]; // Claimed level reward integers
+  crateInventory: { shard: number; character: number };
+  categoryShards: Record<string, number>;
+  characterTokens: Record<string, number>;
+  onboardingCompleted: boolean;
+  onboardingChoices: string[];
   dailyLoginStreak: number; // 1 to 7 cycle
   lastDailyLoginDate: string; // YYYY-MM-DD
   currentWinStreak: number;
@@ -328,6 +345,11 @@ export interface SanitizedUserProfile {
   battlePassLevel: number;
   battlePassXp: number;
   battlePassClaimed: number[];
+  crateInventory: { shard: number; character: number };
+  categoryShards: Record<string, number>;
+  characterTokens: Record<string, number>;
+  onboardingCompleted: boolean;
+  onboardingChoices: string[];
   dailyLoginStreak: number;
   lastDailyLoginDate: string;
   canClaimDailyLogin: boolean;
@@ -471,9 +493,19 @@ class DatabaseManager {
       isPlacementsCompleted: u.isPlacementsCompleted || false,
       highestRank: u.highestRank || u.rankedTier || 'UNRANKED',
       highestRating: typeof u.highestRating === 'number' ? u.highestRating : (u.rankedRating || 0),
-      battlePassLevel: typeof u.battlePassLevel === 'number' ? u.battlePassLevel : 1,
+      battlePassLevel: Math.min(BATTLE_PASS_LEVELS, typeof u.battlePassLevel === 'number' ? u.battlePassLevel : getBattlePassLevelForXp(u.battlePassXp || 0)),
       battlePassXp: typeof u.battlePassXp === 'number' ? u.battlePassXp : 0,
       battlePassClaimed: Array.isArray(u.battlePassClaimed) ? u.battlePassClaimed : [],
+      crateInventory: {
+        shard: Math.max(0, Number(u.crateInventory?.shard) || 0),
+        character: Math.max(0, Number(u.crateInventory?.character) || 0),
+      },
+      categoryShards: u.categoryShards && typeof u.categoryShards === 'object' ? u.categoryShards : {},
+      characterTokens: u.characterTokens && typeof u.characterTokens === 'object' ? u.characterTokens : {},
+      // Existing accounts are never forced through onboarding. Only newly
+      // created accounts opt in explicitly below.
+      onboardingCompleted: u.onboardingCompleted !== false,
+      onboardingChoices: Array.isArray(u.onboardingChoices) ? u.onboardingChoices : [],
       dailyLoginStreak: typeof u.dailyLoginStreak === 'number' ? u.dailyLoginStreak : 0,
       lastDailyLoginDate: u.lastDailyLoginDate || '',
       currentWinStreak: typeof u.currentWinStreak === 'number' ? u.currentWinStreak : 0,
@@ -616,9 +648,14 @@ class DatabaseManager {
       isPlacementsCompleted: u.isPlacementsCompleted || false,
       highestRank: u.highestRank || 'UNRANKED',
       highestRating: u.highestRating || 0,
-      battlePassLevel: u.battlePassLevel || 1,
+      battlePassLevel: Math.min(BATTLE_PASS_LEVELS, getBattlePassLevelForXp(u.battlePassXp || 0)),
       battlePassXp: u.battlePassXp || 0,
       battlePassClaimed: u.battlePassClaimed || [],
+      crateInventory: u.crateInventory || { shard: 0, character: 0 },
+      categoryShards: u.categoryShards || {},
+      characterTokens: u.characterTokens || {},
+      onboardingCompleted: u.onboardingCompleted !== false,
+      onboardingChoices: u.onboardingChoices || [],
       dailyLoginStreak: u.dailyLoginStreak || 0,
       lastDailyLoginDate: u.lastDailyLoginDate || '',
       canClaimDailyLogin,
@@ -689,10 +726,33 @@ class DatabaseManager {
       return { success: false, error: 'You have already redeemed this promotional code.' };
     }
 
-    // Grant Reward
-    const reward = codeObj.astraReward || 1000;
-    user.astra = (user.astra || 0) + reward;
-    user.ascensionCoins = user.astra;
+    // Grant the configured reward atomically. Legacy codes remain Astra codes.
+    const rewardType = codeObj.rewardType || 'ASTRA';
+    const reward = codeObj.rewardAmount ?? codeObj.astraReward ?? 1000;
+    if (rewardType === 'CHARACTER') {
+      const character = ALL_CHARACTERS.find(candidate => candidate.id === codeObj.characterId);
+      if (!character) return { success: false, error: 'This code references an invalid character.' };
+      if (!user.ownedCharacters.includes(character.id)) user.ownedCharacters.push(character.id);
+      else user.categoryShards[getCharacterShardCategory(character.grade)] = (user.categoryShards[getCharacterShardCategory(character.grade)] || 0) + 10;
+    } else if (rewardType === 'SHARD') {
+      const shardCategoryMap: Record<string, CharacterShardCategory> = {
+        RARE: 'B',
+        EPIC: 'A',
+        MYTHIC: 'MYTHIC',
+        HERO: 'C',
+        VILLAIN: 'C',
+        COSMIC: 'A',
+      };
+      const category = shardCategoryMap[String(codeObj.characterId || 'C').toUpperCase()] || getCharacterShardCategory(codeObj.characterId || 'C');
+      user.categoryShards[category] = (user.categoryShards[category] || 0) + Math.max(1, reward);
+    } else if (rewardType === 'CRATE') {
+      if (!user.crateInventory) user.crateInventory = { shard: 0, character: 0 };
+      if (String(codeObj.crateType || '').startsWith('CHARACTER_CRATE')) user.crateInventory.character += Math.max(1, reward);
+      else user.crateInventory.shard += Math.max(1, reward);
+    } else {
+      user.astra = (user.astra || 0) + Math.max(0, reward);
+      user.ascensionCoins = user.astra;
+    }
     codeObj.usedCount += 1;
     codeObj.redeemedBy.push(user.id);
 
@@ -701,8 +761,14 @@ class DatabaseManager {
 
     return {
       success: true,
-      astraAwarded: reward,
-      message: `🎉 Successfully redeemed! +${reward.toLocaleString()} ASTRA credited to your vault.`,
+      astraAwarded: rewardType === 'ASTRA' ? reward : 0,
+      message: rewardType === 'CHARACTER'
+        ? '🎉 Character added to your collection.'
+        : rewardType === 'CRATE'
+        ? `🎉 ${reward} crate added to your inventory.`
+        : rewardType === 'SHARD'
+        ? `🎉 ${reward} category shards added to your vault.`
+        : `🎉 Successfully redeemed! +${reward.toLocaleString()} ASTRA credited to your vault.`,
       user: this.sanitizeUser(user)
     };
   }
@@ -716,6 +782,10 @@ class DatabaseManager {
     payload: {
       code?: string;
       astraReward: number;
+      rewardType?: 'ASTRA' | 'CHARACTER' | 'SHARD' | 'CRATE';
+      rewardAmount?: number;
+      characterId?: string;
+      crateType?: 'SHARD_CRATE' | 'CHARACTER_CRATE';
       maxUses: number;
       expiresAt: string;
       isActive?: boolean;
@@ -744,15 +814,28 @@ class DatabaseManager {
     if (this.redeemCodes.has(codeStr)) {
       return { success: false, error: `Code "${codeStr}" already exists in the database.` };
     }
+    if (payload.rewardType && !['ASTRA', 'CHARACTER', 'SHARD', 'CRATE'].includes(payload.rewardType)) {
+      return { success: false, error: 'Invalid redeem reward type.' };
+    }
 
     const expiry = new Date(`${payload.expiresAt}T23:59:59.999Z`);
     if (!payload.expiresAt || Number.isNaN(expiry.getTime()) || expiry.getTime() < Date.now()) {
       return { success: false, error: 'Choose an expiration date in the future.' };
     }
 
+    if (payload.rewardType === 'CHARACTER' && !ALL_CHARACTERS.some(character => character.id === payload.characterId)) {
+      return { success: false, error: 'Select a valid character from the character database.' };
+    }
+    if (payload.rewardType === 'CRATE' && !/^(SHARD_CRATE|CHARACTER_CRATE)_(RARE|EPIC|LEGENDARY|MYTHIC)$/.test(payload.crateType || '')) {
+      return { success: false, error: 'Select a valid crate type.' };
+    }
     const newCode: RedeemCode = {
       code: codeStr,
       astraReward: Math.max(100, Math.min(1000000, Number(payload.astraReward) || 5000)),
+      rewardType: payload.rewardType || 'ASTRA',
+      rewardAmount: Math.max(1, Number(payload.rewardAmount ?? payload.astraReward) || 1),
+      characterId: payload.characterId,
+      crateType: payload.crateType,
       maxUses: Math.max(1, Math.min(100000, Number(payload.maxUses) || 1000)),
       usedCount: 0,
       expiresAt: payload.expiresAt || '2026-12-31',
@@ -924,6 +1007,11 @@ class DatabaseManager {
       battlePassLevel: 1,
       battlePassXp: 0,
       battlePassClaimed: [],
+      crateInventory: { shard: 0, character: 0 },
+      categoryShards: {},
+      characterTokens: {},
+      onboardingCompleted: false,
+      onboardingChoices: [],
       dailyLoginStreak: 0,
       lastDailyLoginDate: '',
       currentWinStreak: 0,
@@ -1045,7 +1133,7 @@ class DatabaseManager {
 
     const todayStr = new Date().toISOString().slice(0, 10);
     if (user.lastDailyLoginDate === todayStr) {
-      return { success: false, error: 'Daily Astra already claimed today. Return tomorrow!' };
+      return { success: false, error: 'Daily coins already claimed today. Return tomorrow!' };
     }
 
     let nextStreak = (user.dailyLoginStreak || 0) + 1;
@@ -1075,12 +1163,25 @@ class DatabaseManager {
   public buyAscensionCharacter(userId: string, characterId: string, cost: number): { success: boolean; isDuplicate?: boolean; shardsAwarded?: number; error?: string; user?: SanitizedUserProfile } {
     const user = this.getRawUser(userId);
     if (!user) return { success: false, error: 'User not found.' };
+    const character = ALL_CHARACTERS.find(candidate => candidate.id === characterId);
+    if (!character) return { success: false, error: 'Character not found.' };
+    const serverCost = character.name === 'J. Jonah Jameson'
+      ? 3500
+      : character.grade === 'MYTHIC' || character.alignment === 'Cosmic'
+      ? 50000
+      : character.overallPower >= 90
+      ? 15000
+      : character.grade === 'A' || character.overallPower >= 80
+      ? 7500
+      : character.grade === 'B' || character.overallPower >= 70
+      ? 3500
+      : 1500;
 
-    if ((user.astra || 0) < cost) {
-      return { success: false, error: `Insufficient Astra. Need ✨ ${cost.toLocaleString()} Astra, you have ✨ ${(user.astra || 0).toLocaleString()}.` };
+    if ((user.astra || 0) < serverCost) {
+      return { success: false, error: `Insufficient Astra. Need ✨ ${serverCost.toLocaleString()} Astra, you have ✨ ${(user.astra || 0).toLocaleString()}.` };
     }
 
-    user.astra = (user.astra || 0) - cost;
+    user.astra = (user.astra || 0) - serverCost;
     user.ascensionCoins = user.astra;
     const isOwned = (user.ownedCharacters || []).includes(characterId);
 
@@ -1126,7 +1227,10 @@ class DatabaseManager {
     const user = this.getRawUser(userId);
     if (!user) return { success: false, error: 'User not found.' };
 
-    if (isMythic) {
+    const character = ALL_CHARACTERS.find(candidate => candidate.id === characterId);
+    if (!character) return { success: false, error: 'Character not found.' };
+    const serverIsMythic = character.grade === 'MYTHIC' || character.alignment === 'Cosmic';
+    if (serverIsMythic) {
       return { success: false, error: 'MYTHIC CHARACTERS CANNOT BE UPGRADED. Mythics possess permanent cosmic supremacy.' };
     }
 
@@ -1140,20 +1244,12 @@ class DatabaseManager {
     }
 
     const requiredAstra = currentLevel * 150;
-    const requiredShards = Math.min(10, Math.floor(currentLevel / 5) + 1);
-
     if ((user.astra || 0) < requiredAstra) {
       return { success: false, error: `Need ✨ ${requiredAstra} Astra to upgrade to Level ${currentLevel + 1}.` };
     }
 
-    const ownedShards = user.characterShards[characterId] || 0;
-    if (ownedShards < requiredShards) {
-      return { success: false, error: `Need ${requiredShards} Character Shards. You have ${ownedShards}.` };
-    }
-
     user.astra = (user.astra || 0) - requiredAstra;
     user.ascensionCoins = user.astra;
-    user.characterShards[characterId] = ownedShards - requiredShards;
     const nextLevel = currentLevel + 1;
     user.characterLevels[characterId] = nextLevel;
 
@@ -1241,69 +1337,63 @@ class DatabaseManager {
     return { success: true, user: this.sanitizeUser(user) };
   }
 
-  // Claim Battle Pass Level Reward (Levels 1 - 1000)
+  // Claim Battle Pass Level Reward. The reward is resolved on the server from
+  // the shared definition; client supplied reward values are intentionally ignored.
   public claimBattlePassReward(
     userId: string,
     level: number,
-    rewardType: 'COINS' | 'RELIC' | 'SKILL' | 'SHARDS' | 'CHARACTER' | 'ULTIMATE' = 'COINS',
-    rewardAmount: number = 0,
-    rewardItemId?: string
+    _rewardType?: string,
+    _rewardAmount: number = 0,
+    _rewardItemId?: string
   ): { success: boolean; rewardType?: string; rewardAmount?: number; error?: string; user?: SanitizedUserProfile } {
     const user = this.getRawUser(userId);
     if (!user) return { success: false, error: 'User not found.' };
+    const safeLevel = Math.floor(Number(level));
+    if (!Number.isInteger(safeLevel) || safeLevel < 1 || safeLevel > BATTLE_PASS_LEVELS) {
+      return { success: false, error: `Battle Pass level must be between 1 and ${BATTLE_PASS_LEVELS}.` };
+    }
 
     if (!user.battlePassClaimed) user.battlePassClaimed = [];
-    if (user.battlePassClaimed.includes(level)) {
-      return { success: false, error: `Battle Pass Level ${level} reward already claimed.` };
+    if (user.battlePassClaimed.includes(safeLevel)) {
+      return { success: false, error: `Battle Pass Level ${safeLevel} reward already claimed.` };
     }
 
-    const effectiveLevel = Math.max(user.level || 1, user.battlePassLevel || 1);
-    if (effectiveLevel < level) {
-      return { success: false, error: `Reach Commander Level ${level} to claim this reward (Current: Level ${effectiveLevel}).` };
+    const effectiveLevel = getBattlePassLevelForXp(user.battlePassXp || 0);
+    if (effectiveLevel < safeLevel) {
+      return { success: false, error: `Earn ${safeLevel * BATTLE_PASS_XP_PER_LEVEL} Battle Pass XP to claim this reward (Current level: ${effectiveLevel}).` };
     }
 
-    // Determine Reward
+    const reward = getBattlePassReward(safeLevel);
     let astraGiven = 0;
-    if (rewardType === 'COINS' || rewardType === 'ULTIMATE') {
-      astraGiven = rewardAmount || Math.min(100000, level === 1000 ? 100000 : level === 750 ? 50000 : level === 500 ? 25000 : level === 250 ? 10000 : level === 100 ? 5000 : level * 15);
+    if (reward.rewardType === 'COINS') {
+      astraGiven = reward.amount;
       user.astra = (user.astra || 0) + astraGiven;
       user.ascensionCoins = user.astra;
-    } else if (rewardType === 'CHARACTER') {
-      if (rewardItemId && !user.ownedCharacters.includes(rewardItemId)) {
-        user.ownedCharacters.push(rewardItemId);
-      }
-      astraGiven = rewardAmount || (level * 50);
-      user.astra = (user.astra || 0) + astraGiven;
-      user.ascensionCoins = user.astra;
-    } else if (rewardType === 'RELIC') {
-      if (rewardItemId && !user.ownedRelics.includes(rewardItemId)) {
-        user.ownedRelics.push(rewardItemId);
-      }
-      astraGiven = rewardAmount || (level * 20);
-      user.astra = (user.astra || 0) + astraGiven;
-      user.ascensionCoins = user.astra;
-    } else if (rewardType === 'SKILL') {
-      if (rewardItemId && !user.ownedSkills.includes(rewardItemId)) {
-        user.ownedSkills.push(rewardItemId);
-      }
-      astraGiven = rewardAmount || (level * 25);
-      user.astra = (user.astra || 0) + astraGiven;
-      user.ascensionCoins = user.astra;
-    } else if (rewardType === 'SHARDS') {
-      astraGiven = rewardAmount || (level * 30);
-      user.astra = (user.astra || 0) + astraGiven;
-      user.ascensionCoins = user.astra;
+    } else {
+      if (!user.crateInventory) user.crateInventory = { shard: 0, character: 0 };
+      if (reward.rewardType === 'SHARD_CRATE') user.crateInventory.shard += 1;
+      if (reward.rewardType === 'CHARACTER_CRATE') user.crateInventory.character += 1;
     }
 
-    user.battlePassClaimed.push(level);
+    user.battlePassClaimed.push(safeLevel);
     this.save();
 
     return {
       success: true,
-      rewardType,
-      rewardAmount: astraGiven,
+      rewardType: reward.rewardType,
+      rewardAmount: reward.amount,
       user: this.sanitizeUser(user)
     };
+  }
+
+  public awardBattlePassXp(userId: string, amount: number): { success: boolean; battlePassLevel?: number; battlePassXp?: number; user?: SanitizedUserProfile } {
+    const user = this.getRawUser(userId);
+    if (!user) return { success: false };
+    const safeAmount = Math.max(0, Math.min(10000, Math.floor(Number(amount) || 0)));
+    user.battlePassXp = Math.max(0, (user.battlePassXp || 0) + safeAmount);
+    user.battlePassLevel = getBattlePassLevelForXp(user.battlePassXp);
+    this.save();
+    return { success: true, battlePassLevel: user.battlePassLevel, battlePassXp: user.battlePassXp, user: this.sanitizeUser(user) };
   }
 
   // Record Ascension PvP / Ranked Match with Exact Tier Hierarchy
@@ -1317,10 +1407,22 @@ class DatabaseManager {
       isComeback?: boolean;
       isFlawless?: boolean;
       damageDealt?: number;
+      matchToken?: string;
     }
   ): { success: boolean; coinsAwarded: number; astraAwarded: number; xpAwarded: number; newRating: number; newTier: string; user: SanitizedUserProfile } | null {
     const user = this.getRawUser(userId);
     if (!user) return null;
+    if (params.matchToken && this.processedMatchTokens.has(params.matchToken)) {
+      return {
+        success: true,
+        coinsAwarded: 0,
+        astraAwarded: 0,
+        xpAwarded: 0,
+        newRating: user.rankedRating,
+        newTier: user.rankedTier,
+        user: this.sanitizeUser(user),
+      };
+    }
 
     // Check Ranked Level 10 lock
     if (params.isRanked && (user.level || 1) < 10) {
@@ -1405,19 +1507,16 @@ class DatabaseManager {
         if (user.rankedRating >= 4500) {
           user.rankedTier = 'ASCENDER';
           user.rankedDivision = 0; // Infinite ceiling
-        } else if (user.rankedRating >= 3500) {
-          user.rankedTier = 'CELESTIAL';
-          // Celestial V (3500), IV (3800), III (4100-4499)
-          const offset = user.rankedRating - 3500;
-          user.rankedDivision = offset >= 600 ? 3 : offset >= 300 ? 4 : 5;
         } else if (user.rankedRating >= 3000) {
-          user.rankedTier = 'COSMIC';
-          user.rankedDivision = Math.max(1, Math.min(5, 5 - Math.floor((user.rankedRating - 3000) / 100)));
+          user.rankedTier = 'CELESTIAL';
+          const offset = user.rankedRating - 3000;
+          user.rankedDivision = offset >= 334 ? 3 : offset >= 167 ? 4 : 5;
         } else if (user.rankedRating >= 2500) {
-          user.rankedTier = 'VIBRANIUM';
-          user.rankedDivision = Math.max(1, Math.min(5, 5 - Math.floor((user.rankedRating - 2500) / 100)));
+          user.rankedTier = 'COSMIC';
+          const offset = user.rankedRating - 2500;
+          user.rankedDivision = offset >= 334 ? 3 : offset >= 167 ? 4 : 5;
         } else if (user.rankedRating >= 2000) {
-          user.rankedTier = 'DIAMOND';
+          user.rankedTier = 'VIBRANIUM';
           user.rankedDivision = Math.max(1, Math.min(5, 5 - Math.floor((user.rankedRating - 2000) / 100)));
         } else if (user.rankedRating >= 1500) {
           user.rankedTier = 'PLATINUM';
@@ -1443,6 +1542,8 @@ class DatabaseManager {
     // Award XP
     const xpGain = params.isWin ? 350 : 150;
     user.xp += xpGain;
+    user.battlePassXp = Math.max(0, (user.battlePassXp || 0) + (params.isWin ? 200 : 100));
+    user.battlePassLevel = getBattlePassLevelForXp(user.battlePassXp);
 
     // ─── v4.0: Track mission + achievement progress ───
     this.updateMissionProgressForUser(user, 'battle_play', 1);
@@ -1461,6 +1562,7 @@ class DatabaseManager {
     // ─────────────────────────────────────────────────
 
     user.lastActiveAt = Date.now();
+    if (params.matchToken) this.processedMatchTokens.add(params.matchToken);
     this.save();
 
     return {
@@ -1658,6 +1760,8 @@ class DatabaseManager {
     const oldLevel = getLevelFromXp(user.xp).level;
     const xpBreakdown = calculateMatchXp(params);
     user.xp += xpBreakdown.total;
+    user.battlePassXp = Math.max(0, (user.battlePassXp || 0) + Math.max(25, Math.floor(xpBreakdown.total / 2)));
+    user.battlePassLevel = getBattlePassLevelForXp(user.battlePassXp);
 
     user.matchesPlayed += 1;
     if (params.isWin) user.wins += 1;
@@ -1731,6 +1835,8 @@ class DatabaseManager {
       dungeonWavesCleared: wavesCleared
     });
     user.xp += xpBreakdown.total;
+    user.battlePassXp = Math.max(0, (user.battlePassXp || 0) + Math.max(25, Math.floor(xpBreakdown.total / 2)));
+    user.battlePassLevel = getBattlePassLevelForXp(user.battlePassXp);
 
     if (wavesCleared > (user.dungeonMaxWave || 0)) {
       user.dungeonMaxWave = wavesCleared;
@@ -1892,6 +1998,104 @@ class DatabaseManager {
       current.unlockedAt = Date.now();
     }
     user.achievements[achievementId] = current;
+  }
+
+  public getOnboardingChoices(userId: string): { success: boolean; choices?: any[]; completed?: boolean; error?: string } {
+    const user = this.getRawUser(userId);
+    if (!user) return { success: false, error: 'User not found.' };
+    if (user.onboardingCompleted || (user.ownedCharacters || []).length > 0) {
+      user.onboardingCompleted = true;
+      return { success: true, choices: [], completed: true };
+    }
+    if (!user.onboardingChoices || user.onboardingChoices.length !== 5) {
+      user.onboardingChoices = [...ALL_CHARACTERS]
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 5)
+        .map(character => character.id);
+      this.save();
+    }
+    return {
+      success: true,
+      choices: user.onboardingChoices.map(id => ALL_CHARACTERS.find(character => character.id === id)).filter(Boolean),
+      completed: false,
+    };
+  }
+
+  public chooseOnboardingCharacter(userId: string, characterId: string): { success: boolean; user?: SanitizedUserProfile; error?: string } {
+    const user = this.getRawUser(userId);
+    if (!user) return { success: false, error: 'User not found.' };
+    if (user.onboardingCompleted || (user.ownedCharacters || []).length > 0) {
+      return { success: false, error: 'Onboarding has already been completed.' };
+    }
+    if (!(user.onboardingChoices || []).includes(characterId)) {
+      return { success: false, error: 'Choose one of the five offered characters.' };
+    }
+    user.ownedCharacters = [characterId];
+    user.characterLevels[characterId] = 1;
+    user.onboardingCompleted = true;
+    user.onboardingChoices = [];
+    this.save();
+    return { success: true, user: this.sanitizeUser(user) };
+  }
+
+  public craftCharacterToken(userId: string, category: string): { success: boolean; category?: string; tokenCount?: number; error?: string; user?: SanitizedUserProfile } {
+    const user = this.getRawUser(userId);
+    const normalized = String(category || '').toUpperCase();
+    if (!user) return { success: false, error: 'User not found.' };
+    if (!['C', 'B', 'A', 'MYTHIC'].includes(normalized)) return { success: false, error: 'Invalid shard category.' };
+    const current = Number(user.categoryShards?.[normalized]) || 0;
+    if (current < 10) return { success: false, error: `Need 10 ${normalized} category shards.` };
+    user.categoryShards[normalized] = current - 10;
+    user.characterTokens[normalized] = (user.characterTokens[normalized] || 0) + 1;
+    this.save();
+    return { success: true, category: normalized, tokenCount: user.characterTokens[normalized], user: this.sanitizeUser(user) };
+  }
+
+  public redeemCharacterToken(userId: string, category: string, characterId: string): { success: boolean; character?: any; error?: string; user?: SanitizedUserProfile } {
+    const user = this.getRawUser(userId);
+    const normalized = String(category || '').toUpperCase();
+    const character = ALL_CHARACTERS.find(candidate => candidate.id === characterId);
+    if (!user) return { success: false, error: 'User not found.' };
+    if (!['C', 'B', 'A', 'MYTHIC'].includes(normalized) || !character || getCharacterShardCategory(character.grade) !== normalized) {
+      return { success: false, error: 'Character is not valid for this token category.' };
+    }
+    if ((user.characterTokens[normalized] || 0) < 1) return { success: false, error: 'You do not have a token for this category.' };
+    if ((user.ownedCharacters || []).includes(characterId)) return { success: false, error: 'You already own this character.' };
+    user.characterTokens[normalized] -= 1;
+    user.ownedCharacters.push(characterId);
+    user.characterLevels[characterId] = 1;
+    this.save();
+    return { success: true, character, user: this.sanitizeUser(user) };
+  }
+
+  public openCrate(userId: string, crateType: 'SHARD_CRATE' | 'CHARACTER_CRATE'): { success: boolean; crateType?: string; reward?: any; error?: string; user?: SanitizedUserProfile } {
+    const user = this.getRawUser(userId);
+    if (!user) return { success: false, error: 'User not found.' };
+    if (!user.crateInventory) user.crateInventory = { shard: 0, character: 0 };
+    const key = crateType === 'SHARD_CRATE' ? 'shard' : 'character';
+    if (crateType !== 'SHARD_CRATE' && crateType !== 'CHARACTER_CRATE') return { success: false, error: 'Invalid crate type.' };
+    if (user.crateInventory[key] < 1) return { success: false, error: 'You do not have this crate.' };
+    user.crateInventory[key] -= 1;
+    if (crateType === 'SHARD_CRATE') {
+      const categories: CharacterShardCategory[] = ['C', 'B', 'A', 'MYTHIC'];
+      const category = categories[Math.floor(Math.random() * categories.length)];
+      const amount = category === 'MYTHIC' ? 2 : category === 'A' ? 4 : category === 'B' ? 7 : 12;
+      user.categoryShards[category] = (user.categoryShards[category] || 0) + amount;
+      this.save();
+      return { success: true, crateType, reward: { category, amount }, user: this.sanitizeUser(user) };
+    }
+    const pool = ALL_CHARACTERS.filter(character => !user.ownedCharacters.includes(character.id));
+    const character = (pool.length ? pool : ALL_CHARACTERS)[Math.floor(Math.random() * (pool.length ? pool : ALL_CHARACTERS).length)];
+    if (user.ownedCharacters.includes(character.id)) {
+      const category = getCharacterShardCategory(character.grade);
+      user.categoryShards[category] = (user.categoryShards[category] || 0) + 10;
+      this.save();
+      return { success: true, crateType, reward: { character, duplicate: true, category, amount: 10 }, user: this.sanitizeUser(user) };
+    }
+    user.ownedCharacters.push(character.id);
+    user.characterLevels[character.id] = 1;
+    this.save();
+    return { success: true, crateType, reward: { character }, user: this.sanitizeUser(user) };
   }
 
   // ============================================================

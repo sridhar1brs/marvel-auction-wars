@@ -3,9 +3,9 @@ import express from 'express';
 import http from 'http';
 import { Server, Socket } from 'socket.io';
 import cors from 'cors';
-import { GameRoom } from './rooms';
+import { GameRoom, OnlineBattleRoom, AscensionBattleResult } from './rooms';
 import { ALL_CHARACTERS } from '../src/data/characters/index';
-import { Player, GameSettings } from '../src/types/game';
+import { Player, GameSettings, Character, AscensionBattleState, BattleActionType } from '../src/types/game';
 import { database } from './db/database';
 
 import path from 'path';
@@ -32,6 +32,58 @@ app.use(express.static(distPath));
 
 const rooms = new Map<string, GameRoom>();
 const socketToRoom = new Map<string, { roomId: string; playerId: string }>();
+const ascensionRooms = new Map<string, OnlineBattleRoom>();
+const ascensionSocketSession = new Map<string, { roomId: string; playerId: string; profileId?: string }>();
+const ascensionQueue: Array<{
+  socketId: string; profileId?: string; name: string; avatar: string; rating: number;
+  format: AscensionBattleState['format']; mode: 'casual' | 'ranked'; team: Character[]; queuedAt: number;
+}> = [];
+
+function ascensionSocketSessionHasProfile(profileId: string): boolean {
+  for (const session of ascensionSocketSession.values()) {
+    if (session.profileId === profileId) return true;
+  }
+  return false;
+}
+
+function canonicalTeam(ids: unknown, profile?: any): { team?: Character[]; error?: string } {
+  if (!Array.isArray(ids) || ids.length < 1 || ids.length > 5) {
+    return { error: 'Choose between 1 and 5 heroes.' };
+  }
+  const unique = [...new Set(ids.filter((id): id is string => typeof id === 'string'))];
+  if (unique.length !== ids.length) return { error: 'A team cannot contain duplicate heroes.' };
+  if (profile?.ownedCharacters && unique.some(id => !profile.ownedCharacters.includes(id))) {
+    return { error: 'Your team contains a hero you do not own.' };
+  }
+  const team = unique.map(id => {
+    const source = ALL_CHARACTERS.find(character => character.id === id);
+    if (!source) return null;
+    const boost = profile?.characterStatsBoosts?.[id] || {};
+    const level = Number(profile?.characterLevels?.[id]) || 1;
+    return {
+      ...source,
+      overallPower: source.overallPower + (Number(boost.power) || 0),
+      stats: {
+        ...source.stats,
+        durability: source.stats.durability + (Number(boost.hp) || 0),
+        combat: source.stats.combat + (Number(boost.power) || 0),
+        speed: source.stats.speed + (Number(boost.speed) || 0),
+      },
+      currentHp: 100 + (Number(boost.hp) || 0),
+      maxHp: 100 + (Number(boost.hp) || 0),
+      isFainted: false,
+      usedSkillIds: [],
+      equippedSkills: Array.isArray(profile?.equippedSkills?.[id]) ? profile.equippedSkills[id] : [],
+      level,
+    };
+  });
+  if (team.some(character => !character)) return { error: 'One or more heroes are invalid.' };
+  return { team: team as Character[] };
+}
+
+function formatFromInput(value: unknown): AscensionBattleState['format'] | null {
+  return ['1v1', '2v2', '3v3', '4v4', '5v5', 'custom'].includes(String(value)) ? value as AscensionBattleState['format'] : null;
+}
 
 // Auth Helper
 function getAuthUser(req: express.Request) {
@@ -253,11 +305,49 @@ app.post('/api/ascension/battlepass/claim', (req, res) => {
   res.json(result);
 });
 
+app.post('/api/ascension/crates/open', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.openCrate(user.id, req.body?.crateType);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+app.post('/api/ascension/tokens/craft', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.craftCharacterToken(user.id, req.body?.category);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+app.post('/api/ascension/tokens/redeem', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.redeemCharacterToken(user.id, req.body?.category, req.body?.characterId);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+app.get('/api/onboarding/choices', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  res.json(database.getOnboardingChoices(user.id));
+});
+
+app.post('/api/onboarding/choose', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.chooseOnboardingCharacter(user.id, req.body?.characterId);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
 // 8. Record Ascension PvP / Ranked Match
 app.post('/api/ascension/match-record', (req, res) => {
   const user = getAuthUser(req);
   if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
-  const { isWin, matchFormat, isRanked, isMvp, isComeback, isFlawless, damageDealt } = req.body;
+  const { isWin, matchFormat, isRanked, isMvp, isComeback, isFlawless, damageDealt, matchToken } = req.body;
   const result = database.recordAscensionMatch(user.id, {
     isWin: !!isWin,
     matchFormat: matchFormat || '1v1',
@@ -265,7 +355,8 @@ app.post('/api/ascension/match-record', (req, res) => {
     isMvp: !!isMvp,
     isComeback: !!isComeback,
     isFlawless: !!isFlawless,
-    damageDealt: Number(damageDealt) || 0
+    damageDealt: Number(damageDealt) || 0,
+    matchToken: typeof matchToken === 'string' ? matchToken : undefined
   });
   if (!result) return res.status(400).json({ success: false, error: 'Failed to record Ascension match.' });
   res.json(result);
@@ -334,8 +425,8 @@ app.get('/api/admin/codes', (req, res) => {
 app.post('/api/admin/codes/create', (req, res) => {
   const user = getAuthUser(req);
   if (!user) return res.status(401).json({ success: false, error: 'ACCESS DENIED: Sign in required.' });
-  const { code, astraReward, maxUses, expiresAt, isActive } = req.body;
-  const result = database.createRedeemCode(user.id, { code, astraReward, maxUses, expiresAt, isActive });
+  const { code, astraReward, rewardType, rewardAmount, characterId, crateType, maxUses, expiresAt, isActive } = req.body;
+  const result = database.createRedeemCode(user.id, { code, astraReward, rewardType, rewardAmount, characterId, crateType, maxUses, expiresAt, isActive });
   if (!result.success) return res.status(400).json(result);
   res.json(result);
 });
@@ -693,6 +784,72 @@ app.post('/api/deploy-update', async (_req, res) => {
   });
 });
 
+function emitAscensionState(roomId: string, state: AscensionBattleState) {
+  io.to(roomId).emit('ascension_state_update', state);
+}
+
+function settleAscensionResult(result: AscensionBattleResult) {
+  const room = ascensionRooms.get(result.roomId);
+  if (!room) return;
+  const rewards: NonNullable<AscensionBattleState['rewards']> = {};
+  room.state.players.forEach(player => {
+    if (!player.profileId) return; // Guest custom rooms still receive the battle result.
+    const isWin = player.id === result.winnerId;
+    const outcome = database.recordAscensionMatch(player.profileId, {
+      isWin,
+      matchFormat: result.format,
+      isRanked: result.mode === 'ranked',
+      isMvp: isWin,
+      damageDealt: room.state.rounds.reduce((total, round) =>
+        total + (round.winnerPlayerId === player.id ? Math.max(round.player1DamageDealt, round.player2DamageDealt) : 0), 0),
+      matchToken: `${result.matchToken}-${player.profileId}`
+    });
+    if (outcome) {
+      rewards[player.id] = {
+        isWin, astraAwarded: outcome.astraAwarded, xpAwarded: outcome.xpAwarded,
+        ratingDelta: outcome.newRating - (player.rating || outcome.newRating),
+        newRating: outcome.newRating, newTier: outcome.newTier
+      };
+      const socketId = ascensionSocketSession.entries();
+      for (const [id, session] of socketId) {
+        if (session.roomId === result.roomId && session.profileId === player.profileId) {
+          io.to(id).emit('ascension_match_result', { ...outcome, isWin });
+        }
+      }
+    }
+  });
+  room.state.rewards = rewards;
+  emitAscensionState(result.roomId, room.state);
+}
+
+function createAscensionRoom(
+  roomId: string,
+  mode: 'casual' | 'ranked',
+  format: AscensionBattleState['format']
+) {
+  const room = new OnlineBattleRoom(
+    roomId,
+    mode,
+    format,
+    state => emitAscensionState(roomId, state),
+    settleAscensionResult
+  );
+  ascensionRooms.set(roomId, room);
+  return room;
+}
+
+function findQueueMatch(entry: typeof ascensionQueue[number]) {
+  const now = Date.now();
+  const index = ascensionQueue.findIndex(candidate => {
+    if (candidate.socketId === entry.socketId || candidate.mode !== entry.mode || candidate.format !== entry.format) return false;
+    if (!io.sockets.sockets.has(candidate.socketId)) return false;
+    if (entry.mode === 'casual') return true;
+    const tolerance = Math.min(800, 100 + Math.floor((now - candidate.queuedAt) / 1000) * 25);
+    return Math.abs(candidate.rating - entry.rating) <= tolerance;
+  });
+  return index >= 0 ? ascensionQueue.splice(index, 1)[0] : undefined;
+}
+
 // Real-time Socket.io logic
 io.on('connection', (socket: Socket) => {
   console.log(`[Socket] Connected: ${socket.id}`);
@@ -704,6 +861,8 @@ io.on('connection', (socket: Socket) => {
     if (!payload) return callback && callback({ success: false, error: 'Invalid or expired token.' });
     const user = database.getUserById(payload.id);
     if (!user) return callback && callback({ success: false, error: 'User not found.' });
+    socket.data.userId = user.id;
+    socket.data.userProfile = user;
 
     const session = socketToRoom.get(socket.id);
     if (session) {
@@ -720,6 +879,191 @@ io.on('connection', (socket: Socket) => {
       }
     }
     callback && callback({ success: true, user });
+  });
+
+  // ==========================================
+  // ASCENSION ONLINE BATTLES
+  // ==========================================
+  const getSocketIdentity = (data?: { authToken?: string }) => {
+    const profileId = socket.data.userId as string | undefined;
+    if (profileId) {
+      const profile = database.getUserById(profileId);
+      return { profileId, profile };
+    }
+    if (data?.authToken) {
+      const payload = database.verifyToken(data.authToken);
+      if (payload) {
+        const profile = database.getUserById(payload.id);
+        if (profile) {
+          socket.data.userId = profile.id;
+          socket.data.userProfile = profile;
+          return { profileId: profile.id, profile };
+        }
+      }
+    }
+    return { profileId: undefined, profile: undefined };
+  };
+
+  const makeAscensionPlayer = (
+    profileId: string | undefined,
+    profile: any,
+    team: Character[],
+    isHost = false
+  ) => ({
+    id: socket.id,
+    profileId,
+    name: profile?.displayName || profile?.username || 'Guest Challenger',
+    avatar: profile?.avatar || '🦸‍♂️',
+    rating: profile?.rankedRating || 0,
+    team, isHost, isReady: false, isConnected: true
+  });
+
+  socket.on('ascension_queue', (data: {
+    mode?: 'casual' | 'ranked'; format?: string; teamIds?: unknown[]; authToken?: string
+  }, callback) => {
+    const mode = data?.mode === 'ranked' ? 'ranked' : 'casual';
+    const format = formatFromInput(data?.format);
+    if (!format) return callback?.({ success: false, error: 'Invalid Ascension format.' });
+    const { profileId, profile } = getSocketIdentity(data);
+    if (mode === 'ranked' && (!profileId || (profile?.level || 1) < 10)) {
+      return callback?.({ success: false, error: 'Ranked battles require an authenticated Commander Level 10 account.' });
+    }
+    if (profileId && (ascensionQueue.some(item => item.profileId === profileId) || ascensionSocketSessionHasProfile(profileId))) {
+      return callback?.({ success: false, error: 'You are already queued or in an Ascension battle.' });
+    }
+    const selected = canonicalTeam(data?.teamIds, profile);
+    if (!selected.team) return callback?.({ success: false, error: selected.error });
+    const oldIndex = ascensionQueue.findIndex(item => item.socketId === socket.id);
+    if (oldIndex >= 0) ascensionQueue.splice(oldIndex, 1);
+    const entry: typeof ascensionQueue[number] = {
+      socketId: socket.id, profileId,
+      name: profile?.displayName || profile?.username || 'Guest Challenger',
+      avatar: profile?.avatar || '🦸‍♂️',
+      rating: profile?.rankedRating || 0, format, mode, team: selected.team, queuedAt: Date.now()
+    };
+    const opponent = findQueueMatch(entry);
+    if (!opponent) {
+      ascensionQueue.push(entry);
+      socket.emit('ascension_queue_status', { queued: true, mode, format, position: ascensionQueue.length });
+      return callback?.({ success: true, queued: true });
+    }
+    const roomId = `ASC-MATCH-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+    const room = createAscensionRoom(roomId, mode, format);
+    const first = makeAscensionPlayer(opponent.profileId, database.getUserById(opponent.profileId || ''), opponent.team, true);
+    first.id = opponent.socketId;
+    first.name = opponent.name;
+    first.avatar = opponent.avatar;
+    first.rating = opponent.rating;
+    const second = makeAscensionPlayer(profileId, profile, selected.team, false);
+    room.addPlayer(first);
+    room.addPlayer(second);
+    ascensionSocketSession.set(opponent.socketId, { roomId, playerId: opponent.socketId, profileId: opponent.profileId });
+    ascensionSocketSession.set(socket.id, { roomId, playerId: socket.id, profileId });
+    io.sockets.sockets.get(opponent.socketId)?.join(roomId);
+    socket.join(roomId);
+    room.setReady(opponent.socketId, true);
+    room.setReady(socket.id, true);
+    room.start(opponent.socketId);
+    io.to(roomId).emit('ascension_match_found', { roomId, state: room.state });
+    callback?.({ success: true, queued: false, roomId, state: room.state });
+  });
+
+  socket.on('ascension_cancel_queue', (callback) => {
+    const index = ascensionQueue.findIndex(item => item.socketId === socket.id);
+    if (index >= 0) ascensionQueue.splice(index, 1);
+    callback?.({ success: true });
+  });
+
+  socket.on('ascension_create_room', (data: {
+    mode?: 'casual' | 'ranked'; format?: string; teamIds?: unknown[]; authToken?: string
+  }, callback) => {
+    const mode = data?.mode === 'ranked' ? 'ranked' : 'casual';
+    const format = formatFromInput(data?.format);
+    const { profileId, profile } = getSocketIdentity(data);
+    if (!format) return callback?.({ success: false, error: 'Invalid Ascension format.' });
+    if (mode === 'ranked') return callback?.({ success: false, error: 'Ranked matches must use the queue.' });
+    const selected = canonicalTeam(data?.teamIds, profile);
+    if (!selected.team) return callback?.({ success: false, error: selected.error });
+    const roomId = `ASC-ROOM-${Math.floor(100000 + Math.random() * 900000)}`;
+    const room = createAscensionRoom(roomId, mode, format);
+    const player = makeAscensionPlayer(profileId, profile, selected.team, true);
+    room.addPlayer(player);
+    ascensionSocketSession.set(socket.id, { roomId, playerId: socket.id, profileId });
+    socket.join(roomId);
+    callback?.({ success: true, roomId, state: room.state });
+  });
+
+  socket.on('ascension_join_room', (data: {
+    roomId: string; teamIds?: unknown[]; authToken?: string
+  }, callback) => {
+    const roomId = String(data?.roomId || '').toUpperCase().trim();
+    const room = ascensionRooms.get(roomId);
+    if (!room) return callback?.({ success: false, error: 'Ascension room not found.' });
+    const { profileId, profile } = getSocketIdentity(data);
+    const selected = canonicalTeam(data?.teamIds, profile);
+    if (!selected.team) return callback?.({ success: false, error: selected.error });
+    const player = makeAscensionPlayer(profileId, profile, selected.team);
+    const added = room.addPlayer(player);
+    if (!added.success) return callback?.(added);
+    ascensionSocketSession.set(socket.id, { roomId, playerId: socket.id, profileId });
+    socket.join(roomId);
+    callback?.({ success: true, roomId, state: room.state });
+  });
+
+  socket.on('ascension_set_team', (data: { teamIds?: unknown[] }, callback) => {
+    const session = ascensionSocketSession.get(socket.id);
+    const room = session && ascensionRooms.get(session.roomId);
+    if (!room) return callback?.({ success: false, error: 'You are not in an Ascension room.' });
+    const { profile } = getSocketIdentity();
+    const selected = canonicalTeam(data?.teamIds, profile);
+    if (!selected.team) return callback?.({ success: false, error: selected.error });
+    callback?.(room.setTeam(socket.id, selected.team));
+  });
+
+  socket.on('ascension_set_ready', (data: { isReady?: boolean }, callback) => {
+    const session = ascensionSocketSession.get(socket.id);
+    const room = session && ascensionRooms.get(session.roomId);
+    callback?.(room ? room.setReady(socket.id, !!data?.isReady) : { success: false, error: 'Room not found.' });
+  });
+
+  socket.on('ascension_start_battle', (callback) => {
+    const session = ascensionSocketSession.get(socket.id);
+    const room = session && ascensionRooms.get(session.roomId);
+    callback?.(room ? room.start(socket.id) : { success: false, error: 'Room not found.' });
+  });
+
+  socket.on('ascension_action', (data: {
+    action?: BattleActionType; fighterIndex?: number; skillId?: string
+  }, callback) => {
+    const session = ascensionSocketSession.get(socket.id);
+    const room = session && ascensionRooms.get(session.roomId);
+    callback?.(room
+      ? room.submitAction(socket.id, data.action as BattleActionType, Number(data.fighterIndex) || 0, data.skillId)
+      : { success: false, error: 'Room not found.' });
+  });
+
+  socket.on('ascension_leave_room', (callback) => {
+    const session = ascensionSocketSession.get(socket.id);
+    if (session) {
+      const room = ascensionRooms.get(session.roomId);
+      room?.removePlayer(socket.id);
+      socket.leave(session.roomId);
+      ascensionSocketSession.delete(socket.id);
+    }
+    callback?.({ success: true });
+  });
+
+  socket.on('ascension_reconnect', (data: { roomId?: string; authToken?: string }, callback) => {
+    const { profileId, profile } = getSocketIdentity(data);
+    if (!profileId) return callback?.({ success: false, error: 'Authentication is required to reconnect.' });
+    const roomId = String(data?.roomId || '').toUpperCase().trim();
+    const room = ascensionRooms.get(roomId);
+    if (!room || !room.reconnect(profileId, socket.id, profile?.displayName || profile?.username || 'Challenger', profile?.avatar || '🦸‍♂️')) {
+      return callback?.({ success: false, error: 'Battle room or player seat not found.' });
+    }
+    ascensionSocketSession.set(socket.id, { roomId, playerId: socket.id, profileId });
+    socket.join(roomId);
+    callback?.({ success: true, roomId, state: room.state });
   });
 
   // 1. Create Room
@@ -858,13 +1202,15 @@ io.on('connection', (socket: Socket) => {
   });
 
   // 6. Start Game
-  socket.on('start_game', () => {
+  socket.on('start_game', (callback) => {
     const session = socketToRoom.get(socket.id);
     if (!session) return;
     const room = rooms.get(session.roomId);
-    if (room && room.state.players.find(p => p.id === socket.id)?.isHost) {
-      room.startGame();
+    if (!room) return callback?.({ success: false, error: 'Room not found.' });
+    if (!room.state.players.find(p => p.id === socket.id)?.isHost) {
+      return callback?.({ success: false, error: 'Only the host can start the game.' });
     }
+    callback?.(room.startGame());
   });
 
   // 7. Place Bid
@@ -1077,6 +1423,17 @@ io.on('connection', (socket: Socket) => {
 
   // Disconnect Handling
   socket.on('disconnect', () => {
+    const queueIndex = ascensionQueue.findIndex(item => item.socketId === socket.id);
+    if (queueIndex >= 0) ascensionQueue.splice(queueIndex, 1);
+    const ascensionSession = ascensionSocketSession.get(socket.id);
+    if (ascensionSession) {
+      const ascensionRoom = ascensionRooms.get(ascensionSession.roomId);
+      ascensionRoom?.removePlayer(socket.id);
+      ascensionSocketSession.delete(socket.id);
+      if (ascensionRoom && ascensionRoom.state.phase === 'LOBBY' && ascensionRoom.state.players.length === 0) {
+        ascensionRooms.delete(ascensionSession.roomId);
+      }
+    }
     const session = socketToRoom.get(socket.id);
     if (session) {
       const room = rooms.get(session.roomId);

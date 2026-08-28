@@ -10,3 +10,7 @@ services:
         value: 20
       - key: PORT
         value: 3001
+      - key: NODE_ENV
+        value: production
+      - key: AUTH_SECRET
+        sync: false

@@ -5,10 +5,11 @@ import {
   Sparkles, Check, Lock, ChevronRight, ChevronLeft, 
   Trophy, Gift, Award, Zap, Shield, Crown, Flame 
 } from 'lucide-react';
+import { BATTLE_PASS_LEVELS, BATTLE_PASS_REWARDS, getBattlePassXpInLevel, BATTLE_PASS_XP_PER_LEVEL } from '../../data/ascensionProgression';
 
 export interface BattlePassTier {
   level: number;
-  rewardType: 'COINS' | 'RELIC' | 'SKILL' | 'SHARDS' | 'CHARACTER' | 'ULTIMATE';
+  rewardType: 'COINS' | 'SHARD_CRATE' | 'CHARACTER_CRATE';
   rewardLabel: string;
   amount: number;
   icon: string;
@@ -17,76 +18,19 @@ export interface BattlePassTier {
 }
 
 export function generateBattlePassTiers(): BattlePassTier[] {
-  const tiers: BattlePassTier[] = [];
-
-  for (let lvl = 1; lvl <= 1000; lvl++) {
-    const isMilestone = lvl === 100 || lvl === 250 || lvl === 500 || lvl === 750 || lvl === 1000;
-    let rewardType: BattlePassTier['rewardType'] = 'COINS';
-    let rewardLabel = '';
-    let amount = 0;
-    let icon = '✨';
-    let color = 'from-cyan-950 to-slate-900 border-cyan-500/30';
-
-    if (lvl === 1000) {
-      rewardType = 'ULTIMATE';
-      rewardLabel = '🌟 100,000 ASTRA & COSMIC GOD OMNIPOTENCE';
-      amount = 100000;
-      icon = '👑';
-      color = 'from-amber-500 via-rose-600 to-purple-700 border-amber-300 shadow-[0_0_50px_rgba(245,158,11,0.8)]';
-    } else if (lvl === 750) {
-      rewardType = 'CHARACTER';
-      rewardLabel = '✨ 50,000 ASTRA & MYTHIC CRATE';
-      amount = 50000;
-      icon = '🦸‍♂️';
-      color = 'from-purple-900 to-indigo-900 border-purple-400 shadow-glow-cosmic';
-    } else if (lvl === 500) {
-      rewardType = 'CHARACTER';
-      rewardLabel = '✨ 25,000 ASTRA & CELESTIAL RELIC';
-      amount = 25000;
-      icon = '💎';
-      color = 'from-amber-900 to-yellow-900 border-amber-400 shadow-glow-gold';
-    } else if (lvl === 250) {
-      rewardType = 'RELIC';
-      rewardLabel = '✨ 10,000 ASTRA & TITAN ARTIFACT';
-      amount = 10000;
-      icon = '⚡';
-      color = 'from-rose-900 to-pink-900 border-rose-400 shadow-glow-red';
-    } else if (lvl === 100) {
-      rewardType = 'SKILL';
-      rewardLabel = '✨ 5,000 ASTRA & MASTER SKILL VAULT';
-      amount = 5000;
-      icon = '🔥';
-      color = 'from-blue-900 to-cyan-900 border-cyan-400 shadow-glow-cyan';
-    } else if (lvl % 50 === 0) {
-      rewardType = 'SHARDS';
-      rewardLabel = `+50 Hero Shards & ✨ ${(lvl * 50).toLocaleString()} Astra`;
-      amount = lvl * 50;
-      icon = '🧩';
-      color = 'from-purple-950 to-slate-900 border-purple-400';
-    } else if (lvl % 25 === 0) {
-      rewardType = 'RELIC';
-      rewardLabel = `Tactical Relic & ✨ ${(lvl * 25).toLocaleString()} Astra`;
-      amount = lvl * 25;
-      icon = '💎';
-      color = 'from-cyan-950 to-slate-900 border-cyan-400';
-    } else {
-      amount = Math.min(1000, Math.floor(150 + (lvl * 1.5)));
-      rewardLabel = `✨ ${amount.toLocaleString()} ASTRA`;
-      icon = '✨';
-    }
-
-    tiers.push({
-      level: lvl,
-      rewardType,
-      rewardLabel,
-      amount,
-      icon,
-      isMilestone,
-      color
-    });
-  }
-
-  return tiers;
+  return BATTLE_PASS_REWARDS.map(reward => ({
+    level: reward.level,
+    rewardType: reward.rewardType,
+    rewardLabel: reward.label,
+    amount: reward.amount,
+    icon: reward.icon,
+    isMilestone: reward.rewardType !== 'COINS',
+    color: reward.rewardType === 'CHARACTER_CRATE'
+      ? 'from-purple-950 to-indigo-900 border-purple-400'
+      : reward.rewardType === 'SHARD_CRATE'
+      ? 'from-amber-950 to-orange-900 border-amber-400'
+      : 'from-cyan-950 to-slate-900 border-cyan-500/30',
+  }));
 }
 
 const ALL_PASS_TIERS = generateBattlePassTiers();
@@ -100,7 +44,9 @@ export function AscensionBattlePass() {
   const [scrollLeft, setScrollLeft] = useState(0);
   const [claimFeedback, setClaimFeedback] = useState<string | null>(null);
 
-  const currentLevel = user?.level || 1;
+  const currentLevel = user?.battlePassLevel || 1;
+  const currentXp = user?.battlePassXp || 0;
+  const xpInLevel = getBattlePassXpInLevel(currentXp);
   const claimedSet = new Set(user?.battlePassClaimed || []);
 
   // Auto-scroll to near player's current level on mount
@@ -150,12 +96,12 @@ export function AscensionBattlePass() {
     setClaimingLevel(tier.level);
     setClaimFeedback(null);
 
-    const result = await claimBattlePassReward(tier.level, tier.rewardType, tier.amount);
+    const result = await claimBattlePassReward(tier.level);
     setClaimingLevel(null);
 
     if (result.success) {
       soundManager.playVictoryFanfare();
-      setClaimFeedback(`🎉 Successfully claimed Level ${tier.level} reward! (+${(tier.amount || 0).toLocaleString()} ASTRA)`);
+      setClaimFeedback(`🎉 Successfully claimed Level ${tier.level} reward! ${tier.rewardLabel}`);
       setTimeout(() => setClaimFeedback(null), 4000);
     } else {
       soundManager.playAttackHit();
@@ -175,10 +121,10 @@ export function AscensionBattlePass() {
             <span>SEASON 1: COSMIC ASCENSION PASS</span>
           </div>
           <h1 className="text-2xl sm:text-4xl font-heading font-black text-white uppercase tracking-wider">
-            LEVEL 1 → LEVEL 1000 REWARD JOURNEY
+            LEVEL 1 → LEVEL 100 REWARD JOURNEY
           </h1>
           <p className="text-xs sm:text-sm text-slate-300 max-w-xl">
-            Gain XP in PvP and Dungeons to advance through all 1,000 cosmic levels. Earn up to <strong>750,000+ ASTRA</strong>, Relics, Skills, and the <strong>Level 1000 Ultimate Cosmic God jackpot</strong>!
+            Gain Battle Pass XP through battles, auctions, and dungeons. Every fifth level grants a Random Shard Crate and every 25th level grants a Character Card Crate.
           </p>
         </div>
 
@@ -190,7 +136,7 @@ export function AscensionBattlePass() {
                 CURRENT LEVEL
               </span>
               <span className="text-2xl font-heading font-black text-white">
-                LEVEL {currentLevel}
+                LEVEL {currentLevel} / {BATTLE_PASS_LEVELS}
               </span>
             </div>
             <div className="w-10 h-10 rounded-xl bg-cyan-950 border border-cyan-400 flex items-center justify-center text-cyan-300 font-heading font-black text-lg">
@@ -204,10 +150,7 @@ export function AscensionBattlePass() {
             <button onClick={() => jumpToLevel(1)} className="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 cursor-pointer">1</button>
             <button onClick={() => jumpToLevel(currentLevel)} className="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-400/60 cursor-pointer">NOW</button>
             <button onClick={() => jumpToLevel(100)} className="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 cursor-pointer">100</button>
-            <button onClick={() => jumpToLevel(250)} className="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 cursor-pointer">250</button>
-            <button onClick={() => jumpToLevel(500)} className="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 cursor-pointer">500</button>
-            <button onClick={() => jumpToLevel(750)} className="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 cursor-pointer">750</button>
-            <button onClick={() => jumpToLevel(1000)} className="px-2 py-0.5 rounded bg-gradient-to-r from-amber-500 to-purple-600 text-black border border-amber-300 cursor-pointer font-black">1000</button>
+            <button onClick={() => jumpToLevel(100)} className="px-2 py-0.5 rounded bg-gradient-to-r from-amber-500 to-purple-600 text-black border border-amber-300 cursor-pointer font-black">100</button>
           </div>
         </div>
       </div>
@@ -221,7 +164,13 @@ export function AscensionBattlePass() {
 
       {/* Navigation Control Bar */}
       <div className="flex items-center justify-between px-2 text-xs font-mono text-slate-400">
-        <span>← Drag or scroll horizontally to inspect 1,000 Levels →</span>
+        <div className="flex-1">
+          <span>← Drag or scroll horizontally to inspect all {BATTLE_PASS_LEVELS} levels →</span>
+          <div className="mt-2 h-2 bg-black/60 rounded-full overflow-hidden border border-white/10 max-w-md">
+            <div className="h-full bg-gradient-to-r from-cyan-400 to-purple-500" style={{ width: `${Math.min(100, (xpInLevel / BATTLE_PASS_XP_PER_LEVEL) * 100)}%` }} />
+          </div>
+          <span className="text-[10px] text-cyan-300">XP {xpInLevel.toLocaleString()} / {BATTLE_PASS_XP_PER_LEVEL.toLocaleString()} to next level</span>
+        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => handleScrollBy(-480)}

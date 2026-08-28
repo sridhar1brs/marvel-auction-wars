@@ -10,13 +10,236 @@ import {
   BattleRound, 
   ChatMessage, 
   PlayerStatus,
-  ChaosEvent
+  ChaosEvent,
+  AscensionBattleState,
+  AscensionBattlePlayer
 } from '../src/types/game';
 import { ALL_CHARACTERS } from '../src/data/characters/index';
 import { validateBid, validateSkipVote, calculateBotBid } from './auctionEngine';
 import { generateTournamentBracket, advanceTournamentMatches } from './tournamentEngine';
 import { simulateRoundDuel, getTierMatchedPairings } from './battleEngine';
 import { getRandomChaosEvent } from '../src/data/chaosEvents';
+import { getSkillsForCharacter } from '../src/data/skills/characterSkills';
+
+export interface AscensionBattleResult {
+  roomId: string;
+  mode: 'casual' | 'ranked';
+  format: AscensionBattleState['format'];
+  winnerId: string;
+  playerIds: string[];
+  matchToken: string;
+}
+
+/**
+ * Server-owned Ascension room. It intentionally does not reuse GameRoom:
+ * Auction rooms keep their legacy rules while Ascension rooms use canonical
+ * cards and resolve every action on the server.
+ */
+export class OnlineBattleRoom {
+  public readonly state: AscensionBattleState;
+  private readonly onStateChange: (state: AscensionBattleState) => void;
+  private readonly onResult: (result: AscensionBattleResult) => void;
+  private disconnectTimers = new Map<string, NodeJS.Timeout>();
+  private pendingSkillIds = new Map<string, string>();
+
+  constructor(
+    roomId: string,
+    mode: 'casual' | 'ranked',
+    format: AscensionBattleState['format'],
+    onStateChange: (state: AscensionBattleState) => void,
+    onResult: (result: AscensionBattleResult) => void
+  ) {
+    this.onStateChange = onStateChange;
+    this.onResult = onResult;
+    this.state = {
+      roomId, mode, format, phase: 'LOBBY', maxPlayers: 10, hostId: '',
+      players: [], currentRound: 0, activePlayerIds: [],
+      selectedHeroIndexes: {}, pendingActions: {}, rounds: [], combatLogs: []
+    };
+  }
+
+  addPlayer(player: AscensionBattlePlayer): { success: boolean; error?: string } {
+    if (this.state.phase !== 'LOBBY') return { success: false, error: 'Battle has already started.' };
+    if (this.state.players.length >= this.state.maxPlayers) return { success: false, error: 'Room is full (10 players maximum).' };
+    if (this.state.players.some(p => p.profileId && p.profileId === player.profileId)) {
+      return { success: false, error: 'You are already in this room.' };
+    }
+    if (!this.state.hostId) {
+      player.isHost = true;
+      this.state.hostId = player.id;
+    }
+    this.state.players.push(player);
+    this.notify();
+    return { success: true };
+  }
+
+  reconnect(profileId: string, socketId: string, name: string, avatar: string): boolean {
+    const player = this.state.players.find(p => p.profileId === profileId);
+    if (!player) return false;
+    const oldSocketId = player.id;
+    player.id = socketId;
+    player.name = name;
+    player.avatar = avatar;
+    player.isConnected = true;
+    if (this.state.hostId === oldSocketId) this.state.hostId = socketId;
+    this.state.activePlayerIds = this.state.activePlayerIds.map(id => id === oldSocketId ? socketId : id);
+    if (this.state.selectedHeroIndexes[oldSocketId] !== undefined) {
+      this.state.selectedHeroIndexes[socketId] = this.state.selectedHeroIndexes[oldSocketId];
+      delete this.state.selectedHeroIndexes[oldSocketId];
+    }
+    const timer = this.disconnectTimers.get(profileId);
+    if (timer) clearTimeout(timer);
+    this.disconnectTimers.delete(profileId);
+    this.notify();
+    return true;
+  }
+
+  removePlayer(playerId: string) {
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player) return;
+    if (this.state.phase === 'BATTLE') {
+      player.isConnected = false;
+      const identity = player.profileId || player.id;
+      const timer = setTimeout(() => {
+        if (!player.isConnected && this.state.phase === 'BATTLE') {
+          const opponent = this.state.players.find(p => p.id !== playerId && p.isConnected);
+          if (opponent) this.finish(opponent.id, `☠️ ${player.name} disconnected and forfeited.`);
+        }
+      }, 15000);
+      this.disconnectTimers.set(identity, timer);
+      this.notify();
+      return;
+    }
+    this.state.players = this.state.players.filter(p => p.id !== playerId);
+    if (this.state.hostId === playerId && this.state.players[0]) {
+      this.state.players[0].isHost = true;
+      this.state.hostId = this.state.players[0].id;
+    }
+    this.notify();
+  }
+
+  setTeam(playerId: string, team: Character[]): { success: boolean; error?: string } {
+    if (this.state.phase !== 'LOBBY') return { success: false, error: 'Team selection is locked.' };
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player) return { success: false, error: 'Player not found.' };
+    if (!team.length || team.length > 5) return { success: false, error: 'Choose between 1 and 5 heroes.' };
+    player.team = team;
+    player.isReady = false;
+    this.notify();
+    return { success: true };
+  }
+
+  setReady(playerId: string, ready: boolean): { success: boolean; error?: string } {
+    if (this.state.phase !== 'LOBBY') return { success: false, error: 'Lobby is closed.' };
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player) return { success: false, error: 'Player not found.' };
+    if (ready && player.team.length === 0) return { success: false, error: 'Select a team before readying up.' };
+    player.isReady = ready;
+    this.notify();
+    return { success: true };
+  }
+
+  start(playerId: string, bypassReady = false): { success: boolean; error?: string } {
+    if (this.state.phase !== 'LOBBY') return { success: false, error: 'Battle is not in the lobby.' };
+    if (!bypassReady && this.state.hostId !== playerId) return { success: false, error: 'Only the host can start this battle.' };
+    const active = this.state.players.filter(p => p.isConnected);
+    if (active.length < 2) return { success: false, error: 'At least two connected players are required.' };
+    if (!bypassReady && active.some(p => !p.isReady || p.team.length === 0)) {
+      return { success: false, error: 'Every player must select a team and ready up.' };
+    }
+    if (this.state.mode === 'ranked' && active.length !== 2) {
+      return { success: false, error: 'Ranked queue requires exactly two players.' };
+    }
+    this.state.phase = 'BATTLE';
+    this.state.activePlayerIds = active.slice(0, 2).map(p => p.id);
+    active.forEach(p => p.team.forEach(hero => {
+      hero.currentHp = hero.maxHp || 100;
+      hero.maxHp = hero.maxHp || 100;
+      hero.isFainted = false;
+      hero.usedSkillIds = [];
+    }));
+    this.state.combatLogs = [`⚔️ ${active[0].name} VS ${active[1].name}`, `Format: ${this.state.format.toUpperCase()} • ${this.state.mode.toUpperCase()}`];
+    this.notify();
+    return { success: true };
+  }
+
+  submitAction(playerId: string, action: BattleActionType, fighterIndex = 0, skillId?: string): { success: boolean; error?: string } {
+    if (this.state.phase !== 'BATTLE') return { success: false, error: 'No active battle.' };
+    if (!this.state.activePlayerIds.includes(playerId)) return { success: false, error: 'Spectators cannot control this battle.' };
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player || !player.isConnected) return { success: false, error: 'Player is disconnected.' };
+    const validActions: BattleActionType[] = ['ATTACK', 'SPECIAL', 'DEFEND', 'ARTIFACT', 'SKILL_1', 'SKILL_2', 'SKILL_3', 'SKILL_4', 'SKILL_5', 'DUAL_STRIKE'];
+    if (!validActions.includes(action)) return { success: false, error: 'Invalid battle action.' };
+    if (this.state.pendingActions[playerId]) return { success: false, error: 'Action already locked for this round.' };
+    const hero = player.team[fighterIndex];
+    if (!hero || (hero.currentHp ?? 100) <= 0) return { success: false, error: 'Choose a living hero.' };
+    if (skillId) {
+      const known = getSkillsForCharacter(hero).some(skill => skill.id === skillId);
+      if (!known) return { success: false, error: 'That signature skill is not available to this hero.' };
+      hero.usedSkillIds = hero.usedSkillIds || [];
+      if (hero.usedSkillIds.includes(skillId)) return { success: false, error: 'Signature skills can only be used once per battle.' };
+      hero.usedSkillIds.push(skillId);
+      this.pendingSkillIds.set(playerId, skillId);
+    }
+    this.state.selectedHeroIndexes[playerId] = fighterIndex;
+    this.state.pendingActions[playerId] = action;
+    const [firstId, secondId] = this.state.activePlayerIds;
+    if (this.state.pendingActions[firstId] && this.state.pendingActions[secondId]) this.resolveRound();
+    else this.notify();
+    return { success: true };
+  }
+
+  private toPlayer(player: AscensionBattlePlayer): Player {
+    return {
+      id: player.id, name: player.name, avatar: player.avatar, money: 0, collection: player.team,
+      isHost: player.isHost, isReady: player.isReady, isBot: false,
+      stats: { battlesWon: 0, moneySpent: 0, highestBid: 0 }
+    };
+  }
+
+  private resolveRound() {
+    const [p1Id, p2Id] = this.state.activePlayerIds;
+    const p1 = this.state.players.find(p => p.id === p1Id)!;
+    const p2 = this.state.players.find(p => p.id === p2Id)!;
+    const p1Hero = p1.team[this.state.selectedHeroIndexes[p1Id] ?? 0];
+    const p2Hero = p2.team[this.state.selectedHeroIndexes[p2Id] ?? 0];
+    const round = simulateRoundDuel(
+      this.toPlayer(p1), p1Hero, this.toPlayer(p2), p2Hero, ++this.state.currentRound,
+      this.state.pendingActions[p1Id], this.state.pendingActions[p2Id],
+      this.pendingSkillIds.get(p1Id), this.pendingSkillIds.get(p2Id)
+    );
+    p1Hero.currentHp = round.player1HpRemaining;
+    p2Hero.currentHp = round.player2HpRemaining;
+    p1Hero.isFainted = p1Hero.currentHp <= 0;
+    p2Hero.isFainted = p2Hero.currentHp <= 0;
+    this.state.rounds.push(round);
+    this.state.combatLogs.push(...round.log);
+    this.state.pendingActions = {};
+    this.pendingSkillIds.clear();
+    if (p1.team.every(hero => (hero.currentHp ?? 100) <= 0)) return this.finish(p2Id, `🏆 ${p2.name} wins the Ascension battle!`);
+    if (p2.team.every(hero => (hero.currentHp ?? 100) <= 0)) return this.finish(p1Id, `🏆 ${p1.name} wins the Ascension battle!`);
+    if (p1Hero.isFainted) this.state.selectedHeroIndexes[p1Id] = p1.team.findIndex(hero => (hero.currentHp ?? 100) > 0);
+    if (p2Hero.isFainted) this.state.selectedHeroIndexes[p2Id] = p2.team.findIndex(hero => (hero.currentHp ?? 100) > 0);
+    this.notify();
+  }
+
+  private finish(winnerId: string, log: string) {
+    if (this.state.phase === 'RESULT') return;
+    this.state.phase = 'RESULT';
+    this.state.winnerId = winnerId;
+    this.state.combatLogs.push(log);
+    this.notify();
+    this.onResult({
+      roomId: this.state.roomId, mode: this.state.mode, format: this.state.format,
+      winnerId, playerIds: this.state.players.map(p => p.profileId || p.id),
+      matchToken: `ascension-${this.state.roomId}-${Date.now()}`
+    });
+  }
+
+  private notify() {
+    this.onStateChange({ ...this.state, players: this.state.players.map(p => ({ ...p, team: p.team.map(hero => ({ ...hero })) })) });
+  }
+}
 
 export class GameRoom {
   public state: GameState;
@@ -125,8 +348,14 @@ export class GameRoom {
     this.notifyState();
   }
 
-  public startGame() {
-    if (this.state.players.length < 2) return;
+  public startGame(): { success: boolean; error?: string } {
+    if (this.state.players.length < 2) {
+      return { success: false, error: 'At least two players are required to start.' };
+    }
+    const activePlayers = this.state.players.filter(player => !player.isDisconnected);
+    if (activePlayers.some(player => !player.isBot && !player.isReady)) {
+      return { success: false, error: 'Every connected player must be ready before the host can start.' };
+    }
     // Set all starting moneys and reset rosters
     this.state.players.forEach(p => {
       p.money = this.state.settings.startingMoney;
@@ -146,6 +375,7 @@ export class GameRoom {
     setTimeout(() => {
       this.startNextAuction();
     }, 2000);
+    return { success: true };
   }
 
   public startNextAuction() {
@@ -1179,4 +1409,3 @@ export class GameRoom {
     }
   }
 }
-

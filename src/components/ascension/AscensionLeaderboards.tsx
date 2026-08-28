@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, UserProfile } from '../../context/AuthContext';
+import { getRankLabel } from '../../data/ascensionProgression';
 import { soundManager } from '../../audio/soundManager';
 import { 
   Trophy, Award, Crown, Zap, Flame, Shield, 
@@ -42,7 +43,7 @@ export function AscensionLeaderboards() {
     if (p.rankedTier === 'ASCENDER') {
       return '⚡ ASCENDER';
     }
-    return `${p.rankedTier} ${p.rankedDivision || ''}`;
+    return getRankLabel(p.rankedTier || 'UNRANKED', p.rankedDivision || 0);
   };
 
   const getMetricDisplay = (player: UserProfile) => {

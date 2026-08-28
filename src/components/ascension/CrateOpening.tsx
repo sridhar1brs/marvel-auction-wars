@@ -5,8 +5,10 @@ import { X, Package, Sparkles, Star, Zap, Gift, ChevronRight } from 'lucide-reac
 
 interface CrateInfo {
   level: number;
-  type: 'ASTRA' | 'MYSTERY_CARD' | 'LEGENDARY';
+  type: 'ASTRA' | 'MYSTERY_CARD' | 'LEGENDARY' | 'SHARD_CRATE' | 'CHARACTER_CRATE';
   canClaim: boolean;
+  inventory?: boolean;
+  id?: string;
 }
 
 interface Props {
@@ -43,10 +45,28 @@ const CRATE_CONFIG = {
     bgColor: 'bg-amber-950/80',
     description: 'Contains MYTHIC/Epic character + massive Astra',
   },
+  SHARD_CRATE: {
+    label: 'Random Shard Crate',
+    icon: '📦',
+    color: 'from-amber-500 to-orange-600',
+    glow: 'shadow-[0_0_40px_rgba(245,158,11,0.6)]',
+    borderColor: 'border-amber-400/60',
+    bgColor: 'bg-amber-950/80',
+    description: 'Contains shards from one character category',
+  },
+  CHARACTER_CRATE: {
+    label: 'Character Card Crate',
+    icon: '🃏',
+    color: 'from-purple-500 to-indigo-600',
+    glow: 'shadow-[0_0_40px_rgba(139,92,246,0.6)]',
+    borderColor: 'border-purple-400/60',
+    bgColor: 'bg-purple-950/80',
+    description: 'Contains one random character card',
+  },
 };
 
 export function CrateOpening({ crates, onClose, onClaimed }: Props) {
-  const { claimLevelCrate } = useAuth();
+  const { claimLevelCrate, openCrate } = useAuth();
   const [selectedCrate, setSelectedCrate] = useState<CrateInfo | null>(null);
   const [isOpening, setIsOpening] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -57,7 +77,7 @@ export function CrateOpening({ crates, onClose, onClaimed }: Props) {
   const upcoming = crates.filter(c => !c.canClaim);
 
   const handleOpen = async (crate: CrateInfo) => {
-    if (!crate.canClaim) return;
+    if (!crate.canClaim || isOpening) return;
     setSelectedCrate(crate);
     setPhase('opening');
     setIsOpening(true);
@@ -65,7 +85,9 @@ export function CrateOpening({ crates, onClose, onClaimed }: Props) {
 
     // Shake animation
     setTimeout(async () => {
-      const data = await claimLevelCrate(crate.level);
+      const data = crate.inventory
+        ? await openCrate(crate.type === 'CHARACTER_CRATE' ? 'CHARACTER_CRATE' : 'SHARD_CRATE')
+        : await claimLevelCrate(crate.level);
       setResult(data);
       setIsOpening(false);
       setPhase('reveal');
@@ -226,6 +248,12 @@ export function CrateOpening({ crates, onClose, onClaimed }: Props) {
                       <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-950/50 border border-indigo-500/30">
                         <span className="text-indigo-400 font-bold">🔷</span>
                         <span className="text-white font-bold">+{result.reward.cardShards} Card Shards</span>
+                      </div>
+                    )}
+                    {result.reward?.category && (
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-950/50 border border-amber-500/30">
+                        <span className="text-amber-300 font-bold">🔷</span>
+                        <span className="text-white font-bold">+{result.reward.amount} {result.reward.category} category shards</span>
                       </div>
                     )}
                     {result.reward?.xp && (

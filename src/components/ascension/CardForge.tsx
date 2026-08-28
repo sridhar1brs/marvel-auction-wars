@@ -11,13 +11,12 @@ interface ForgeCategory {
 }
 
 const FORGE_CATEGORIES: Record<string, ForgeCategory> = {
-  random_c:      { label: 'Common Draft',  cost: 50,   grades: ['C'],          description: 'Craft a random C-grade character' },
-  random_b:      { label: 'Rare Draft',    cost: 150,  grades: ['B'],          description: 'Craft a random B-grade character' },
-  random_a:      { label: 'Epic Draft',    cost: 350,  grades: ['A'],          description: 'Craft a random A-grade character' },
-  random_mythic: { label: 'Mythic Draft',  cost: 1000, grades: ['MYTHIC'],     description: 'Craft a random MYTHIC character' },
-  random_hero:   { label: 'Hero Draft',    cost: 100,  grades: ['C','B','A'],  description: 'Craft a random Hero-aligned character' },
-  random_villain:{ label: 'Villain Draft', cost: 100,  grades: ['C','B','A'],  description: 'Craft a random Villain character' },
-  random_cosmic: { label: 'Cosmic Draft',  cost: 250,  grades: ['A','MYTHIC'], description: 'Craft a random Cosmic tier character' },
+  random_b:      { label: 'Rare Draft',    cost: 10, grades: ['B'],          description: 'Craft a random B-grade character' },
+  random_a:      { label: 'Epic Draft',    cost: 10, grades: ['A'],          description: 'Craft a random A-grade character' },
+  random_mythic: { label: 'Mythic Draft',  cost: 10, grades: ['MYTHIC'],     description: 'Craft a random MYTHIC character' },
+  random_hero:   { label: 'Hero Draft',    cost: 10, grades: ['C','B','A'],  description: 'Craft a random Hero-aligned character' },
+  random_villain:{ label: 'Villain Draft', cost: 10, grades: ['C','B','A'],  description: 'Craft a random Villain character' },
+  random_cosmic: { label: 'Cosmic Draft',  cost: 10, grades: ['A','MYTHIC'], description: 'Craft a random Cosmic tier character' },
 };
 
 const GRADE_COLORS: Record<string, string> = {
@@ -28,7 +27,6 @@ const GRADE_COLORS: Record<string, string> = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  random_c:      'from-slate-600 to-slate-700',
   random_b:      'from-blue-600 to-blue-700',
   random_a:      'from-purple-600 to-indigo-700',
   random_mythic: 'from-amber-500 to-yellow-600',

@@ -1,15 +1,15 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { soundManager } from '../../audio/soundManager';
-import { Sparkles, ArrowLeft, Trophy, Zap, Shield, User, Flame, KeyRound } from 'lucide-react';
+import { Sparkles, ArrowLeft, Trophy, Zap, Shield, User, Flame } from 'lucide-react';
+import { getRankLabel } from '../../data/ascensionProgression';
 
 interface Props {
   onBackToHome: () => void;
   onOpenProfile: () => void;
-  onOpenRedeem?: () => void;
 }
 
-export function AscensionHeader({ onBackToHome, onOpenProfile, onOpenRedeem }: Props) {
+export function AscensionHeader({ onBackToHome, onOpenProfile }: Props) {
   const { user, isAuthenticated } = useAuth();
 
   const getRankDisplay = () => {
@@ -19,7 +19,7 @@ export function AscensionHeader({ onBackToHome, onOpenProfile, onOpenRedeem }: P
     if (user.rankedTier === 'ASCENDER') {
       return `⚡ ASCENDER (${(user.rankedRating ?? 0).toLocaleString()} MMR)`;
     }
-    return `${user.rankedTier} ${user.rankedDivision || ''} (${(user.rankedRating ?? 0).toLocaleString()} MMR)`;
+    return `${getRankLabel(user.rankedTier || 'UNRANKED', user.rankedDivision || 0)} (${(user.rankedRating ?? 0).toLocaleString()} MMR)`;
   };
 
   return (
@@ -55,12 +55,11 @@ export function AscensionHeader({ onBackToHome, onOpenProfile, onOpenRedeem }: P
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           
           {/* 🎟️ REDEEM CODE BUTTON */}
-          {onOpenRedeem && (
+          {false && (
             <button
               type="button"
               onClick={() => {
                 soundManager.playClick();
-                onOpenRedeem();
               }}
               className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-purple-950/70 hover:bg-purple-900 border border-purple-400/60 text-purple-200 hover:text-white text-xs font-bold transition-all shadow-sm"
               title="Redeem Promotional Key"

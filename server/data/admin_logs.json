@@ -1,0 +1,75 @@
+{
+  "lastUpdated": "2026-08-28T17:38:24.035Z",
+  "logs": [
+    {
+      "id": "log-1787938704035-98w7",
+      "action": "OWNER REVOKED CODE",
+      "details": "Permanently deleted code 6427876719",
+      "adminUsername": "darksenseify",
+      "timestamp": 1787938704035
+    },
+    {
+      "id": "log-1787938109537-ddqp",
+      "action": "OWNER CREATED CODE",
+      "details": "Created code 6427876719 (+4600 Astra, Max: 1000)",
+      "adminUsername": "darksenseify",
+      "timestamp": 1787938109537
+    },
+    {
+      "id": "log-1787936513248-ibm9",
+      "action": "OWNER REVOKED CODE",
+      "details": "Permanently deleted code 0985790472",
+      "adminUsername": "darksenseify",
+      "timestamp": 1787936513248
+    },
+    {
+      "id": "log-1787936499633-jcgo",
+      "action": "OWNER CREATED CODE",
+      "details": "Created code 0985790472 (+5100 Astra, Max: 1)",
+      "adminUsername": "darksenseify",
+      "timestamp": 1787936499633
+    },
+    {
+      "id": "log-1787936453843-zyjv",
+      "action": "OWNER REVOKED CODE",
+      "details": "Permanently deleted code 9912782120",
+      "adminUsername": "darksenseify",
+      "timestamp": 1787936453843
+    },
+    {
+      "id": "log-1787936450711-e8cm",
+      "action": "OWNER REVOKED CODE",
+      "details": "Permanently deleted code 7527072271",
+      "adminUsername": "darksenseify",
+      "timestamp": 1787936450711
+    },
+    {
+      "id": "log-1787936375007-l7uq",
+      "action": "OWNER CREATED CODE",
+      "details": "Created code 7527072271 (+100 Astra, Max: 2)",
+      "adminUsername": "darksenseify",
+      "timestamp": 1787936375007
+    },
+    {
+      "id": "log-1787936188694-2azn",
+      "action": "OWNER DEACTIVATED CODE",
+      "details": "Code 9912782120 set to INACTIVE",
+      "adminUsername": "darksenseify",
+      "timestamp": 1787936188694
+    },
+    {
+      "id": "log-1787936102116-b4yl",
+      "action": "OWNER CREATED CODE",
+      "details": "Created code 9912782120 (+9600 Astra, Max: 5)",
+      "adminUsername": "darksenseify",
+      "timestamp": 1787936102116
+    },
+    {
+      "id": "log-1787934796642-sem0",
+      "action": "OWNER REVOKED CODE",
+      "details": "Permanently deleted code ASCEND2026",
+      "adminUsername": "darksenseify",
+      "timestamp": 1787934796642
+    }
+  ]
+}

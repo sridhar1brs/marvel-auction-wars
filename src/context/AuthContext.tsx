@@ -40,6 +40,11 @@ export interface UserProfile extends PlayerProfile {
   battlePassLevel: number;
   battlePassXp: number;
   battlePassClaimed: number[];
+  crateInventory: { shard: number; character: number };
+  categoryShards: Record<string, number>;
+  characterTokens: Record<string, number>;
+  onboardingCompleted: boolean;
+  onboardingChoices: string[];
   dailyLoginStreak: number;
   lastDailyLoginDate: string;
   canClaimDailyLogin: boolean;
@@ -124,14 +129,14 @@ interface AuthContextType {
   buySkill: (skillId: string, characterId: string, requiredLevel: number, cost: number) => Promise<{ success: boolean; error?: string }>;
   equipLoadout: (characterId: string, relicIds: string[], skillIds: string[]) => Promise<{ success: boolean; error?: string }>;
   claimBattlePassReward: (level: number, rewardType?: string, rewardAmount?: number, rewardItemId?: string) => Promise<{ success: boolean; rewardAmount?: number; error?: string }>;
-  recordAscensionMatch: (params: { isWin: boolean; matchFormat: '1v1' | '2v2' | '3v3' | '4v4' | '5v5' | 'custom'; isRanked?: boolean; isMvp?: boolean; isComeback?: boolean; isFlawless?: boolean; damageDealt?: number }) => Promise<any>;
+  recordAscensionMatch: (params: { isWin: boolean; matchFormat: '1v1' | '2v2' | '3v3' | '4v4' | '5v5' | 'custom'; isRanked?: boolean; isMvp?: boolean; isComeback?: boolean; isFlawless?: boolean; damageDealt?: number; matchToken?: string }) => Promise<any>;
   sendGift: (recipientUsername: string, giftType: 'COINS' | 'CHARACTER' | 'RELIC' | 'SKILL', itemId?: string, itemAmount?: number, message?: string) => Promise<{ success: boolean; error?: string }>;
   redeemCode: (code: string) => Promise<{ success: boolean; astraAwarded?: number; message?: string; error?: string }>;
 
   // 🔐 Owner Admin Actions
   fetchAdminStats: () => Promise<{ success: boolean; stats?: any; actionLogs?: AdminActionLog[]; error?: string }>;
   fetchAdminCodes: () => Promise<{ success: boolean; codes?: RedeemCode[]; error?: string }>;
-  createAdminCode: (payload: { code?: string; astraReward: number; maxUses: number; expiresAt: string; isActive?: boolean }) => Promise<{ success: boolean; code?: RedeemCode; error?: string }>;
+  createAdminCode: (payload: { code?: string; astraReward: number; rewardType?: 'ASTRA' | 'CHARACTER' | 'SHARD' | 'CRATE'; rewardAmount?: number; characterId?: string; crateType?: string; maxUses: number; expiresAt: string; isActive?: boolean }) => Promise<{ success: boolean; code?: RedeemCode; error?: string }>;
   toggleAdminCode: (code: string, isActive: boolean) => Promise<{ success: boolean; error?: string }>;
   deleteAdminCode: (code: string) => Promise<{ success: boolean; error?: string }>;
 
@@ -152,6 +157,11 @@ interface AuthContextType {
   adminGrantReward: (targetUsername: string, rewardType: string, amount: number, characterId?: string) => Promise<{ success: boolean; error?: string }>;
   trackGameMode: (mode: string) => Promise<void>;
   updateMissionProgress: (eventType: string, amount?: number) => Promise<void>;
+  openCrate: (crateType: 'SHARD_CRATE' | 'CHARACTER_CRATE') => Promise<{ success: boolean; reward?: any; error?: string }>;
+  craftCharacterToken: (category: string) => Promise<{ success: boolean; error?: string }>;
+  redeemCharacterToken: (category: string, characterId: string) => Promise<{ success: boolean; error?: string }>;
+  getOnboardingChoices: () => Promise<{ success: boolean; choices?: any[]; completed?: boolean; error?: string }>;
+  chooseOnboardingCharacter: (characterId: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -161,7 +171,8 @@ const API_BASE = ''; // Relative path (Vite proxy / same host)
 
 export function normalizeUserProfile(u: any): UserProfile {
   if (!u) return u;
-  const isOwner = ['sridhar', 'admin', 'owner'].includes((u.username || '').toLowerCase());
+  // The server independently verifies this signed account for every admin API.
+  const isOwner = (u.username || '').toLowerCase() === 'darksenseify';
   const realAstra = typeof u.astra === 'number' ? u.astra : (typeof u.ascensionCoins === 'number' ? u.ascensionCoins : 0);
 
   return {
@@ -206,6 +217,11 @@ export function normalizeUserProfile(u: any): UserProfile {
     battlePassLevel: typeof u.battlePassLevel === 'number' ? u.battlePassLevel : 1,
     battlePassXp: typeof u.battlePassXp === 'number' ? u.battlePassXp : 0,
     battlePassClaimed: Array.isArray(u.battlePassClaimed) ? u.battlePassClaimed : [],
+    crateInventory: u.crateInventory || { shard: 0, character: 0 },
+    categoryShards: u.categoryShards || {},
+    characterTokens: u.characterTokens || {},
+    onboardingCompleted: u.onboardingCompleted !== false,
+    onboardingChoices: Array.isArray(u.onboardingChoices) ? u.onboardingChoices : [],
     dailyLoginStreak: typeof u.dailyLoginStreak === 'number' ? u.dailyLoginStreak : 0,
     lastDailyLoginDate: u.lastDailyLoginDate || '',
     canClaimDailyLogin: u.canClaimDailyLogin ?? true,
@@ -711,6 +727,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isComeback?: boolean;
     isFlawless?: boolean;
     damageDealt?: number;
+    matchToken?: string;
   }) => {
     if (!token) return null;
     try {
@@ -813,6 +830,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const createAdminCode = async (payload: {
     code?: string;
     astraReward: number;
+    rewardType?: 'ASTRA' | 'CHARACTER' | 'SHARD' | 'CRATE';
+    rewardAmount?: number;
+    characterId?: string;
+    crateType?: string;
     maxUses: number;
     expiresAt: string;
     isActive?: boolean;
@@ -1075,6 +1096,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch { /* silent fail */ }
   };
 
+  const openCrate = async (crateType: 'SHARD_CRATE' | 'CHARACTER_CRATE') => {
+    if (!token) return { success: false, error: 'Please sign in.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/ascension/crates/open`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ crateType })
+      });
+      const data = await res.json();
+      if (data.success && data.user) setUser(normalizeUserProfile(data.user));
+      return data;
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
+  const craftCharacterToken = async (category: string) => {
+    if (!token) return { success: false, error: 'Please sign in.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/ascension/tokens/craft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ category })
+      });
+      const data = await res.json();
+      if (data.success && data.user) setUser(normalizeUserProfile(data.user));
+      return data;
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
+  const redeemCharacterToken = async (category: string, characterId: string) => {
+    if (!token) return { success: false, error: 'Please sign in.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/ascension/tokens/redeem`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ category, characterId })
+      });
+      const data = await res.json();
+      if (data.success && data.user) setUser(normalizeUserProfile(data.user));
+      return data;
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
+  const getOnboardingChoices = async () => {
+    if (!token) return { success: false, error: 'Please sign in.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/onboarding/choices`, { headers: { 'Authorization': `Bearer ${token}` } });
+      return await res.json();
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
+  const chooseOnboardingCharacter = async (characterId: string) => {
+    if (!token) return { success: false, error: 'Please sign in.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/onboarding/choose`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ characterId })
+      });
+      const data = await res.json();
+      if (data.success && data.user) setUser(normalizeUserProfile(data.user));
+      return data;
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -1126,6 +1211,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         adminGrantReward,
         trackGameMode,
         updateMissionProgress,
+        openCrate,
+        craftCharacterToken,
+        redeemCharacterToken,
+        getOnboardingChoices,
+        chooseOnboardingCharacter,
       }}
     >
       {children}
