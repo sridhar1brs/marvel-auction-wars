@@ -1093,6 +1093,181 @@ io.on('connection', (socket: Socket) => {
   });
 });
 
+// ==========================================
+// v4.0 — LEVEL MILESTONE CRATES
+// ==========================================
+app.get('/api/progression/crates', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const crates = database.getAvailableLevelCrates(user.id);
+  res.json({ success: true, crates });
+});
+
+app.post('/api/progression/claim-crate', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { level } = req.body;
+  if (typeof level !== 'number') return res.status(400).json({ success: false, error: 'Level required.' });
+  const result = database.claimLevelCrate(user.id, level);
+  res.json(result);
+});
+
+// ==========================================
+// v4.0 — CARD FORGE (CRAFTING)
+// ==========================================
+app.get('/api/forge/info', (_req, res) => {
+  const info = database.getForgeInfo();
+  res.json({ success: true, ...info });
+});
+
+app.post('/api/forge/craft', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { category } = req.body;
+  if (!category) return res.status(400).json({ success: false, error: 'Category required.' });
+  const result = database.craftCard(user.id, category);
+  res.json(result);
+});
+
+// ==========================================
+// v4.0 — CHARACTER MASTERY
+// ==========================================
+app.post('/api/mastery/award', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { characterId, xp } = req.body;
+  if (!characterId || typeof xp !== 'number') return res.status(400).json({ success: false, error: 'characterId and xp required.' });
+  const result = database.awardMasteryXp(user.id, characterId, xp);
+  res.json(result);
+});
+
+// ==========================================
+// v4.0 — DAILY MISSIONS
+// ==========================================
+app.get('/api/missions/daily', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.getDailyMissions(user.id);
+  res.json(result);
+});
+
+app.post('/api/missions/daily/update', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { eventType, amount } = req.body;
+  if (!eventType) return res.status(400).json({ success: false, error: 'eventType required.' });
+  const result = database.updateMissionProgressExternal(user.id, eventType, amount || 1);
+  res.json(result);
+});
+
+app.post('/api/missions/daily/claim', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { missionId } = req.body;
+  if (!missionId) return res.status(400).json({ success: false, error: 'missionId required.' });
+  const result = database.claimDailyMission(user.id, missionId);
+  res.json(result);
+});
+
+// ==========================================
+// v4.0 — WEEKLY CHALLENGES
+// ==========================================
+app.get('/api/missions/weekly', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.getWeeklyChallenges(user.id);
+  res.json(result);
+});
+
+app.post('/api/missions/weekly/claim', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { missionId } = req.body;
+  if (!missionId) return res.status(400).json({ success: false, error: 'missionId required.' });
+  const result = database.claimWeeklyChallenge(user.id, missionId);
+  res.json(result);
+});
+
+// ==========================================
+// v4.0 — ACHIEVEMENTS
+// ==========================================
+app.get('/api/achievements', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const info = database.getForgeInfo();
+  const userAchievements = database.getAchievements(user.id);
+  res.json({ success: true, achievements: userAchievements.achievements || {}, definitions: info.achievementDefs });
+});
+
+app.post('/api/achievements/claim', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { achievementId } = req.body;
+  if (!achievementId) return res.status(400).json({ success: false, error: 'achievementId required.' });
+  const result = database.claimAchievement(user.id, achievementId);
+  res.json(result);
+});
+
+// ==========================================
+// v4.0 — MYSTERY WHEEL
+// ==========================================
+app.post('/api/wheel/spin', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.spinMysteryWheel(user.id);
+  res.json(result);
+});
+
+// ==========================================
+// v4.0 — TEAM BUILDER
+// ==========================================
+app.get('/api/teams', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.getTeams(user.id);
+  res.json(result);
+});
+
+app.post('/api/teams/save', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { name, characterIds, teamId } = req.body;
+  const result = database.saveTeam(user.id, name, characterIds, teamId);
+  res.json(result);
+});
+
+app.delete('/api/teams/:teamId', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.deleteTeam(user.id, req.params.teamId);
+  res.json(result);
+});
+
+// ==========================================
+// v4.0 — ADMIN REWARD GRANT
+// ==========================================
+app.post('/api/admin/grant-reward', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  if (user.role !== 'admin' && !user.isAdmin) return res.status(403).json({ success: false, error: 'ACCESS DENIED.' });
+  const { targetUsername, rewardType, amount, characterId } = req.body;
+  if (!targetUsername || !rewardType) return res.status(400).json({ success: false, error: 'targetUsername and rewardType required.' });
+  const result = database.adminGrantReward(user.id, targetUsername, rewardType, amount || 0, characterId);
+  res.json(result);
+});
+
+// ==========================================
+// v4.0 — TRACK GAME MODE PLAYED
+// ==========================================
+app.post('/api/progression/track-mode', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { mode } = req.body;
+  if (!mode) return res.status(400).json({ success: false, error: 'mode required.' });
+  database.trackGameModePlayed(user.id, mode);
+  res.json({ success: true });
+});
+
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`⚡ MARVEL: AUCTION WARS Server running on port ${PORT}`);

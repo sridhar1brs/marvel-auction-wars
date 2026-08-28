@@ -50,6 +50,30 @@ export interface UserProfile extends PlayerProfile {
   dungeonsCompleted: number;
   giftsSentCount: number;
   giftsReceivedCount: number;
+
+  // v4.0 — New Systems
+  cardShards: number;
+  claimedLevelCrates: number[];
+  cratesOpened: number;
+  characterMastery: Record<string, { xp: number; level: number }>;
+  savedTeams: Array<{ id: string; name: string; characterIds: string[]; createdAt: number; updatedAt: number }>;
+  dailyMissions: Array<{
+    missionId: string; title: string; description: string;
+    target: number; progress: number;
+    rewardType: 'astra' | 'cardShards' | 'xp'; rewardAmount: number;
+    eventType: string; isCompleted: boolean; isClaimed: boolean; expiresAt: string;
+  }>;
+  weeklyMissions: Array<{
+    missionId: string; title: string; description: string;
+    target: number; progress: number;
+    rewardType: 'astra' | 'cardShards' | 'xp'; rewardAmount: number;
+    eventType: string; isCompleted: boolean; isClaimed: boolean; expiresAt: string;
+  }>;
+  achievements: Record<string, { progress: number; isClaimed: boolean; unlockedAt?: number }>;
+  wheelSpins: number;
+  lastWheelSpinDate: string;
+  totalWheelSpins: number;
+  gameModesPlayed: string[];
 }
 
 export interface MatchOutcomeParams {
@@ -110,6 +134,24 @@ interface AuthContextType {
   createAdminCode: (payload: { code?: string; astraReward: number; maxUses: number; expiresAt: string; isActive?: boolean }) => Promise<{ success: boolean; code?: RedeemCode; error?: string }>;
   toggleAdminCode: (code: string, isActive: boolean) => Promise<{ success: boolean; error?: string }>;
   deleteAdminCode: (code: string) => Promise<{ success: boolean; error?: string }>;
+
+  // v4.0 — New System Actions
+  claimLevelCrate: (level: number) => Promise<{ success: boolean; crateType?: string; reward?: any; isDuplicate?: boolean; cardShardsAwarded?: number; error?: string }>;
+  craftCard: (category: string) => Promise<{ success: boolean; character?: any; isDuplicate?: boolean; cardShardsAwarded?: number; cost?: number; error?: string }>;
+  awardMasteryXp: (characterId: string, xp: number) => Promise<{ success: boolean; oldLevel?: number; newLevel?: number; leveledUp?: boolean; error?: string }>;
+  getDailyMissions: () => Promise<{ success: boolean; missions?: any[]; error?: string }>;
+  claimDailyMission: (missionId: string) => Promise<{ success: boolean; rewardType?: string; rewardAmount?: number; error?: string }>;
+  getWeeklyChallenges: () => Promise<{ success: boolean; missions?: any[]; error?: string }>;
+  claimWeeklyChallenge: (missionId: string) => Promise<{ success: boolean; rewardType?: string; rewardAmount?: number; error?: string }>;
+  getAchievements: () => Promise<{ success: boolean; achievements?: any; definitions?: any; error?: string }>;
+  claimAchievement: (achievementId: string) => Promise<{ success: boolean; rewardType?: string; rewardAmount?: number; error?: string }>;
+  spinMysteryWheel: () => Promise<{ success: boolean; reward?: any; prizeIndex?: number; remainingSpins?: number; error?: string }>;
+  saveTeam: (name: string, characterIds: string[], teamId?: string) => Promise<{ success: boolean; team?: any; error?: string }>;
+  deleteTeam: (teamId: string) => Promise<{ success: boolean; error?: string }>;
+  getTeams: () => Promise<{ success: boolean; teams?: any[]; error?: string }>;
+  adminGrantReward: (targetUsername: string, rewardType: string, amount: number, characterId?: string) => Promise<{ success: boolean; error?: string }>;
+  trackGameMode: (mode: string) => Promise<void>;
+  updateMissionProgress: (eventType: string, amount?: number) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -179,6 +221,19 @@ export function normalizeUserProfile(u: any): UserProfile {
     xpForNextLevel: typeof u.xpForNextLevel === 'number' ? u.xpForNextLevel : 1000,
     playtimeSeconds: typeof u.playtimeSeconds === 'number' ? u.playtimeSeconds : 0,
     playtimeFormatted: u.playtimeFormatted || '0m',
+    // v4.0
+    cardShards: typeof u.cardShards === 'number' ? u.cardShards : 0,
+    claimedLevelCrates: Array.isArray(u.claimedLevelCrates) ? u.claimedLevelCrates : [],
+    cratesOpened: typeof u.cratesOpened === 'number' ? u.cratesOpened : 0,
+    characterMastery: u.characterMastery || {},
+    savedTeams: Array.isArray(u.savedTeams) ? u.savedTeams : [],
+    dailyMissions: Array.isArray(u.dailyMissions) ? u.dailyMissions : [],
+    weeklyMissions: Array.isArray(u.weeklyMissions) ? u.weeklyMissions : [],
+    achievements: u.achievements || {},
+    wheelSpins: typeof u.wheelSpins === 'number' ? u.wheelSpins : 1,
+    lastWheelSpinDate: u.lastWheelSpinDate || '',
+    totalWheelSpins: typeof u.totalWheelSpins === 'number' ? u.totalWheelSpins : 0,
+    gameModesPlayed: Array.isArray(u.gameModesPlayed) ? u.gameModesPlayed : [],
   };
 }
 
@@ -812,6 +867,214 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLevelUpOpen(false);
   };
 
+  // ==========================================
+  // v4.0 — NEW SYSTEM ACTIONS
+  // ==========================================
+
+  const claimLevelCrate = async (level: number) => {
+    if (!token) return { success: false, error: 'Please sign in.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/progression/claim-crate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ level })
+      });
+      const data = await res.json();
+      if (data.success && data.user) setUser(normalizeUserProfile(data.user));
+      return data;
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
+  const craftCard = async (category: string) => {
+    if (!token) return { success: false, error: 'Please sign in.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/forge/craft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ category })
+      });
+      const data = await res.json();
+      if (data.success && data.user) setUser(normalizeUserProfile(data.user));
+      return data;
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
+  const awardMasteryXp = async (characterId: string, xp: number) => {
+    if (!token) return { success: false, error: 'Please sign in.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/mastery/award`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ characterId, xp })
+      });
+      const data = await res.json();
+      if (data.success && data.user) setUser(normalizeUserProfile(data.user));
+      return data;
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
+  const getDailyMissions = async () => {
+    if (!token) return { success: false, error: 'Please sign in.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/missions/daily`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success && data.user) setUser(normalizeUserProfile(data.user));
+      return data;
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
+  const claimDailyMission = async (missionId: string) => {
+    if (!token) return { success: false, error: 'Please sign in.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/missions/daily/claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ missionId })
+      });
+      const data = await res.json();
+      if (data.success && data.user) setUser(normalizeUserProfile(data.user));
+      return data;
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
+  const getWeeklyChallenges = async () => {
+    if (!token) return { success: false, error: 'Please sign in.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/missions/weekly`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success && data.user) setUser(normalizeUserProfile(data.user));
+      return data;
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
+  const claimWeeklyChallenge = async (missionId: string) => {
+    if (!token) return { success: false, error: 'Please sign in.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/missions/weekly/claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ missionId })
+      });
+      const data = await res.json();
+      if (data.success && data.user) setUser(normalizeUserProfile(data.user));
+      return data;
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
+  const getAchievements = async () => {
+    if (!token) return { success: false, error: 'Please sign in.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/achievements`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      return await res.json();
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
+  const claimAchievement = async (achievementId: string) => {
+    if (!token) return { success: false, error: 'Please sign in.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/achievements/claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ achievementId })
+      });
+      const data = await res.json();
+      if (data.success && data.user) setUser(normalizeUserProfile(data.user));
+      return data;
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
+  const spinMysteryWheel = async () => {
+    if (!token) return { success: false, error: 'Please sign in.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/wheel/spin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success && data.user) setUser(normalizeUserProfile(data.user));
+      return data;
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
+  const saveTeam = async (name: string, characterIds: string[], teamId?: string) => {
+    if (!token) return { success: false, error: 'Please sign in.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/teams/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ name, characterIds, teamId })
+      });
+      const data = await res.json();
+      if (data.success && data.user) setUser(normalizeUserProfile(data.user));
+      return data;
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
+  const deleteTeam = async (teamId: string) => {
+    if (!token) return { success: false, error: 'Please sign in.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/teams/${encodeURIComponent(teamId)}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success && data.user) setUser(normalizeUserProfile(data.user));
+      return data;
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
+  const getTeams = async () => {
+    if (!token) return { success: false, error: 'Please sign in.', teams: [] };
+    try {
+      const res = await fetch(`${API_BASE}/api/teams`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      return await res.json();
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.', teams: [] }; }
+  };
+
+  const adminGrantReward = async (targetUsername: string, rewardType: string, amount: number, characterId?: string) => {
+    if (!token) return { success: false, error: 'ACCESS DENIED.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/grant-reward`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ targetUsername, rewardType, amount, characterId })
+      });
+      return await res.json();
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
+  const trackGameMode = async (mode: string) => {
+    if (!token) return;
+    try {
+      await fetch(`${API_BASE}/api/progression/track-mode`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ mode })
+      });
+    } catch { /* silent fail */ }
+  };
+
+  const updateMissionProgress = async (eventType: string, amount: number = 1) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/missions/daily/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ eventType, amount })
+      });
+      const data = await res.json();
+      if (data.success && data.user) setUser(normalizeUserProfile(data.user));
+    } catch { /* silent fail */ }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -845,7 +1108,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fetchAdminCodes,
         createAdminCode,
         toggleAdminCode,
-        deleteAdminCode
+        deleteAdminCode,
+        // v4.0
+        claimLevelCrate,
+        craftCard,
+        awardMasteryXp,
+        getDailyMissions,
+        claimDailyMission,
+        getWeeklyChallenges,
+        claimWeeklyChallenge,
+        getAchievements,
+        claimAchievement,
+        spinMysteryWheel,
+        saveTeam,
+        deleteTeam,
+        getTeams,
+        adminGrantReward,
+        trackGameMode,
+        updateMissionProgress,
       }}
     >
       {children}
