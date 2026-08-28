@@ -364,11 +364,19 @@ export interface MatchRecordResult {
   newLevel: number;
 }
 
-const JWT_SECRET = process.env.AUTH_SECRET || 'mcu_auction_wars_super_secret_jwt_key_2026_infinity';
+const JWT_SECRET = process.env.AUTH_SECRET || (process.env.NODE_ENV !== 'production'
+  ? 'mcu_auction_wars_super_secret_jwt_key_2026_infinity'
+  : '');
+if (!JWT_SECRET) {
+  throw new Error('AUTH_SECRET must be configured before starting MARVEL ASCENSION in production.');
+}
 const DATA_DIR = path.join(process.cwd(), 'server', 'data');
 const DB_FILE = path.join(DATA_DIR, 'accounts.json');
 const CODES_FILE = path.join(DATA_DIR, 'redeem_codes.json');
 const LOGS_FILE = path.join(DATA_DIR, 'admin_logs.json');
+// Administration is bound to an authenticated account on the server, never to a
+// client-supplied role. Configure ADMIN_USERNAME in production if it differs.
+const ADMIN_USERNAME = (process.env.ADMIN_USERNAME || 'darksenseify').trim().toLowerCase();
 
 class DatabaseManager {
   private users: Map<string, UserAccount> = new Map(); // username -> UserAccount
@@ -414,18 +422,7 @@ class DatabaseManager {
           }
         }
       } else {
-        // Seed default promotional code
-        this.redeemCodes.set('ASCEND2026', {
-          code: 'ASCEND2026',
-          astraReward: 5000,
-          maxUses: 1000,
-          usedCount: 0,
-          expiresAt: '2026-12-31',
-          isActive: true,
-          createdAt: Date.now(),
-          redeemedBy: [],
-          creatorUsername: 'System'
-        });
+        // Codes are created by the administrator; never ship a live sample code.
         this.saveCodes();
       }
 
@@ -445,13 +442,15 @@ class DatabaseManager {
   }
 
   private migrateUserFields(u: any): UserAccount {
-    const isOwner = ['sridhar', 'admin', 'owner'].includes((u.username || '').toLowerCase());
+    const isOwner = (u.username || '').toLowerCase() === ADMIN_USERNAME;
     const realAstra = typeof u.astra === 'number' ? u.astra : (typeof u.ascensionCoins === 'number' ? u.ascensionCoins : 0);
 
     return {
       ...u,
-      role: isOwner ? 'admin' : (u.role || 'player'),
-      isAdmin: isOwner ? true : (u.isAdmin || false),
+      // Legacy role flags are deliberately ignored: only the configured owner
+      // account may hold administrative privileges.
+      role: isOwner ? 'admin' : 'player',
+      isAdmin: isOwner,
       dungeonPeak: u.dungeonPeak || u.dungeonMaxWave || 0,
       astra: realAstra,
       ascensionCoins: realAstra,
@@ -525,6 +524,11 @@ class DatabaseManager {
     } catch (err) {
       console.error('[Database] Error saving redeem codes:', err);
     }
+  }
+
+  private isAuthorizedAdmin(user: unknown): user is UserAccount {
+    const candidate = user as UserAccount | null;
+    return !!candidate && candidate.username.toLowerCase() === ADMIN_USERNAME && candidate.role === 'admin' && candidate.isAdmin;
   }
 
   private saveLogs() {
@@ -641,14 +645,14 @@ class DatabaseManager {
     };
   }
 
-  // Generate 10-character code
+  // Generate a unique 10-digit code using cryptographically secure randomness.
   public generateCodeString(): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Non-ambiguous uppercase alphanumeric
-    let res = '';
-    for (let i = 0; i < 10; i++) {
-      res += chars.charAt(Math.floor(Math.random() * chars.length));
+    for (let attempt = 0; attempt < 100; attempt++) {
+      let res = '';
+      for (let i = 0; i < 10; i++) res += crypto.randomInt(0, 10).toString();
+      if (!this.redeemCodes.has(res)) return res;
     }
-    return res;
+    throw new Error('Unable to generate a unique redeem code. Please try again.');
   }
 
   // ==========================================
@@ -718,17 +722,32 @@ class DatabaseManager {
     }
   ): { success: boolean; code?: RedeemCode; error?: string } {
     const admin = this.getRawUser(adminUserId);
-    if (!admin || (admin.role !== 'admin' && !admin.isAdmin)) {
+    if (!this.isAuthorizedAdmin(admin)) {
       return { success: false, error: 'ACCESS DENIED: Owner-only authorization required.' };
     }
 
-    let codeStr = (payload.code || this.generateCodeString()).trim().toUpperCase();
-    if (codeStr.length !== 10) {
-      codeStr = this.generateCodeString();
+    const requestedCode = (payload.code || '').trim().toUpperCase();
+    let codeStr: string;
+    if (requestedCode) {
+      if (!/^\d{10}$/.test(requestedCode)) {
+        return { success: false, error: 'New codes must contain exactly 10 digits.' };
+      }
+      codeStr = requestedCode;
+    } else {
+      try {
+        codeStr = this.generateCodeString();
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Unable to generate a code.' };
+      }
     }
 
     if (this.redeemCodes.has(codeStr)) {
       return { success: false, error: `Code "${codeStr}" already exists in the database.` };
+    }
+
+    const expiry = new Date(`${payload.expiresAt}T23:59:59.999Z`);
+    if (!payload.expiresAt || Number.isNaN(expiry.getTime()) || expiry.getTime() < Date.now()) {
+      return { success: false, error: 'Choose an expiration date in the future.' };
     }
 
     const newCode: RedeemCode = {
@@ -752,7 +771,7 @@ class DatabaseManager {
 
   public toggleRedeemCode(adminUserId: string, code: string, isActive: boolean): { success: boolean; error?: string } {
     const admin = this.getRawUser(adminUserId);
-    if (!admin || (admin.role !== 'admin' && !admin.isAdmin)) {
+    if (!this.isAuthorizedAdmin(admin)) {
       return { success: false, error: 'ACCESS DENIED: Owner authorization required.' };
     }
 
@@ -768,7 +787,7 @@ class DatabaseManager {
 
   public deleteRedeemCode(adminUserId: string, code: string): { success: boolean; error?: string } {
     const admin = this.getRawUser(adminUserId);
-    if (!admin || (admin.role !== 'admin' && !admin.isAdmin)) {
+    if (!this.isAuthorizedAdmin(admin)) {
       return { success: false, error: 'ACCESS DENIED: Owner authorization required.' };
     }
 
@@ -784,7 +803,7 @@ class DatabaseManager {
 
   public getAllRedeemCodes(adminUserId: string): { success: boolean; codes?: RedeemCode[]; error?: string } {
     const admin = this.getRawUser(adminUserId);
-    if (!admin || (admin.role !== 'admin' && !admin.isAdmin)) {
+    if (!this.isAuthorizedAdmin(admin)) {
       return { success: false, error: 'ACCESS DENIED.' };
     }
     return { success: true, codes: Array.from(this.redeemCodes.values()).sort((a, b) => b.createdAt - a.createdAt) };
@@ -792,7 +811,7 @@ class DatabaseManager {
 
   public getAdminStats(adminUserId: string): { success: boolean; stats?: any; actionLogs?: AdminActionLog[]; error?: string } {
     const admin = this.getRawUser(adminUserId);
-    if (!admin || (admin.role !== 'admin' && !admin.isAdmin)) {
+    if (!this.isAuthorizedAdmin(admin)) {
       return { success: false, error: 'ACCESS DENIED: Owner authorization required.' };
     }
 
@@ -851,7 +870,9 @@ class DatabaseManager {
     const salt = crypto.randomBytes(16).toString('hex');
     const passwordHash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
     const id = `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const isOwner = ['sridhar', 'admin', 'owner'].includes(cleanUsername);
+    if (cleanUsername === ADMIN_USERNAME) {
+      return { success: false, error: 'This commander name is reserved. Please sign in to the existing account.' };
+    }
 
     const newUser: UserAccount = {
       id,
@@ -860,8 +881,8 @@ class DatabaseManager {
       passwordHash,
       salt,
       avatar: avatar || '🦸‍♂️',
-      role: isOwner ? 'admin' : 'player',
-      isAdmin: isOwner,
+      role: 'player',
+      isAdmin: false,
       level: 1,
       xp: 0,
       wins: 0,
@@ -1582,6 +1603,9 @@ class DatabaseManager {
     if (username) {
       const clean = username.trim().toLowerCase();
       if (clean !== user.username) {
+        if (user.username === ADMIN_USERNAME || clean === ADMIN_USERNAME) {
+          return { success: false, error: 'The administrator identity is reserved and cannot be renamed or claimed.' };
+        }
         if (this.users.has(clean)) {
           return { success: false, error: 'Username already in use.' };
         }
@@ -2376,7 +2400,7 @@ class DatabaseManager {
     error?: string;
   } {
     const admin = this.getRawUser(adminUserId);
-    if (!admin || (admin.role !== 'admin' && !admin.isAdmin)) {
+    if (!this.isAuthorizedAdmin(admin)) {
       return { success: false, error: 'ACCESS DENIED.' };
     }
     const target = this.getRawUser(targetUsername);
