@@ -110,11 +110,28 @@ export function getRankLabel(tier: string, division: number): string {
   return rank?.label || tier;
 }
 
-export const CHARACTER_SHARD_CATEGORIES = ['C', 'B', 'A', 'MYTHIC'] as const;
+export const CHARACTER_SHARD_CATEGORIES = ['C', 'B', 'A', 'MYTHIC', 'HERO', 'VILLAIN'] as const;
 export type CharacterShardCategory = (typeof CHARACTER_SHARD_CATEGORIES)[number];
 
-export function getCharacterShardCategory(characterGrade: string): CharacterShardCategory {
-  return CHARACTER_SHARD_CATEGORIES.includes(characterGrade as CharacterShardCategory)
-    ? characterGrade as CharacterShardCategory
-    : 'C';
+export function getCharacterShardCategory(characterOrGrade: string | { grade?: string; alignment?: string }): CharacterShardCategory {
+  if (typeof characterOrGrade !== 'string') {
+    const alignment = (characterOrGrade?.alignment || '').toString().toUpperCase();
+    const grade = (characterOrGrade?.grade || 'C').toString().toUpperCase();
+
+    if (alignment === 'HERO' || alignment === 'ANTI-HERO') return 'HERO';
+    if (alignment === 'VILLAIN') return 'VILLAIN';
+
+    if (grade === 'MYTHIC') return 'MYTHIC';
+    if (grade === 'A') return 'A';
+    if (grade === 'B') return 'B';
+    return 'C';
+  }
+
+  const normalized = characterOrGrade.toUpperCase();
+  if (normalized === 'MYTHIC') return 'MYTHIC';
+  if (normalized === 'A') return 'A';
+  if (normalized === 'B') return 'B';
+  if (normalized === 'HERO') return 'HERO';
+  if (normalized === 'VILLAIN') return 'VILLAIN';
+  return 'C';
 }

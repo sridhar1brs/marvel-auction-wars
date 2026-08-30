@@ -88,7 +88,7 @@ export function PlayerProfileModal({ player, profile: directProfile, onClose }: 
   const activeFavId = favoriteHeroId ?? profile.favoriteCharacterId;
   const favoriteHero = activeFavId 
     ? ALL_CHARACTERS.find(c => c.id === activeFavId)
-    : (player?.collection?.[0] || ALL_CHARACTERS[0]);
+    : null;
 
   const isOwnProfile = authUser && (
     profile.id === authUser.id || 
@@ -318,7 +318,7 @@ export function PlayerProfileModal({ player, profile: directProfile, onClose }: 
         </div>
 
         {/* Favorite Signature Character Showcase */}
-        {favoriteHero && (
+        {favoriteHero ? (
           <div className="bg-black/60 p-3 sm:p-3.5 rounded-2xl border border-cyan-500/30 flex items-center justify-between gap-3.5">
             <div className="flex items-center gap-3.5 min-w-0">
               <div className="w-14 h-14 rounded-xl overflow-hidden border border-cyan-400 shrink-0 bg-black">
@@ -353,6 +353,34 @@ export function PlayerProfileModal({ player, profile: directProfile, onClose }: 
                 className="shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-heading font-black uppercase tracking-wider bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 hover:text-white transition-all cursor-pointer"
               >
                 {isSelectingFavorite ? 'Close' : 'Change'}
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="bg-black/40 p-3.5 rounded-2xl border border-dashed border-cyan-500/30 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-12 h-12 rounded-xl bg-slate-900/80 border border-white/10 flex items-center justify-center text-xl shrink-0">
+                ⭐
+              </div>
+              <div className="min-w-0">
+                <span className="text-[9px] text-slate-400 font-mono font-bold uppercase tracking-widest block">
+                  SIGNATURE HERO
+                </span>
+                <p className="text-xs text-slate-300">
+                  {isOwnProfile ? 'No signature hero assigned yet.' : 'Commander has not selected a signature champion.'}
+                </p>
+              </div>
+            </div>
+            {isOwnProfile && (
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playClick();
+                  setIsSelectingFavorite(prev => !prev);
+                }}
+                className="shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-heading font-black uppercase tracking-wider bg-cyan-500 hover:bg-cyan-400 text-black font-black shadow-glow-cyan transition-all cursor-pointer"
+              >
+                {isSelectingFavorite ? 'Close' : 'Choose Hero'}
               </button>
             )}
           </div>

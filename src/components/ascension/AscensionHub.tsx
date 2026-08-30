@@ -103,27 +103,25 @@ export function AscensionHub({ onBackToHome }: Props) {
     }
   }, []);
 
-  const MAIN_TABS: { id: AscensionTab; label: string; icon: React.ReactNode; badge?: number }[] = [
-    { id: 'HOME',        label: 'Home Hub',     icon: <Home className="w-4 h-4" /> },
-    { id: 'CHARACTERS',  label: 'Characters',   icon: <Users className="w-4 h-4" /> },
-    { id: 'SHOP',        label: 'Astra Shop',   icon: <ShoppingBag className="w-4 h-4" /> },
-    { id: 'RELICS',      label: 'Relics',       icon: <Shield className="w-4 h-4" /> },
-    { id: 'SKILLS',      label: 'Skills',       icon: <Zap className="w-4 h-4" /> },
-    { id: 'BATTLE',      label: 'Battle',       icon: <Swords className="w-4 h-4" /> },
-    { id: 'RANKED',      label: 'Ranked',       icon: <Trophy className="w-4 h-4 text-amber-400" /> },
-    { id: 'INVENTORY',   label: 'Inventory',    icon: <Package className="w-4 h-4" /> },
-    { id: 'BATTLE_PASS', label: 'Battle Pass',  icon: <Crown className="w-4 h-4" /> },
-    { id: 'LEADERBOARDS',label: 'Leaderboards', icon: <Sparkles className="w-4 h-4 text-cyan-400" /> },
-  ];
-
-  const V4_TABS: { id: AscensionTab; label: string; icon: React.ReactNode; badge?: number; isNew?: boolean }[] = [
-    { id: 'MISSIONS',     label: 'Missions',     icon: <Target className="w-4 h-4 text-cyan-400" />,   badge: unclaimedMissions || undefined, isNew: true },
-    { id: 'ACHIEVEMENTS', label: 'Achievements', icon: <Trophy className="w-4 h-4 text-amber-400" />,  isNew: true },
-    { id: 'CARD_FORGE',   label: 'Card Forge',   icon: <Hammer className="w-4 h-4 text-purple-400" />, isNew: true },
-    { id: 'MYSTERY_WHEEL',label: 'Wheel',        icon: <RotateCcw className="w-4 h-4 text-orange-400" />, badge: (user?.wheelSpins || 0) > 0 ? user!.wheelSpins : undefined, isNew: true },
-    { id: 'TEAM_BUILDER', label: 'Teams',        icon: <Users className="w-4 h-4 text-emerald-400" />, isNew: true },
-    { id: 'MASTERY',      label: 'Mastery',      icon: <Star className="w-4 h-4 text-amber-400" />,    isNew: true },
-    { id: 'TOKEN_FORGE',  label: 'Token Forge',  icon: <Hammer className="w-4 h-4 text-cyan-400" />,   isNew: true },
+  const ALL_NAV_TABS: { id: AscensionTab; label: string; icon: React.ReactNode; badge?: number }[] = [
+    { id: 'HOME',         label: 'Home',         icon: <Home className="w-3.5 h-3.5" /> },
+    { id: 'CHARACTERS',   label: 'Characters',   icon: <Users className="w-3.5 h-3.5" /> },
+    { id: 'SHOP',         label: 'Astra Shop',   icon: <ShoppingBag className="w-3.5 h-3.5" /> },
+    { id: 'RELICS',       label: 'Relics',       icon: <Shield className="w-3.5 h-3.5" /> },
+    { id: 'SKILLS',       label: 'Skills',       icon: <Zap className="w-3.5 h-3.5" /> },
+    { id: 'BATTLE',       label: 'Battle',       icon: <Swords className="w-3.5 h-3.5" /> },
+    { id: 'RANKED',       label: 'Ranked',       icon: <Trophy className="w-3.5 h-3.5" /> },
+    { id: 'INVENTORY',    label: 'Inventory',    icon: <Package className="w-3.5 h-3.5" /> },
+    { id: 'BATTLE_PASS',  label: 'Battle Pass',  icon: <Crown className="w-3.5 h-3.5" /> },
+    { id: 'LEADERBOARDS', label: 'Leaderboards', icon: <Sparkles className="w-3.5 h-3.5" /> },
+    { id: 'MISSIONS',     label: 'Missions',     icon: <Target className="w-3.5 h-3.5" />, badge: unclaimedMissions || undefined },
+    { id: 'ACHIEVEMENTS', label: 'Achievements', icon: <Trophy className="w-3.5 h-3.5" /> },
+    { id: 'CARD_FORGE',   label: 'Card Forge',   icon: <Hammer className="w-3.5 h-3.5" /> },
+    { id: 'MYSTERY_WHEEL',label: 'Wheel',        icon: <RotateCcw className="w-3.5 h-3.5" />, badge: (user?.wheelSpins || 0) > 0 ? user!.wheelSpins : undefined },
+    { id: 'TEAM_BUILDER', label: 'Teams',        icon: <Users className="w-3.5 h-3.5" /> },
+    { id: 'MASTERY',      label: 'Mastery',      icon: <Star className="w-3.5 h-3.5" /> },
+    { id: 'TOKEN_FORGE',  label: 'Token Forge',  icon: <Hammer className="w-3.5 h-3.5" /> },
+    ...(isAdmin ? [{ id: 'ADMIN' as AscensionTab, label: 'Admin Panel', icon: <ShieldAlert className="w-3.5 h-3.5" /> }] : [])
   ];
 
   const handleTabClick = (tabId: AscensionTab) => {
@@ -140,110 +138,63 @@ export function AscensionHub({ onBackToHome }: Props) {
         onOpenProfile={() => setIsProfileOpen(true)}
       />
 
-      {/* 2. Top Navigation Tabs Bar */}
+      {/* 2. Top Navigation Tabs Bar — 18 Buttons Unified */}
       <nav className="sticky top-[53px] z-30 bg-[#070A16]/95 backdrop-blur-md border-b border-white/10 shadow-md">
-        {/* Main Tabs Row */}
-        <div className="w-full max-w-[1700px] mx-auto px-3 sm:px-6 pt-2 pb-2 grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2">
-          {MAIN_TABS.map(t => {
-            const isActive = activeTab === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => handleTabClick(t.id)}
-                className={`relative min-w-0 h-9 flex items-center justify-center gap-1.5 px-2 sm:px-3 rounded-xl text-[10px] sm:text-xs font-heading font-black uppercase tracking-wide transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-black shadow-glow-cyan'
-                    : 'bg-black/40 text-slate-300 hover:text-white border border-white/5 hover:border-white/20'
-                }`}
-              >
-                {t.icon}
-                <span>{t.label}</span>
-                {t.badge != null && t.badge > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">
-                    {t.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+        <div className="w-full max-w-[1750px] mx-auto px-2 sm:px-4 py-2">
+          <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+            {ALL_NAV_TABS.map(t => {
+              const isActive = activeTab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => handleTabClick(t.id)}
+                  className={`relative shrink-0 h-9 flex items-center justify-center gap-1.5 px-3 rounded-xl text-[11px] sm:text-xs font-heading font-black uppercase tracking-wider transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-black shadow-glow-cyan border border-cyan-400'
+                      : 'bg-slate-900/70 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/10 hover:border-cyan-500/30'
+                  }`}
+                >
+                  {t.icon}
+                  <span>{t.label}</span>
+                  {t.badge != null && t.badge > 0 && (
+                    <span className="ml-1 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow">
+                      {t.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
 
-          {/* Quick Redeem Key Tab */}
-          <button
-            type="button"
-            onClick={() => { soundManager.playClick(); setIsRedeemOpen(true); }}
-            className="min-w-0 h-9 flex items-center justify-center gap-1.5 px-2 sm:px-3 rounded-xl text-[10px] sm:text-xs font-heading font-black uppercase tracking-wide bg-purple-950/60 hover:bg-purple-900 text-purple-200 border border-purple-500/40 transition-all cursor-pointer"
-          >
-            <KeyRound className="w-3.5 h-3.5 text-amber-400" />
-            <span>Redeem</span>
-          </button>
-
-          {/* Crates Button — shows badge when claimable */}
-          <button
-            type="button"
-            onClick={() => { soundManager.playClick(); setIsCrateOpen(true); }}
-            className={`relative min-w-0 h-9 flex items-center justify-center gap-1.5 px-2 sm:px-3 rounded-xl text-[10px] sm:text-xs font-heading font-black uppercase tracking-wide transition-all cursor-pointer ${
-              claimableCratesCount > 0
-                ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-black animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.4)]'
-                : 'bg-amber-950/60 hover:bg-amber-900/60 text-amber-200 border border-amber-500/30'
-            }`}
-          >
-            <Package className="w-3.5 h-3.5" />
-            <span>Crates</span>
-            {claimableCratesCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">
-                {claimableCratesCount}
-              </span>
-            )}
-          </button>
-
-          {isAdmin && (
+            {/* Quick Action: Redeem Key */}
             <button
               type="button"
-              onClick={() => handleTabClick('ADMIN')}
-              className={`min-w-0 flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl text-[10px] sm:text-xs font-heading font-black uppercase tracking-wide transition-all cursor-pointer ${
-                activeTab === 'ADMIN'
-                  ? 'bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-lg'
-                  : 'bg-red-950/60 hover:bg-red-900/60 text-red-200 border border-red-500/30'
+              onClick={() => { soundManager.playClick(); setIsRedeemOpen(true); }}
+              className="shrink-0 h-9 flex items-center justify-center gap-1.5 px-3 rounded-xl text-[11px] sm:text-xs font-heading font-black uppercase tracking-wider bg-slate-900/70 hover:bg-slate-800 text-purple-300 hover:text-white border border-purple-500/30 hover:border-purple-500 transition-all cursor-pointer"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-purple-400" />
+              <span>Redeem</span>
+            </button>
+
+            {/* Quick Action: Crates Modal */}
+            <button
+              type="button"
+              onClick={() => { soundManager.playClick(); setIsCrateOpen(true); }}
+              className={`relative shrink-0 h-9 flex items-center justify-center gap-1.5 px-3 rounded-xl text-[11px] sm:text-xs font-heading font-black uppercase tracking-wider transition-all cursor-pointer ${
+                claimableCratesCount > 0
+                  ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-black animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.4)] border border-amber-400'
+                  : 'bg-slate-900/70 hover:bg-slate-800 text-amber-300 hover:text-white border border-amber-500/30 hover:border-amber-500'
               }`}
             >
-              <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-              <span>Admin</span>
+              <Package className="w-3.5 h-3.5 text-amber-400" />
+              <span>Crates</span>
+              {claimableCratesCount > 0 && (
+                <span className="ml-1 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow">
+                  {claimableCratesCount}
+                </span>
+              )}
             </button>
-          )}
-        </div>
-
-        {/* v4.0 NEW Systems Sub-Row */}
-        <div className="w-full max-w-[1700px] mx-auto px-3 sm:px-6 pb-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-          <span className="col-span-2 sm:col-span-3 lg:col-span-6 text-[9px] font-black uppercase tracking-widest text-slate-600 flex items-center h-4">NEW v4.0 →</span>
-          {V4_TABS.map(t => {
-            const isActive = activeTab === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => handleTabClick(t.id)}
-                className={`relative min-w-0 h-9 flex items-center justify-center gap-1.5 px-2 rounded-xl text-[10px] sm:text-xs font-heading font-black uppercase tracking-wide transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-gradient-to-r from-violet-600 to-purple-700 text-white shadow-glow-purple'
-                    : 'bg-violet-950/40 text-violet-300 hover:text-white border border-violet-500/20 hover:border-violet-500/50'
-                }`}
-              >
-                {t.icon}
-                <span>{t.label}</span>
-                {t.badge != null && t.badge > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-orange-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">
-                    {t.badge}
-                  </span>
-                )}
-                {t.isNew && !isActive && (
-                  <span className="absolute -top-1.5 -right-1.5 text-[8px] font-black px-1 py-0.5 rounded-full bg-violet-500 text-white leading-none">
-                    NEW
-                  </span>
-                )}
-              </button>
-            );
-          })}
+          </div>
         </div>
       </nav>
 

@@ -100,7 +100,7 @@ export interface Character {
   bounty?: BountyReward;
 }
 
-export type BotPersonality = 'Aggressive' | 'Value' | 'Cosmic' | 'Balanced';
+export type BotPersonality = 'Aggressive' | 'Value' | 'Cosmic' | 'Balanced' | 'Easy' | 'Medium' | 'Hard' | 'Extreme';
 export type GameMode = 'classic' | 'blind_bidding' | 'boss_raid' | 'blitz' | 'chaos_auction';
 export type ArenaBackgroundId = 'wakanda' | 'asgard' | 'quantum' | 'avengers' | 'knowhere';
 

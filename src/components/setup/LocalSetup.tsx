@@ -164,10 +164,14 @@ export function LocalSetup({
                   onChange={e => setBotPersonality(e.target.value as BotPersonality)}
                   className="bg-slate-900 border border-white/15 text-[11px] text-white rounded-lg px-2 py-1 focus:outline-none focus:border-purple-500 flex-1 min-w-[120px]"
                 >
-                  <option value="Balanced">Balanced</option>
-                  <option value="Aggressive">Aggressive</option>
-                  <option value="Cosmic">Cosmic</option>
-                  <option value="Value">Value Collector</option>
+                  <option value="Balanced">Balanced (Standard)</option>
+                  <option value="Aggressive">Aggressive (High Stakes)</option>
+                  <option value="Cosmic">Cosmic (Tier Sniping)</option>
+                  <option value="Value">Value Collector (Bargains)</option>
+                  <option value="Easy">Easy AI (Casual)</option>
+                  <option value="Medium">Medium AI (Balanced)</option>
+                  <option value="Hard">Hard AI (Competitive)</option>
+                  <option value="Extreme">Extreme AI (Master Tactician)</option>
                 </select>
                 <button
                   onClick={handleAddBot}

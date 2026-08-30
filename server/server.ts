@@ -1121,8 +1121,23 @@ io.on('connection', (socket: Socket) => {
   socket.on('ascension_join_room', (data: {
     roomId: string; teamIds?: unknown[]; authToken?: string
   }, callback) => {
-    const roomId = String(data?.roomId || '').toUpperCase().trim();
-    const room = ascensionRooms.get(roomId);
+    const inputCode = String(data?.roomId || '').toUpperCase().trim();
+    let resolvedRoomId = inputCode;
+    let room = ascensionRooms.get(resolvedRoomId);
+    if (!room) {
+      for (const [id, r] of ascensionRooms.entries()) {
+        if (
+          id === inputCode || 
+          id === `ASC-ROOM-${inputCode}` || 
+          id.endsWith(inputCode) || 
+          id.replace(/[^A-Z0-9]/g, '').endsWith(inputCode.replace(/[^A-Z0-9]/g, ''))
+        ) {
+          resolvedRoomId = id;
+          room = r;
+          break;
+        }
+      }
+    }
     if (!room) return callback?.({ success: false, error: 'Ascension room not found.' });
     const { profileId, profile } = getSocketIdentity(data);
     const selected = canonicalTeam(data?.teamIds, profile);
@@ -1130,9 +1145,9 @@ io.on('connection', (socket: Socket) => {
     const player = makeAscensionPlayer(profileId, profile, selected.team);
     const added = room.addPlayer(player);
     if (!added.success) return callback?.(added);
-    ascensionSocketSession.set(socket.id, { roomId, playerId: socket.id, profileId });
-    socket.join(roomId);
-    callback?.({ success: true, roomId, state: room.state });
+    ascensionSocketSession.set(socket.id, { roomId: resolvedRoomId, playerId: socket.id, profileId });
+    socket.join(resolvedRoomId);
+    callback?.({ success: true, roomId: resolvedRoomId, state: room.state });
   });
 
   socket.on('ascension_set_team', (data: { teamIds?: unknown[] }, callback) => {

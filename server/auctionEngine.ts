@@ -123,8 +123,29 @@ export function calculateBotBid(
   let maxWillingBid = nextMinBid;
 
   switch (personality) {
+    case 'Easy':
+      willingness = 0.35;
+      maxWillingBid = scaledStart + (char.grade === 'C' ? 1 : 0);
+      break;
+
+    case 'Medium':
+      willingness = 0.60;
+      maxWillingBid = Math.min(bot.money, scaledStart + (char.grade === 'MYTHIC' ? 3 : char.grade === 'A' ? 2 : 1));
+      break;
+
+    case 'Hard':
+      willingness = 0.80;
+      maxWillingBid = Math.min(bot.money, scaledStart + (char.grade === 'MYTHIC' ? 6 : char.grade === 'A' ? 4 : 2));
+      break;
+
+    case 'Extreme':
+      // Extreme bots bid aggressively, especially when auction time is running low (sniping behavior)
+      willingness = auction.timeRemaining <= 4 ? 0.95 : 0.85;
+      maxWillingBid = Math.min(bot.money, scaledStart + (char.grade === 'MYTHIC' ? 8 : char.grade === 'A' ? 5 : 3));
+      break;
+
     case 'Aggressive':
-      willingness = 0.8;
+      willingness = 0.85;
       maxWillingBid = Math.min(bot.money, scaledStart + (char.grade === 'MYTHIC' ? 6 : char.grade === 'A' ? 4 : 2));
       break;
 
@@ -150,7 +171,7 @@ export function calculateBotBid(
 
     case 'Balanced':
     default:
-      willingness = 0.6;
+      willingness = 0.65;
       maxWillingBid = Math.min(bot.money, scaledStart + (char.grade === 'MYTHIC' ? 4 : 2));
       break;
   }

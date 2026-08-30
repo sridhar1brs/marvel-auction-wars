@@ -34,6 +34,23 @@ export interface DungeonCombatLog {
   message: string;
 }
 
+export type TacticalActionMode = 'STRIKE' | 'SPECIAL_BLAST' | 'DEFEND_COUNTER' | 'EVADE_AMBUSH';
+
+export type EnemyIntentType = 
+  | 'HEAVY_SLUGGER' 
+  | 'ENERGY_SURGE' 
+  | 'IRON_FORTRESS' 
+  | 'SHADOW_STRIKE' 
+  | 'COSMIC_ANNIHILATION';
+
+export interface EnemyIntentInfo {
+  type: EnemyIntentType;
+  title: string;
+  description: string;
+  counterRecommendation: string;
+  icon: string;
+}
+
 export interface DungeonPlayer {
   id: string;
   name: string;
@@ -54,6 +71,7 @@ export interface DungeonState {
   activePlayerIndex: number;
   playerHero: Character | null; // Compatibility with single-player view
   enemyHero: Character | null;
+  enemyIntent?: EnemyIntentInfo;
   playerHp: number;
   playerMaxHp: number;
   enemyHp: number;
