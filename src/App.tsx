@@ -139,9 +139,6 @@ export function App() {
         />
       )}
 
-      {/* Scanline Comic Overlay */}
-      <div className="fixed inset-0 scanlines pointer-events-none z-30" />
-
       {/* Navigation Header */}
       {state.phase !== 'ASCENSION' && (
         <Navbar

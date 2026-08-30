@@ -9,12 +9,23 @@ interface Props {
   className?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   showBadge?: boolean;
+  showPowerBadge?: boolean;
 }
 
-export function CharacterPortrait({ character, className = '', size = 'md', showBadge = true }: Props) {
+export function CharacterPortrait({ 
+  character, 
+  className = '', 
+  size = 'md', 
+  showBadge = true,
+  showPowerBadge = true 
+}: Props) {
   const [imageStep, setImageStep] = useState<number>(0);
 
   const getDimensions = () => {
+    // If custom width/height is passed in className, avoid conflicting defaults
+    if (className.includes('w-') || className.includes('h-')) {
+      return '';
+    }
     switch (size) {
       case 'sm':
         return 'w-20 h-20 sm:w-24 sm:h-24 rounded-xl';
@@ -30,6 +41,9 @@ export function CharacterPortrait({ character, className = '', size = 'md', show
   };
 
   const getBorderGlow = (grade: CharacterGrade) => {
+    if (className.includes('border-none') || className.includes('no-border')) {
+      return '';
+    }
     switch (grade) {
       case 'MYTHIC':
         return 'border-2 border-purple-500/80 shadow-glow-cosmic ring-2 ring-purple-400/40';
@@ -59,24 +73,24 @@ export function CharacterPortrait({ character, className = '', size = 'md', show
     <div className={`relative overflow-hidden shrink-0 group bg-black/90 ${getDimensions()} ${getBorderGlow(character.grade)} ${className}`}>
       {/* Background Accent Glow */}
       <div 
-        className="absolute inset-0 opacity-30 mix-blend-overlay pointer-events-none z-10"
+        className="absolute inset-0 opacity-25 mix-blend-overlay pointer-events-none z-10"
         style={{
           background: `radial-gradient(circle at center, ${character.color || '#E62429'} 0%, transparent 80%)`
         }}
       />
 
-      {/* 100% Reliable Marvel Character Image */}
+      {/* 100% Reliable Marvel Character Image with Centered Subject Crop */}
       <img
         src={currentSrc}
         alt={character.name}
         referrerPolicy="no-referrer"
         onError={() => setImageStep(prev => prev + 1)}
-        className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-110"
+        className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
         loading="lazy"
       />
 
       {/* Subtle bottom shadow vignette for depth */}
-      <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
 
       {/* Grade Overlay Ribbon */}
       {showBadge && (
@@ -96,10 +110,12 @@ export function CharacterPortrait({ character, className = '', size = 'md', show
       )}
 
       {/* Power Badge */}
-      <div className="absolute bottom-1 right-1 z-20 flex items-center gap-0.5 bg-black/85 backdrop-blur border border-white/10 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-extrabold text-amber-300 shadow">
-        <Zap className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-        <span>{character.overallPower}</span>
-      </div>
+      {showPowerBadge && (
+        <div className="absolute bottom-1 right-1 z-20 flex items-center gap-0.5 bg-black/85 backdrop-blur border border-white/10 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-extrabold text-amber-300 shadow">
+          <Zap className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+          <span>{character.overallPower}</span>
+        </div>
+      )}
     </div>
   );
 }

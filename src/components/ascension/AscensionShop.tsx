@@ -210,12 +210,18 @@ export function AscensionShop() {
 
               {/* Character Portrait */}
               <div className="p-3 text-center space-y-2">
-                <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-2xl overflow-hidden border border-white/20 shadow-md group-hover:scale-105 transition-transform bg-black">
-                  <CharacterPortrait character={char} size="lg" className="w-full h-full object-cover" />
+                <div className="w-24 h-24 sm:w-28 sm:h-28 mx-auto rounded-2xl overflow-hidden border border-white/20 shadow-md group-hover:scale-105 transition-transform bg-black">
+                  <CharacterPortrait 
+                    character={char} 
+                    size="md" 
+                    showBadge={false} 
+                    showPowerBadge={false} 
+                    className="w-full h-full object-cover" 
+                  />
                 </div>
 
-                <div className="space-y-0.5">
-                  <h3 className="font-heading font-black text-xs sm:text-sm text-white uppercase truncate group-hover:text-cyan-300 transition-colors">
+                <div className="space-y-1">
+                  <h3 className="font-heading font-black text-xs sm:text-sm text-white uppercase line-clamp-2 min-h-[2.4rem] flex items-center justify-center text-center leading-snug group-hover:text-cyan-300 transition-colors">
                     {char.name}
                   </h3>
                   <span className="text-[10px] text-slate-400 block truncate">
