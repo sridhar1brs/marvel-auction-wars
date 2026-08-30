@@ -31,6 +31,7 @@ export function useSocket() {
       const token = localStorage.getItem('mcu_auth_token');
       if (token) {
         socket.emit('authenticate_socket', { token });
+        socket.emit('social_auth', { token });
       }
     });
 

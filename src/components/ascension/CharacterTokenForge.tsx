@@ -34,7 +34,7 @@ export function CharacterTokenForge() {
     return ALL_CHARACTERS.filter(c => getCharacterShardCategory(c) === category);
   }, [category]);
 
-  const shards = user?.categoryShards?.[category] || 0;
+  const shards = (user as any)?.tokenShards?.[category] ?? user?.categoryShards?.[category] ?? 0;
   const tokens = user?.characterTokens?.[category] || 0;
 
   const showMsg = (type: 'success' | 'error', text: string) => {

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { GamePhase } from '../../types/game';
-import { McuSoundEngine } from './McuSoundEngine';
 import { SkillMasteryModal } from './SkillMasteryModal';
 import { ComicFunFactsModal } from './ComicFunFactsModal';
 import { AuthModal } from '../auth/AuthModal';
@@ -39,6 +38,7 @@ export function Navbar({
   const [partyState, setPartyState] = useState<PartyState | null>(null);
   const [pendingPartyInvite, setPendingPartyInvite] = useState<PartyInviteData | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [tournamentInvite, setTournamentInvite] = useState<{ inviterName: string; teamSize: number; maxPlayers: number; roomCode?: string } | null>(null);
 
   useEffect(() => {
     if (!socket) return;
@@ -50,12 +50,20 @@ export function Navbar({
       setPartyState(party);
     };
 
+    const handleTournamentInviteReceived = (payload: { inviterName: string; teamSize: number; maxPlayers: number; roomCode?: string }) => {
+      soundManager.playClick();
+      setTournamentInvite(payload);
+      setTimeout(() => setTournamentInvite(null), 15000);
+    };
+
     socket.on('party_invite_received', handlePartyInviteReceived);
     socket.on('party_state_updated', handlePartyUpdated);
+    socket.on('team_battle_invite_received', handleTournamentInviteReceived);
 
     return () => {
       socket.off('party_invite_received', handlePartyInviteReceived);
       socket.off('party_state_updated', handlePartyUpdated);
+      socket.off('team_battle_invite_received', handleTournamentInviteReceived);
     };
   }, []);
 
@@ -274,8 +282,6 @@ export function Navbar({
                 <span>Sign In</span>
               </button>
             )}
-
-            <McuSoundEngine />
 
             {/* Dedicated Settings Button */}
             <button
@@ -515,6 +521,53 @@ export function Navbar({
 
       {/* Game Settings Modal */}
       <SettingsModal />
+
+      {/* Floating Tournament Invite Banner */}
+      {tournamentInvite && (
+        <div className="fixed top-4 right-4 z-[9999] max-w-sm w-full animate-fadeIn">
+          <div className="bg-gradient-to-r from-amber-950 via-[#1A1205] to-orange-950 border-2 border-amber-500/60 rounded-2xl p-4 shadow-2xl shadow-amber-900/40">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-900/60 border border-amber-500/50 flex items-center justify-center text-xl shrink-0">⚔️</div>
+                <div>
+                  <div className="font-heading font-black text-white text-sm leading-tight">
+                    Tournament Invite!
+                  </div>
+                  <div className="text-xs text-amber-300 mt-0.5">
+                    <strong>{tournamentInvite.inviterName}</strong> invited you to a{' '}
+                    <strong>{tournamentInvite.maxPlayers}-Player</strong> tournament ({tournamentInvite.teamSize}v{tournamentInvite.teamSize})
+                  </div>
+                  {tournamentInvite.roomCode && (
+                    <div className="mt-1 text-[10px] text-slate-400 font-mono">
+                      Room Code: <span className="text-amber-400 font-black tracking-widest">{tournamentInvite.roomCode}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => setTournamentInvite(null)}
+                className="p-1.5 hover:bg-white/10 rounded-lg cursor-pointer shrink-0 transition-all"
+              >
+                <X className="w-3.5 h-3.5 text-slate-400" />
+              </button>
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                onClick={() => { onNavigate('ASCENSION'); setTournamentInvite(null); }}
+                className="flex-1 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 text-black font-heading font-black text-xs uppercase tracking-wider transition-all hover:brightness-110 cursor-pointer"
+              >
+                Go to Tournament
+              </button>
+              <button
+                onClick={() => setTournamentInvite(null)}
+                className="px-4 py-2 rounded-xl border border-white/20 text-slate-400 hover:text-white text-xs font-bold cursor-pointer transition-all"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

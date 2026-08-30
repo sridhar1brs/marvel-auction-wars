@@ -4,19 +4,22 @@ import { soundManager } from '../../audio/soundManager';
 import { Hammer, Sparkles, Star, RotateCcw, CheckCircle, AlertCircle, Info } from 'lucide-react';
 
 interface ForgeCategory {
+  key: string;
   label: string;
+  shardKey: 'rare' | 'epic' | 'mythic' | 'hero' | 'villain' | 'cosmic';
   cost: number;
   grades: string[];
   description: string;
+  icon: string;
 }
 
 const FORGE_CATEGORIES: Record<string, ForgeCategory> = {
-  random_b:      { label: 'Rare Draft',    cost: 10, grades: ['B'],          description: 'Craft a random B-grade character' },
-  random_a:      { label: 'Epic Draft',    cost: 10, grades: ['A'],          description: 'Craft a random A-grade character' },
-  random_mythic: { label: 'Mythic Draft',  cost: 10, grades: ['MYTHIC'],     description: 'Craft a random MYTHIC character' },
-  random_hero:   { label: 'Hero Draft',    cost: 10, grades: ['C','B','A'],  description: 'Craft a random Hero-aligned character' },
-  random_villain:{ label: 'Villain Draft', cost: 10, grades: ['C','B','A'],  description: 'Craft a random Villain character' },
-  random_cosmic: { label: 'Cosmic Draft',  cost: 10, grades: ['A','MYTHIC'], description: 'Craft a random Cosmic tier character' },
+  random_b:      { key: 'random_b',      label: 'Rare Draft',    shardKey: 'rare',    cost: 10, grades: ['B'],          icon: '🔷', description: 'Craft ONLY Rare (B-Grade) Marvel Heroes' },
+  random_a:      { key: 'random_a',      label: 'Epic Draft',    shardKey: 'epic',    cost: 10, grades: ['A'],          icon: '💜', description: 'Craft ONLY Epic (A-Grade) Marvel Heroes' },
+  random_mythic: { key: 'random_mythic', label: 'Mythic Draft',  shardKey: 'mythic',  cost: 10, grades: ['MYTHIC'],     icon: '🌟', description: 'Craft ONLY Supreme MYTHIC Characters' },
+  random_hero:   { key: 'random_hero',   label: 'Hero Draft',    shardKey: 'hero',    cost: 10, grades: ['HERO'],       icon: '🦸‍♂️', description: 'Craft ONLY Hero & Anti-Hero Characters' },
+  random_villain:{ key: 'random_villain',label: 'Villain Draft', shardKey: 'villain', cost: 10, grades: ['VILLAIN'],    icon: '🦹‍♂️', description: 'Craft ONLY Villain-aligned Characters' },
+  random_cosmic: { key: 'random_cosmic', label: 'Cosmic Draft',  shardKey: 'cosmic',  cost: 10, grades: ['COSMIC'],     icon: '🪐', description: 'Craft ONLY Cosmic & Universal Entities' },
 };
 
 const GRADE_COLORS: Record<string, string> = {
@@ -24,6 +27,9 @@ const GRADE_COLORS: Record<string, string> = {
   B: 'text-blue-400',
   A: 'text-purple-400',
   MYTHIC: 'text-amber-400',
+  HERO: 'text-emerald-400',
+  VILLAIN: 'text-red-400',
+  COSMIC: 'text-violet-400',
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -43,6 +49,11 @@ export function CardForge() {
   const [history, setHistory] = useState<any[]>([]);
 
   const cardShards = user?.cardShards ?? 0;
+  const draftShards = (user as any)?.draftShards || {};
+
+  const getAvailableShards = (shardKey: string) => {
+    return (draftShards[shardKey] || 0) + cardShards;
+  };
 
   const showToast = (type: 'success' | 'error', text: string) => {
     setToastMsg({ type, text });
@@ -51,8 +62,9 @@ export function CardForge() {
 
   const handleCraft = async (categoryKey: string) => {
     const cat = FORGE_CATEGORIES[categoryKey];
-    if (cardShards < cat.cost) {
-      showToast('error', `Not enough Card Shards! Need ${cat.cost}, you have ${cardShards}.`);
+    const available = getAvailableShards(cat.shardKey);
+    if (available < cat.cost) {
+      showToast('error', `Not enough ${cat.label} Shards! Need ${cat.cost}, you have ${available}.`);
       return;
     }
 
@@ -94,18 +106,20 @@ export function CardForge() {
       {/* Header */}
       <div className="relative rounded-3xl p-6 bg-gradient-to-r from-[#1A0B2E] via-[#120D2A] to-[#0D1535] border border-purple-500/30 shadow-[0_0_40px_rgba(139,92,246,0.2)] overflow-hidden">
         <div className="absolute -top-16 -right-16 w-48 h-48 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex items-center justify-between">
+        <div className="relative z-10 flex items-center justify-between flex-wrap gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <Hammer className="w-7 h-7 text-amber-400" />
               <h1 className="text-2xl font-heading font-black text-white uppercase tracking-wider">Card Forge</h1>
             </div>
-            <p className="text-slate-400 text-sm">Spend Card Shards to craft random character cards</p>
+            <p className="text-slate-400 text-sm">Forge specific character categories with dedicated Draft Shards (Strict Category Enforcement)</p>
           </div>
-          <div className="text-right">
-            <div className="text-xs text-slate-500 uppercase tracking-widest mb-1">Your Shards</div>
-            <div className="text-3xl font-black text-indigo-300 flex items-center gap-2">
-              🔷 {cardShards.toLocaleString()}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="text-right px-4 py-2 rounded-2xl bg-black/50 border border-white/10">
+              <div className="text-[10px] text-slate-400 uppercase tracking-widest">Universal Shards</div>
+              <div className="text-xl font-black text-indigo-300 flex items-center gap-1.5 justify-end">
+                🔷 {cardShards.toLocaleString()}
+              </div>
             </div>
           </div>
         </div>
@@ -115,15 +129,15 @@ export function CardForge() {
       <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-blue-950/40 border border-blue-500/20 text-sm text-blue-200">
         <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-400" />
         <div>
-          <strong>Duplicate System:</strong> If you already own the crafted character, you'll receive <strong>60% of shards back</strong> instead of the character.
-          Earn shards by: opening crates, completing missions, duplicates, and achievements.
+          <strong>Strict Category Isolation:</strong> Hero Draft unlocks only Heroes, Villain Draft unlocks only Villains, Rare unlocks only Rare, etc. Cross-category drafting is strictly prevented.
         </div>
       </div>
 
       {/* Forge Categories */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {Object.entries(FORGE_CATEGORIES).map(([key, cat]) => {
-          const canAfford = cardShards >= cat.cost;
+          const available = getAvailableShards(cat.shardKey);
+          const canAfford = available >= cat.cost;
           const isCrafting = crafting === key;
           const gradClass = CATEGORY_COLORS[key] || 'from-slate-600 to-slate-700';
 
@@ -132,42 +146,46 @@ export function CardForge() {
               className={`relative rounded-2xl border transition-all overflow-hidden ${
                 canAfford
                   ? 'border-white/20 hover:border-white/40 hover:scale-[1.02] cursor-pointer'
-                  : 'border-white/5 opacity-50'
+                  : 'border-white/5 opacity-60'
               } bg-[#0B0D1E]`}
             >
               {/* Gradient top bar */}
               <div className={`h-1.5 w-full bg-gradient-to-r ${gradClass}`} />
               <div className="p-5 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-heading font-black text-white text-sm uppercase tracking-wide">{cat.label}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{cat.icon}</span>
+                    <span className="font-heading font-black text-white text-sm uppercase tracking-wide">{cat.label}</span>
+                  </div>
                   <div className="flex gap-1">
                     {cat.grades.map(g => (
-                      <span key={g} className={`text-xs font-bold px-1.5 py-0.5 rounded ${GRADE_COLORS[g] || 'text-white'} bg-white/10`}>{g}</span>
+                      <span key={g} className={`text-[10px] font-black px-1.5 py-0.5 rounded ${GRADE_COLORS[g] || 'text-white'} bg-white/10`}>{g}</span>
                     ))}
                   </div>
                 </div>
                 <p className="text-xs text-slate-400">{cat.description}</p>
-                <div className="flex items-center justify-between pt-2">
-                  <div className="text-indigo-300 font-black text-lg flex items-center gap-1">
-                    🔷 {cat.cost}
+                <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                  <div className="text-xs text-slate-300">
+                    <span className="text-slate-500 block text-[10px]">YOUR SHARDS:</span>
+                    <span className="font-black text-sm text-cyan-300 font-mono">{available} / {cat.cost}</span>
                   </div>
                   <button
                     onClick={() => canAfford && handleCraft(key)}
                     disabled={!canAfford || isCrafting || crafting !== null}
-                    className={`px-4 py-2 rounded-xl text-sm font-black transition-all ${
+                    className={`px-4 py-2 rounded-xl text-xs font-heading font-black uppercase tracking-wider transition-all ${
                       isCrafting
                         ? 'bg-purple-700 text-white animate-pulse cursor-not-allowed'
                         : canAfford
-                        ? `bg-gradient-to-r ${gradClass} text-white hover:opacity-90 active:scale-95 cursor-pointer`
-                        : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                        ? `bg-gradient-to-r ${gradClass} text-white hover:opacity-90 active:scale-95 cursor-pointer shadow-md`
+                        : 'bg-slate-800 text-slate-500 cursor-not-allowed'
                     }`}
                   >
                     {isCrafting ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <RotateCcw className="w-3.5 h-3.5 animate-spin" />
                         <span>Forging...</span>
                       </div>
-                    ) : canAfford ? 'Forge' : 'Need Shards'}
+                    ) : canAfford ? 'Forge Hero' : 'Need Shards'}
                   </button>
                 </div>
               </div>

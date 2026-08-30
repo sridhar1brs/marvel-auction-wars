@@ -7,7 +7,12 @@
 export type BattlePassRewardType =
   | 'COINS'
   | 'SHARD_CRATE'
-  | 'CHARACTER_CRATE';
+  | 'CHARACTER_CRATE'
+  | 'RARE_CRATE'
+  | 'EPIC_CRATE'
+  | 'LEGENDARY_CRATE'
+  | 'MYTHIC_CRATE'
+  | 'TOKEN_SHARD_CRATE';
 
 export interface BattlePassReward {
   level: number;
@@ -15,9 +20,10 @@ export interface BattlePassReward {
   amount: number;
   label: string;
   icon: string;
+  crateImage?: string;
 }
 
-export const BATTLE_PASS_LEVELS = 100;
+export const BATTLE_PASS_LEVELS = 1000;
 export const BATTLE_PASS_XP_PER_LEVEL = 1000;
 
 export function getBattlePassLevelForXp(xp: number): number {
@@ -30,31 +36,70 @@ export function getBattlePassXpInLevel(xp: number): number {
 
 export function getBattlePassReward(level: number): BattlePassReward {
   const safeLevel = Math.min(BATTLE_PASS_LEVELS, Math.max(1, Math.floor(level)));
+
+  // Every 25th level is a Major Milestone
   if (safeLevel % 25 === 0) {
-    return {
-      level: safeLevel,
-      rewardType: 'CHARACTER_CRATE',
-      amount: 1,
-      label: 'Character Card Crate',
-      icon: '🃏',
-    };
+    if (safeLevel % 100 === 0) {
+      return {
+        level: safeLevel,
+        rewardType: 'MYTHIC_CRATE',
+        amount: 1,
+        label: 'Mythic Relic Crate',
+        icon: '🌌',
+        crateImage: '/images/crates/mythic_crate.png',
+      };
+    } else if (safeLevel % 50 === 0) {
+      return {
+        level: safeLevel,
+        rewardType: 'LEGENDARY_CRATE',
+        amount: 1,
+        label: 'Legendary Crate',
+        icon: '👑',
+        crateImage: '/images/crates/legendary_crate.png',
+      };
+    } else {
+      return {
+        level: safeLevel,
+        rewardType: 'EPIC_CRATE',
+        amount: 1,
+        label: 'Epic Tier Crate',
+        icon: '💎',
+        crateImage: '/images/crates/epic_crate.png',
+      };
+    }
   }
+
+  // Every 5th level is a Special Reward
   if (safeLevel % 5 === 0) {
-    return {
-      level: safeLevel,
-      rewardType: 'SHARD_CRATE',
-      amount: 1,
-      label: 'Random Shard Crate',
-      icon: '📦',
-    };
+    if (safeLevel % 10 === 0) {
+      return {
+        level: safeLevel,
+        rewardType: 'TOKEN_SHARD_CRATE',
+        amount: 1,
+        label: 'Shard Chamber Crate',
+        icon: '⚡',
+        crateImage: '/images/crates/shard_crate.png',
+      };
+    } else {
+      return {
+        level: safeLevel,
+        rewardType: 'RARE_CRATE',
+        amount: 1,
+        label: 'Rare Crate',
+        icon: '📦',
+        crateImage: '/images/crates/rare_crate.png',
+      };
+    }
   }
-  const amount = 100 + safeLevel * 15;
+
+  // Normal levels: progressively increasing Astra Coins (Level 1: 1,000, Level 2: 1,100, Level 3: 1,200...)
+  const amount = 1000 + (safeLevel - 1) * 100;
   return {
     level: safeLevel,
     rewardType: 'COINS',
     amount,
-    label: `${amount.toLocaleString()} Coins`,
-    icon: '🪙',
+    label: `${amount.toLocaleString()} Astra`,
+    icon: '✨',
   };
 }
 

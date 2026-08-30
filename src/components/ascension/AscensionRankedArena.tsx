@@ -16,8 +16,9 @@ const getRankArtwork = (tier: string, division: number): React.CSSProperties => 
   if (tier === 'ASCENDER') {
     return {
       backgroundImage: "url('/images/ranks/ascender.png')",
-      backgroundSize: '500% auto',
-      backgroundPosition: '50% 50%',
+      backgroundSize: 'contain',
+      backgroundRepeat: 'no-repeat',
+      backgroundPosition: 'center',
     };
   }
   return {
@@ -128,6 +129,13 @@ export function AscensionRankedArena() {
 
   const handleClaimRankReward = async (rankId: string, rankLabel: string) => {
     if (!token) return;
+    const isUnranked = !user?.isPlacementsCompleted || user?.rankedTier === 'UNRANKED' || (user?.rankedRating || 0) === 0;
+    if (isUnranked) {
+      soundManager.playAttackHit();
+      setClaimMessage({ type: 'error', text: 'Unranked commanders cannot claim ranked rewards. Complete placement matches first!' });
+      setTimeout(() => setClaimMessage(null), 4500);
+      return;
+    }
     setClaimingRankId(rankId);
     setClaimMessage(null);
     try {
@@ -202,11 +210,11 @@ export function AscensionRankedArena() {
             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-heading font-black uppercase tracking-wider transition-all cursor-pointer ${
               activeTab === 'LADDER'
                 ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-black shadow-glow-gold'
-                : 'text-amber-300 hover:text-white hover:bg-white/5'
+                : 'text-amber-300 hover:text-white hover:bg-white/5 border border-amber-500/30'
             }`}
           >
             <Trophy className="w-3.5 h-3.5" />
-            <span>Rank Ladder & Rewards</span>
+            <span>🏆 RANK LIST & REWARDS</span>
           </button>
         </div>
       </div>
@@ -386,8 +394,9 @@ export function AscensionRankedArena() {
             {/* Scrollable Rank Ladder Cards */}
             <div className="space-y-3.5 max-h-[70vh] overflow-y-auto pr-2">
               {ALL_RANK_DEFINITIONS.map(rank => {
-                const isCurrent = rankInfo.tier === rank.tier && rankInfo.division === rank.division;
-                const isUnlocked = (user?.rankedRating || 0) >= rank.requiredRating;
+                const isUnranked = !user?.isPlacementsCompleted || user?.rankedTier === 'UNRANKED' || (user?.rankedRating || 0) === 0;
+                const isCurrent = !isUnranked && rankInfo.tier === rank.tier && rankInfo.division === rank.division;
+                const isUnlocked = !isUnranked && (user?.rankedRating || 0) >= rank.requiredRating;
                 const isClaimed = claimedRewards.has(rank.id);
                 const reward = rank.reward;
 
@@ -485,6 +494,11 @@ export function AscensionRankedArena() {
                           <Gift className="w-4 h-4" />
                           <span>{claimingRankId === rank.id ? 'Claiming...' : 'Claim Reward'}</span>
                         </button>
+                      ) : isUnranked ? (
+                        <div className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-slate-900/90 border border-amber-500/20 text-amber-300/60 text-xs font-mono">
+                          <Lock className="w-3.5 h-3.5 text-amber-400/60" />
+                          <span>Complete Placements</span>
+                        </div>
                       ) : (
                         <div className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-slate-900 border border-white/10 text-slate-500 text-xs font-mono">
                           <Lock className="w-3.5 h-3.5" />

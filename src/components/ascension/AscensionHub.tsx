@@ -173,7 +173,7 @@ export function AscensionHub({ onBackToHome }: Props) {
             <button
               type="button"
               onClick={() => { soundManager.playClick(); setIsRedeemOpen(true); }}
-              className="shrink-0 h-9 flex items-center justify-center gap-1.5 px-3 rounded-xl text-[11px] sm:text-xs font-heading font-black uppercase tracking-wider bg-slate-900/70 hover:bg-slate-800 text-purple-300 hover:text-white border border-purple-500/30 hover:border-purple-500 transition-all cursor-pointer"
+              className="shrink-0 h-9 flex items-center justify-center gap-1.5 px-3 rounded-xl text-[11px] sm:text-xs font-heading font-black uppercase tracking-wider bg-slate-900/70 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/10 hover:border-cyan-500/30 transition-all cursor-pointer"
             >
               <KeyRound className="w-3.5 h-3.5 text-purple-400" />
               <span>Redeem</span>
@@ -183,7 +183,7 @@ export function AscensionHub({ onBackToHome }: Props) {
             <button
               type="button"
               onClick={() => { soundManager.playClick(); setIsCrateOpen(true); }}
-              className="relative shrink-0 h-9 flex items-center justify-center gap-1.5 px-3 rounded-xl text-[11px] sm:text-xs font-heading font-black uppercase tracking-wider bg-gradient-to-r from-amber-500/20 to-yellow-600/20 hover:from-amber-500/30 hover:to-yellow-600/30 text-amber-300 border border-amber-500/40 hover:border-amber-400 transition-all cursor-pointer"
+              className="relative shrink-0 h-9 flex items-center justify-center gap-1.5 px-3 rounded-xl text-[11px] sm:text-xs font-heading font-black uppercase tracking-wider bg-slate-900/70 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/10 hover:border-cyan-500/30 transition-all cursor-pointer"
             >
               <Package className="w-3.5 h-3.5 text-amber-400" />
               <span>Crates</span>

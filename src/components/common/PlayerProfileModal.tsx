@@ -323,7 +323,7 @@ export function PlayerProfileModal({ player, profile: directProfile, viewOnlyPro
           </div>
         </div>
 
-        {/* Favorite Signature Character Showcase */}
+        {/* Favourite Character Showcase */}
         {favoriteHero ? (
           <div className="bg-black/60 p-3 sm:p-3.5 rounded-2xl border border-cyan-500/30 flex items-center justify-between gap-3.5">
             <div className="flex items-center gap-3.5 min-w-0">
@@ -339,27 +339,37 @@ export function PlayerProfileModal({ player, profile: directProfile, viewOnlyPro
               </div>
               <div className="min-w-0">
                 <span className="text-[9px] text-amber-400 font-mono font-bold uppercase tracking-widest block">
-                  FAVORITE SIGNATURE HERO
+                  FAVOURITE CHARACTER
                 </span>
                 <h4 className="text-sm sm:text-base font-heading font-black text-white truncate">
                   {favoriteHero.name}
                 </h4>
                 <p className="text-[11px] text-slate-300 truncate">
-                  {favoriteHero.powers}
+                  {favoriteHero.grade} Grade • {favoriteHero.alignment} • Power {favoriteHero.overallPower}
                 </p>
               </div>
             </div>
             {isOwnProfile && (
-              <button
-                type="button"
-                onClick={() => {
-                  soundManager.playClick();
-                  setIsSelectingFavorite(prev => !prev);
-                }}
-                className="shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-heading font-black uppercase tracking-wider bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 hover:text-white transition-all cursor-pointer"
-              >
-                {isSelectingFavorite ? 'Close' : 'Change'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playClick();
+                    setIsSelectingFavorite(prev => !prev);
+                  }}
+                  className="shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-heading font-black uppercase tracking-wider bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 hover:text-white transition-all cursor-pointer"
+                >
+                  {isSelectingFavorite ? 'Close' : 'Change'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectFavoriteHero('')}
+                  className="shrink-0 px-2.5 py-1.5 rounded-xl text-[10px] font-heading font-black uppercase tracking-wider bg-red-950/60 hover:bg-red-900 border border-red-500/30 text-red-300 transition-all cursor-pointer"
+                  title="Remove Favourite"
+                >
+                  Clear
+                </button>
+              </div>
             )}
           </div>
         ) : (
@@ -370,10 +380,10 @@ export function PlayerProfileModal({ player, profile: directProfile, viewOnlyPro
               </div>
               <div className="min-w-0">
                 <span className="text-[9px] text-slate-400 font-mono font-bold uppercase tracking-widest block">
-                  SIGNATURE HERO
+                  FAVOURITE CHARACTER
                 </span>
                 <p className="text-xs text-slate-300">
-                  {isOwnProfile ? 'No signature hero assigned yet.' : 'Commander has not selected a signature champion.'}
+                  {isOwnProfile ? 'No favourite character selected.' : 'Commander has not selected a favourite character.'}
                 </p>
               </div>
             </div>
@@ -386,7 +396,7 @@ export function PlayerProfileModal({ player, profile: directProfile, viewOnlyPro
                 }}
                 className="shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-heading font-black uppercase tracking-wider bg-cyan-500 hover:bg-cyan-400 text-black font-black shadow-glow-cyan transition-all cursor-pointer"
               >
-                {isSelectingFavorite ? 'Close' : 'Choose Hero'}
+                {isSelectingFavorite ? 'Close' : 'Select Character'}
               </button>
             )}
           </div>
@@ -397,10 +407,10 @@ export function PlayerProfileModal({ player, profile: directProfile, viewOnlyPro
           <div className="p-3 bg-slate-950/90 rounded-2xl border border-cyan-500/40 space-y-2 animate-fadeIn">
             <div className="flex items-center justify-between text-xs">
               <span className="font-heading font-black text-cyan-300 uppercase tracking-wide">
-                Choose Signature Champion
+                Choose Favourite Character
               </span>
               <span className="text-[10px] text-slate-400 font-mono">
-                {authUser?.ownedCharacters?.length ? `${authUser.ownedCharacters.length} Owned` : 'All Champions'}
+                {authUser?.ownedCharacters?.length ? `${authUser.ownedCharacters.length} Owned` : 'All Characters'}
               </span>
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto custom-scrollbar p-1">

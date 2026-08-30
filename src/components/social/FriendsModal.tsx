@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { soundManager } from '../../audio/soundManager';
 import { socket } from '../../socket/socket';
+import { ALL_CHARACTERS } from '../../data/characters/index';
 import { 
   Users, UserPlus, Shield, Sparkles, Check, X, 
   Trash2, UserCheck, Search, Flame, Award, Clock, 
-  Radio, Swords, Crown, AlertCircle, RefreshCw
+  Radio, Swords, Crown, AlertCircle, RefreshCw, Gift, Send
 } from 'lucide-react';
 import { PlayerProfileModal } from '../common/PlayerProfileModal';
 import { SanitizedUserProfile } from '../../../server/db/database';
@@ -63,7 +64,7 @@ interface Props {
 }
 
 export function FriendsModal({ isOpen, onClose, partyState, onUpdateParty }: Props) {
-  const { user, token } = useAuth();
+  const { user, token, refreshProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'add' | 'party'>('friends');
   
   const [friends, setFriends] = useState<FriendItem[]>([]);
@@ -76,6 +77,14 @@ export function FriendsModal({ isOpen, onClose, partyState, onUpdateParty }: Pro
 
   // Friend Profile Inspection Modal
   const [inspectedFriend, setInspectedFriend] = useState<SanitizedUserProfile | null>(null);
+
+  // Gifting Modal State
+  const [giftFriend, setGiftFriend] = useState<FriendItem | null>(null);
+  const [giftType, setGiftType] = useState<'character' | 'crate' | 'astra'>('character');
+  const [giftCharacterId, setGiftCharacterId] = useState<string>('');
+  const [giftCrateType, setGiftCrateType] = useState<'SHARD_CRATE' | 'CHARACTER_CRATE'>('SHARD_CRATE');
+  const [giftAstraAmount, setGiftAstraAmount] = useState<number>(500);
+  const [isSendingGift, setIsSendingGift] = useState(false);
 
   const fetchFriendsData = async () => {
     if (!token) return;
@@ -102,6 +111,13 @@ export function FriendsModal({ isOpen, onClose, partyState, onUpdateParty }: Pro
       fetchFriendsData();
     }
   }, [isOpen, token]);
+
+  // Set default gift character when modal opens
+  useEffect(() => {
+    if (user?.ownedCharacters && user.ownedCharacters.length > 0 && !giftCharacterId) {
+      setGiftCharacterId(user.ownedCharacters[0]);
+    }
+  }, [user?.ownedCharacters, giftCharacterId]);
 
   // Socket listeners for real-time social updates
   useEffect(() => {
@@ -133,16 +149,39 @@ export function FriendsModal({ isOpen, onClose, partyState, onUpdateParty }: Pro
       onUpdateParty?.(party);
     };
 
+    const handleGiftReceived = (payload: { senderName: string; giftType: string; details: string }) => {
+      soundManager.playVictory();
+      setActionMessage({
+        type: 'success',
+        text: `🎁 ${payload.senderName} sent you a gift: ${payload.details}!`,
+      });
+      refreshProfile();
+      setTimeout(() => setActionMessage(null), 6000);
+    };
+
+    const handleTeamBattleInviteReceived = (payload: { inviterName: string; teamSize: number; maxPlayers: number }) => {
+      soundManager.playClick();
+      setActionMessage({
+        type: 'success',
+        text: `⚔️ ${payload.inviterName} invited you to a ${payload.maxPlayers}-Player Team Battle Tournament (${payload.teamSize}v${payload.teamSize})!`,
+      });
+      setTimeout(() => setActionMessage(null), 6000);
+    };
+
     socket.on('player_presence_changed', handlePresenceChanged);
     socket.on('friend_request_received', handleRequestReceived);
     socket.on('friend_request_accepted', handleRequestAccepted);
     socket.on('party_state_updated', handlePartyUpdated);
+    socket.on('gift_received', handleGiftReceived);
+    socket.on('team_battle_invite_received', handleTeamBattleInviteReceived);
 
     return () => {
       socket.off('player_presence_changed', handlePresenceChanged);
       socket.off('friend_request_received', handleRequestReceived);
       socket.off('friend_request_accepted', handleRequestAccepted);
       socket.off('party_state_updated', handlePartyUpdated);
+      socket.off('gift_received', handleGiftReceived);
+      socket.off('team_battle_invite_received', handleTeamBattleInviteReceived);
     };
   }, [token]);
 
@@ -256,6 +295,57 @@ export function FriendsModal({ isOpen, onClose, partyState, onUpdateParty }: Pro
       }
       setTimeout(() => setActionMessage(null), 3500);
     });
+  };
+
+  const handleInviteToTeamBattle = (targetUserId: string, friendName: string) => {
+    if (!socket) return;
+    soundManager.playClick();
+    socket.emit('team_battle_invite', { targetUserId, teamSize: 1, maxPlayers: 10 }, (res: any) => {
+      if (res?.success) {
+        setActionMessage({ type: 'success', text: `Tournament invite sent to ${friendName}!` });
+      } else {
+        soundManager.playAttackHit();
+        setActionMessage({ type: 'error', text: res?.error || 'Failed to invite to tournament.' });
+      }
+      setTimeout(() => setActionMessage(null), 3500);
+    });
+  };
+
+  const handleSendGift = async () => {
+    if (!giftFriend || !token) return;
+    setIsSendingGift(true);
+    try {
+      const res = await fetch('/api/social/gift', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          targetFriendId: giftFriend.id,
+          giftType,
+          characterId: giftType === 'character' ? giftCharacterId : undefined,
+          crateType: giftType === 'crate' ? giftCrateType : undefined,
+          amount: giftType === 'astra' ? giftAstraAmount : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        soundManager.playVictory();
+        setActionMessage({
+          type: 'success',
+          text: `Gift successfully sent to ${giftFriend.displayName || giftFriend.username}! (${data.details})`,
+        });
+        setGiftFriend(null);
+        refreshProfile();
+        fetchFriendsData();
+      } else {
+        soundManager.playAttackHit();
+        setActionMessage({ type: 'error', text: data.error || 'Failed to send gift.' });
+      }
+    } catch {
+      setActionMessage({ type: 'error', text: 'Network connection error.' });
+    } finally {
+      setIsSendingGift(false);
+      setTimeout(() => setActionMessage(null), 4000);
+    }
   };
 
   const handleCreateParty = () => {
@@ -498,7 +588,33 @@ export function FriendsModal({ isOpen, onClose, partyState, onUpdateParty }: Pro
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                          {/* Send Gift Action */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              soundManager.playClick();
+                              setGiftFriend(friend);
+                            }}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-black text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-glow-gold"
+                            title="Send Gift (Character, Crate, Astra)"
+                          >
+                            <Gift className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Gift</span>
+                          </button>
+
+                          {/* Invite to Team Battle Tournament */}
+                          <button
+                            type="button"
+                            onClick={() => handleInviteToTeamBattle(friend.id, friend.displayName || friend.username)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-500/50 hover:bg-cyan-900 text-cyan-200 hover:text-white text-[11px] font-bold transition-all cursor-pointer shadow-sm"
+                            title="Invite to Team Battle Tournament"
+                          >
+                            <Swords className="w-3.5 h-3.5 text-cyan-400" />
+                            <span className="hidden sm:inline">Tournament</span>
+                          </button>
+
+                          {/* Invite to Squad Party */}
                           <button
                             type="button"
                             onClick={() => handleInviteToParty(friend.id, friend.displayName || friend.username)}
@@ -506,9 +622,10 @@ export function FriendsModal({ isOpen, onClose, partyState, onUpdateParty }: Pro
                             title="Invite to Squad Party"
                           >
                             <Crown className="w-3 h-3 text-amber-400" />
-                            <span className="hidden xs:inline">Invite Party</span>
+                            <span className="hidden sm:inline">Party</span>
                           </button>
 
+                          {/* View Dossier */}
                           <button
                             type="button"
                             onClick={() => handleInspectProfile(friend.id)}
@@ -518,6 +635,7 @@ export function FriendsModal({ isOpen, onClose, partyState, onUpdateParty }: Pro
                             <Shield className="w-4 h-4" />
                           </button>
 
+                          {/* Remove Friend */}
                           <button
                             type="button"
                             onClick={() => handleRemoveFriend(friend.id, friend.displayName || friend.username)}
@@ -794,6 +912,206 @@ export function FriendsModal({ isOpen, onClose, partyState, onUpdateParty }: Pro
           onClose={() => setInspectedFriend(null)}
           viewOnlyProfile={inspectedFriend}
         />
+      )}
+
+      {/* Gifting Modal (Characters, Crates, Astra) */}
+      {giftFriend && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
+          <div className="relative w-full max-w-lg rounded-3xl bg-gradient-to-b from-[#161226] via-[#0D0B17] to-black border-2 border-amber-500/60 shadow-[0_0_50px_rgba(245,158,11,0.35)] p-6 space-y-5">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/60 flex items-center justify-center text-xl text-amber-400">
+                  🎁
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 font-mono block">
+                    ALLIANCE GIFTING SYSTEM
+                  </span>
+                  <h3 className="font-heading font-black text-lg text-white">
+                    Gift {giftFriend.displayName || giftFriend.username}
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGiftFriend(null)}
+                className="p-1.5 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Gift Type Selector */}
+            <div className="grid grid-cols-3 gap-2 p-1.5 rounded-2xl bg-black/60 border border-white/10">
+              <button
+                type="button"
+                onClick={() => setGiftType('character')}
+                className={`py-2 rounded-xl text-xs font-heading font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  giftType === 'character' ? 'bg-cyan-500 text-black shadow-glow-cyan' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                🦸 Character
+              </button>
+              <button
+                type="button"
+                onClick={() => setGiftType('crate')}
+                className={`py-2 rounded-xl text-xs font-heading font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  giftType === 'crate' ? 'bg-amber-500 text-black shadow-glow-gold' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                📦 Crate
+              </button>
+              <button
+                type="button"
+                onClick={() => setGiftType('astra')}
+                className={`py-2 rounded-xl text-xs font-heading font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  giftType === 'astra' ? 'bg-purple-500 text-black shadow-glow-cosmic' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                ✨ Astra
+              </button>
+            </div>
+
+            {/* Sub-form 1: Character Selection */}
+            {giftType === 'character' && (
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-slate-300 block">
+                  Select an owned hero to transfer to {giftFriend.displayName || giftFriend.username}:
+                </label>
+                {(user?.ownedCharacters || []).length <= 1 ? (
+                  <p className="text-xs text-amber-400 bg-amber-950/40 p-3 rounded-xl border border-amber-500/30">
+                    ⚠️ You must keep at least 1 hero in your collection and cannot gift your only hero.
+                  </p>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                    {(user?.ownedCharacters || []).map(charId => {
+                      const char = ALL_CHARACTERS.find(c => c.id === charId);
+                      if (!char) return null;
+                      const isSelected = giftCharacterId === charId;
+
+                      return (
+                        <div
+                          key={charId}
+                          onClick={() => setGiftCharacterId(charId)}
+                          className={`p-3 rounded-2xl border flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                            isSelected
+                              ? 'bg-cyan-950/80 border-cyan-400 shadow-glow-cyan'
+                              : 'bg-black/40 border-white/10 hover:border-cyan-500/30'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="font-heading font-black text-sm text-white truncate">{char.name}</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-950 border border-cyan-400 text-cyan-300 font-mono">
+                              {char.grade}
+                            </span>
+                          </div>
+                          <span className="text-xs font-mono font-bold text-amber-300">⚡ {char.overallPower} PWR</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Sub-form 2: Crate Selection */}
+            {giftType === 'crate' && (
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-slate-300 block">
+                  Choose a crate from your inventory:
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div
+                    onClick={() => setGiftCrateType('SHARD_CRATE')}
+                    className={`p-4 rounded-2xl border text-center space-y-2 cursor-pointer transition-all ${
+                      giftCrateType === 'SHARD_CRATE'
+                        ? 'bg-amber-950/80 border-amber-400 shadow-glow-gold'
+                        : 'bg-black/40 border-white/10 hover:border-amber-500/30'
+                    }`}
+                  >
+                    <div className="text-3xl">📦</div>
+                    <div className="font-heading font-black text-sm text-white">Shard Crate</div>
+                    <div className="text-xs font-mono text-cyan-300">
+                      Owned: {user?.crateInventory?.shard || 0}
+                    </div>
+                  </div>
+
+                  <div
+                    onClick={() => setGiftCrateType('CHARACTER_CRATE')}
+                    className={`p-4 rounded-2xl border text-center space-y-2 cursor-pointer transition-all ${
+                      giftCrateType === 'CHARACTER_CRATE'
+                        ? 'bg-amber-950/80 border-amber-400 shadow-glow-gold'
+                        : 'bg-black/40 border-white/10 hover:border-amber-500/30'
+                    }`}
+                  >
+                    <div className="text-3xl">🃏</div>
+                    <div className="font-heading font-black text-sm text-white">Card Crate</div>
+                    <div className="text-xs font-mono text-cyan-300">
+                      Owned: {user?.crateInventory?.character || 0}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Sub-form 3: Astra Selection */}
+            {giftType === 'astra' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <label className="font-bold text-slate-300">Astra Coins to Gift:</label>
+                  <span className="font-mono text-purple-300">Your Balance: {(user?.astra || 0).toLocaleString()} Astra</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min="100"
+                    max={user?.astra || 0}
+                    step="100"
+                    value={giftAstraAmount}
+                    onChange={e => setGiftAstraAmount(Math.max(100, Number(e.target.value)))}
+                    className="flex-1 bg-black/60 border border-purple-500/40 rounded-xl px-4 py-2.5 text-white font-mono font-bold focus:outline-none focus:border-purple-400"
+                  />
+                  <div className="flex gap-1.5">
+                    {[500, 1000, 5000].map(amt => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => setGiftAstraAmount(amt)}
+                        className="px-2.5 py-1 rounded-xl bg-purple-950/80 border border-purple-500/30 hover:border-purple-400 text-purple-200 text-xs font-mono font-bold"
+                      >
+                        +{amt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setGiftFriend(null)}
+                disabled={isSendingGift}
+                className="py-2.5 rounded-xl border border-white/20 hover:bg-white/10 text-white font-heading font-bold text-xs uppercase cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSendGift}
+                disabled={isSendingGift}
+                className="py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-black font-heading font-black text-xs uppercase tracking-wider shadow-glow-gold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <Gift className="w-4 h-4" />
+                <span>{isSendingGift ? 'Sending Gift...' : 'Send Gift'}</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
       )}
     </>
   );

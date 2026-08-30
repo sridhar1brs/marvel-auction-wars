@@ -5,16 +5,17 @@ import {
   Sparkles, Check, Lock, ChevronRight, ChevronLeft, 
   Trophy, Gift, Award, Zap, Shield, Crown, Flame 
 } from 'lucide-react';
-import { BATTLE_PASS_LEVELS, BATTLE_PASS_REWARDS, getBattlePassXpInLevel, BATTLE_PASS_XP_PER_LEVEL } from '../../data/ascensionProgression';
+import { BATTLE_PASS_LEVELS, BATTLE_PASS_REWARDS, getBattlePassXpInLevel, BATTLE_PASS_XP_PER_LEVEL, BattlePassRewardType } from '../../data/ascensionProgression';
 
 export interface BattlePassTier {
   level: number;
-  rewardType: 'COINS' | 'SHARD_CRATE' | 'CHARACTER_CRATE';
+  rewardType: BattlePassRewardType;
   rewardLabel: string;
   amount: number;
   icon: string;
   isMilestone: boolean;
   color: string;
+  crateImage?: string;
 }
 
 export function generateBattlePassTiers(): BattlePassTier[] {
@@ -25,10 +26,17 @@ export function generateBattlePassTiers(): BattlePassTier[] {
     amount: reward.amount,
     icon: reward.icon,
     isMilestone: reward.rewardType !== 'COINS',
-    color: reward.rewardType === 'CHARACTER_CRATE'
+    crateImage: reward.crateImage,
+    color: reward.rewardType === 'MYTHIC_CRATE'
+      ? 'from-amber-950 via-yellow-900 to-indigo-950 border-amber-400'
+      : reward.rewardType === 'LEGENDARY_CRATE'
+      ? 'from-amber-950 to-orange-950 border-amber-400'
+      : reward.rewardType === 'EPIC_CRATE'
       ? 'from-purple-950 to-indigo-900 border-purple-400'
-      : reward.rewardType === 'SHARD_CRATE'
-      ? 'from-amber-950 to-orange-900 border-amber-400'
+      : reward.rewardType === 'TOKEN_SHARD_CRATE'
+      ? 'from-cyan-950 to-teal-900 border-cyan-400'
+      : reward.rewardType === 'RARE_CRATE' || reward.rewardType === 'SHARD_CRATE'
+      ? 'from-blue-950 to-slate-900 border-blue-400'
       : 'from-cyan-950 to-slate-900 border-cyan-500/30',
   }));
 }
@@ -235,8 +243,18 @@ export function AscensionBattlePass() {
                 </div>
 
                 {/* Reward Center Preview */}
-                <div className="py-3 text-center space-y-1.5">
-                  <div className="text-3xl sm:text-4xl mx-auto">{tier.icon}</div>
+                <div className="py-3 text-center space-y-1.5 flex flex-col items-center justify-center">
+                  {tier.crateImage ? (
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 relative flex items-center justify-center my-1 drop-shadow-[0_0_12px_rgba(245,158,11,0.5)]">
+                      <img
+                        src={tier.crateImage}
+                        alt={tier.rewardLabel}
+                        className="w-full h-full object-contain filter hover:brightness-110 transition-transform duration-300 transform hover:scale-110"
+                      />
+                    </div>
+                  ) : (
+                    <div className="text-3xl sm:text-4xl mx-auto">{tier.icon}</div>
+                  )}
                   <div className="font-heading font-black text-xs sm:text-sm text-white leading-tight">
                     {tier.rewardLabel}
                   </div>

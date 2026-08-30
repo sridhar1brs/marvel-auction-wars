@@ -101,6 +101,139 @@ function leaveParty(userId: string, socketId?: string) {
   }
 }
 
+// ==========================================
+// 🏆 MULTIPLAYER TOURNAMENT IN-MEMORY STATE
+// ==========================================
+export interface TournamentPlayerState {
+  userId: string;
+  socketId: string;
+  name: string;
+  avatar: string;
+  customAvatarUrl?: string;
+  level: number;
+  characterIds: string[];
+  teamPower: number;
+  isHost: boolean;
+  isReady: boolean;
+}
+
+export interface TournamentBracketMatch {
+  id: string;
+  round: number; // 1, 2, 3...
+  matchNumber: number;
+  player1?: TournamentPlayerState;
+  player2?: TournamentPlayerState;
+  winner?: TournamentPlayerState;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+}
+
+export interface TournamentRoomState {
+  id: string;
+  code: string;
+  hostUserId: string;
+  teamSize: number; // 1, 2, 3, 4, 5
+  maxPlayers: number; // 2, 4, 6, 8, 10
+  phase: 'LOBBY' | 'BRACKET' | 'CHAMPION';
+  players: TournamentPlayerState[];
+  currentRound: number;
+  bracketMatches: TournamentBracketMatch[];
+  champion?: TournamentPlayerState;
+  createdAt: number;
+}
+
+export interface TournamentQueueEntry {
+  socketId: string;
+  userId: string;
+  name: string;
+  avatar: string;
+  customAvatarUrl?: string;
+  level: number;
+  teamSize: number;
+  maxPlayers: number;
+  characterIds: string[];
+  teamPower: number;
+  queuedAt: number;
+}
+
+const tournamentRooms = new Map<string, TournamentRoomState>();
+const socketTournamentRoom = new Map<string, string>(); // socketId -> roomId
+const tournamentQueue: TournamentQueueEntry[] = [];
+
+function calculateTeamPower(characterIds: string[], userId?: string): number {
+  return (characterIds || []).reduce((acc, charId) => {
+    const char = ALL_CHARACTERS.find(c => c.id === charId);
+    let pwr = char?.overallPower || 70;
+    if (userId) {
+      const u = database.getRawUser(userId);
+      if (u) {
+        const boosts = u.characterStatsBoosts?.[charId]?.power || 0;
+        const level = u.characterLevels?.[charId] || 1;
+        pwr += boosts + (level - 1) * 2;
+      }
+    }
+    return acc + pwr;
+  }, 0);
+}
+
+function generateTournamentBracket(players: TournamentPlayerState[], maxPlayers: number): TournamentBracketMatch[] {
+  const shuffled = [...players].sort(() => Math.random() - 0.5);
+  const matches: TournamentBracketMatch[] = [];
+
+  if (players.length <= 2) {
+    matches.push({
+      id: 'match-r1-1',
+      round: 1,
+      matchNumber: 1,
+      player1: shuffled[0],
+      player2: shuffled[1] || undefined,
+      status: 'PENDING',
+    });
+  } else if (players.length <= 4) {
+    for (let i = 0; i < 2; i++) {
+      matches.push({
+        id: `match-r1-${i + 1}`,
+        round: 1,
+        matchNumber: i + 1,
+        player1: shuffled[i * 2],
+        player2: shuffled[i * 2 + 1],
+        status: 'PENDING',
+      });
+    }
+  } else if (players.length <= 6) {
+    matches.push(
+      { id: 'match-r1-1', round: 1, matchNumber: 1, player1: shuffled[0], player2: shuffled[1], status: 'PENDING' },
+      { id: 'match-r1-2', round: 1, matchNumber: 2, player1: shuffled[2], player2: shuffled[3], status: 'PENDING' },
+      { id: 'match-r1-bye1', round: 1, matchNumber: 3, player1: shuffled[4], winner: shuffled[4], status: 'COMPLETED' },
+      { id: 'match-r1-bye2', round: 1, matchNumber: 4, player1: shuffled[5], winner: shuffled[5], status: 'COMPLETED' }
+    );
+  } else if (players.length <= 8) {
+    for (let i = 0; i < 4; i++) {
+      matches.push({
+        id: `match-r1-${i + 1}`,
+        round: 1,
+        matchNumber: i + 1,
+        player1: shuffled[i * 2],
+        player2: shuffled[i * 2 + 1],
+        status: 'PENDING',
+      });
+    }
+  } else {
+    // 10 Players
+    matches.push(
+      { id: 'match-r1-1', round: 1, matchNumber: 1, player1: shuffled[0], player2: shuffled[1], status: 'PENDING' },
+      { id: 'match-r1-2', round: 1, matchNumber: 2, player1: shuffled[2], player2: shuffled[3], status: 'PENDING' },
+      { id: 'match-r1-bye1', round: 1, matchNumber: 3, player1: shuffled[4], winner: shuffled[4], status: 'COMPLETED' },
+      { id: 'match-r1-bye2', round: 1, matchNumber: 4, player1: shuffled[5], winner: shuffled[5], status: 'COMPLETED' },
+      { id: 'match-r1-bye3', round: 1, matchNumber: 5, player1: shuffled[6], winner: shuffled[6], status: 'COMPLETED' },
+      { id: 'match-r1-bye4', round: 1, matchNumber: 6, player1: shuffled[7], winner: shuffled[7], status: 'COMPLETED' },
+      { id: 'match-r1-bye5', round: 1, matchNumber: 7, player1: shuffled[8], winner: shuffled[8], status: 'COMPLETED' },
+      { id: 'match-r1-bye6', round: 1, matchNumber: 8, player1: shuffled[9], winner: shuffled[9], status: 'COMPLETED' }
+    );
+  }
+
+  return matches;
+}
+
 function ascensionSocketSessionHasProfile(profileId: string): boolean {
   for (const session of ascensionSocketSession.values()) {
     if (session.profileId === profileId) return true;
@@ -429,7 +562,7 @@ app.post('/api/ascension/gifting/send', (req, res) => {
   const user = getAuthUser(req);
   if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
   const { recipientUsername, giftType, itemId, itemAmount, message } = req.body;
-  const result = database.sendGift(user.id, recipientUsername, giftType, itemId, itemAmount, message);
+  const result = database.sendLegacyGift(user.id, recipientUsername, giftType, itemId, itemAmount, message);
   if (!result.success) return res.status(400).json(result);
   res.json(result);
 });
@@ -536,6 +669,32 @@ app.post(['/api/forge/craft', '/api/progression/craft-card'], (req, res) => {
   const user = getAuthUser(req);
   if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
   const result = database.craftCard(user.id, req.body?.category);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+// Ascension Crates Opening
+app.post('/api/ascension/crates/open', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.openCrate(user.id, req.body?.crateType);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+// Character Token Forge & Redeem
+app.post('/api/ascension/tokens/craft', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.craftCharacterToken(user.id, req.body?.category);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+app.post('/api/ascension/tokens/redeem', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.redeemCharacterToken(user.id, req.body?.category, req.body?.characterId);
   if (!result.success) return res.status(400).json(result);
   res.json(result);
 });
@@ -727,6 +886,40 @@ app.post('/api/ranked/claim-reward', (req, res) => {
   const { rankId } = req.body;
   const result = database.claimRankReward(user.id, rankId);
   if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+// Character Discard (60% Money / Astra Refund)
+app.post('/api/inventory/discard-character', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { characterId } = req.body;
+  if (!characterId) return res.status(400).json({ success: false, error: 'Character ID required.' });
+  const result = database.discardCharacter(user.id, characterId);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+// Gifting to Friends (Characters, Crates, Astra)
+app.post('/api/social/gift', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { targetFriendId, giftType, characterId, crateType, amount } = req.body;
+  if (!targetFriendId || !giftType) return res.status(400).json({ success: false, error: 'Target friend and gift type required.' });
+
+  const result = database.sendGift(user.id, targetFriendId, giftType, { characterId, crateType, amount });
+  if (!result.success) return res.status(400).json(result);
+
+  // Send real-time socket notification to recipient if online
+  const recipientSocketId = userSocketMap.get(targetFriendId);
+  if (recipientSocketId) {
+    io.to(recipientSocketId).emit('gift_received', {
+      senderName: user.displayName || user.username,
+      giftType,
+      details: result.details,
+    });
+  }
+
   res.json(result);
 });
 
@@ -1143,6 +1336,10 @@ io.on('connection', (socket: Socket) => {
     socket.data.userId = user.id;
     socket.data.userProfile = user;
 
+    userSocketMap.set(user.id, socket.id);
+    socketUserMap.set(socket.id, user.id);
+    notifyFriendsPresence(user.id, true);
+
     const session = socketToRoom.get(socket.id);
     if (session) {
       const room = rooms.get(session.roomId);
@@ -1305,38 +1502,43 @@ io.on('connection', (socket: Socket) => {
   });
 
   socket.on('ascension_set_team', (data: { teamIds?: unknown[] }, callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
     const session = ascensionSocketSession.get(socket.id);
     const room = session && ascensionRooms.get(session.roomId);
-    if (!room) return callback?.({ success: false, error: 'You are not in an Ascension room.' });
+    if (!room) return cb?.({ success: false, error: 'You are not in an Ascension room.' });
     const { profile } = getSocketIdentity();
     const selected = canonicalTeam(data?.teamIds, profile);
-    if (!selected.team) return callback?.({ success: false, error: selected.error });
-    callback?.(room.setTeam(socket.id, selected.team));
+    if (!selected.team) return cb?.({ success: false, error: selected.error });
+    cb?.(room.setTeam(socket.id, selected.team));
   });
 
   socket.on('ascension_set_ready', (data: { isReady?: boolean }, callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
     const session = ascensionSocketSession.get(socket.id);
     const room = session && ascensionRooms.get(session.roomId);
-    callback?.(room ? room.setReady(socket.id, !!data?.isReady) : { success: false, error: 'Room not found.' });
+    cb?.(room ? room.setReady(socket.id, !!data?.isReady) : { success: false, error: 'Room not found.' });
   });
 
   socket.on('ascension_start_battle', (callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
     const session = ascensionSocketSession.get(socket.id);
     const room = session && ascensionRooms.get(session.roomId);
-    callback?.(room ? room.start(socket.id) : { success: false, error: 'Room not found.' });
+    cb?.(room ? room.start(socket.id) : { success: false, error: 'Room not found.' });
   });
 
   socket.on('ascension_action', (data: {
     action?: BattleActionType; fighterIndex?: number; skillId?: string
   }, callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
     const session = ascensionSocketSession.get(socket.id);
     const room = session && ascensionRooms.get(session.roomId);
-    callback?.(room
+    cb?.(room
       ? room.submitAction(socket.id, data.action as BattleActionType, Number(data.fighterIndex) || 0, data.skillId)
       : { success: false, error: 'Room not found.' });
   });
 
   socket.on('ascension_leave_room', (callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
     const session = ascensionSocketSession.get(socket.id);
     if (session) {
       const room = ascensionRooms.get(session.roomId);
@@ -1344,20 +1546,21 @@ io.on('connection', (socket: Socket) => {
       socket.leave(session.roomId);
       ascensionSocketSession.delete(socket.id);
     }
-    callback?.({ success: true });
+    cb?.({ success: true });
   });
 
   socket.on('ascension_reconnect', (data: { roomId?: string; authToken?: string }, callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
     const { profileId, profile } = getSocketIdentity(data);
-    if (!profileId) return callback?.({ success: false, error: 'Authentication is required to reconnect.' });
+    if (!profileId) return cb?.({ success: false, error: 'Authentication is required to reconnect.' });
     const roomId = String(data?.roomId || '').toUpperCase().trim();
     const room = ascensionRooms.get(roomId);
     if (!room || !room.reconnect(profileId, socket.id, profile?.displayName || profile?.username || 'Challenger', profile?.avatar || '🦸‍♂️')) {
-      return callback?.({ success: false, error: 'Battle room or player seat not found.' });
+      return cb?.({ success: false, error: 'Battle room or player seat not found.' });
     }
     ascensionSocketSession.set(socket.id, { roomId, playerId: socket.id, profileId });
     socket.join(roomId);
-    callback?.({ success: true, roomId, state: room.state });
+    cb?.({ success: true, roomId, state: room.state });
   });
 
   // 1. Create Room
@@ -1901,6 +2104,443 @@ io.on('connection', (socket: Socket) => {
     callback?.({ success: true });
   });
 
+  // ==========================================
+  // 🏆 MULTIPLAYER BATTLE TEAM TOURNAMENTS
+  // ==========================================
+
+  // 1. Create Tournament Room
+  socket.on('tournament_create_room', (data: { teamSize: number; maxPlayers: number; characterIds: string[] }, callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
+    const userId = socketUserMap.get(socket.id);
+    if (!userId) return cb?.({ success: false, error: 'Not authenticated.' });
+    const user = database.getRawUser(userId);
+    if (!user) return cb?.({ success: false, error: 'User not found.' });
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const roomId = `TOURN-${code}`;
+    const teamSize = Math.min(5, Math.max(1, Number(data?.teamSize) || 1));
+    const maxPlayers = [2, 4, 6, 8, 10].includes(Number(data?.maxPlayers)) ? Number(data.maxPlayers) : 10;
+    const characterIds = (data?.characterIds || []).slice(0, teamSize);
+    const teamPower = calculateTeamPower(characterIds, userId);
+
+    const player: TournamentPlayerState = {
+      userId,
+      socketId: socket.id,
+      name: user.displayName || user.username,
+      avatar: user.avatar || '🦸‍♂️',
+      customAvatarUrl: user.customAvatarUrl,
+      level: user.level || 1,
+      characterIds,
+      teamPower,
+      isHost: true,
+      isReady: true,
+    };
+
+    const room: TournamentRoomState = {
+      id: roomId,
+      code,
+      hostUserId: userId,
+      teamSize,
+      maxPlayers,
+      phase: 'LOBBY',
+      players: [player],
+      currentRound: 1,
+      bracketMatches: [],
+      createdAt: Date.now(),
+    };
+
+    tournamentRooms.set(roomId, room);
+    socketTournamentRoom.set(socket.id, roomId);
+    socket.join(roomId);
+
+    cb?.({ success: true, room });
+  });
+
+  // 2. Join Tournament Room
+  socket.on('tournament_join_room', (data: { roomIdOrCode: string; characterIds?: string[] }, callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
+    const userId = socketUserMap.get(socket.id);
+    if (!userId) return cb?.({ success: false, error: 'Not authenticated.' });
+    const user = database.getRawUser(userId);
+    if (!user) return cb?.({ success: false, error: 'User not found.' });
+
+    const query = String(data?.roomIdOrCode || '').trim().toUpperCase();
+    let room: TournamentRoomState | undefined = tournamentRooms.get(query);
+    if (!room) {
+      for (const r of tournamentRooms.values()) {
+        if (r.code === query || r.id === query || r.id === `TOURN-${query}`) {
+          room = r;
+          break;
+        }
+      }
+    }
+
+    if (!room) return cb?.({ success: false, error: 'Tournament room not found.' });
+    if (room.phase !== 'LOBBY') return cb?.({ success: false, error: 'Tournament is already in progress.' });
+    
+    // Check if player is already in room
+    const existingIndex = room.players.findIndex(p => p.userId === userId);
+    if (existingIndex >= 0) {
+      room.players[existingIndex].socketId = socket.id;
+      socketTournamentRoom.set(socket.id, room.id);
+      socket.join(room.id);
+      return cb?.({ success: true, room });
+    }
+
+    if (room.players.length >= room.maxPlayers) {
+      return cb?.({ success: false, error: `Tournament room is full (${room.maxPlayers}/${room.maxPlayers}).` });
+    }
+
+    const characterIds = (data?.characterIds || []).slice(0, room.teamSize);
+    const teamPower = calculateTeamPower(characterIds, userId);
+
+    const newPlayer: TournamentPlayerState = {
+      userId,
+      socketId: socket.id,
+      name: user.displayName || user.username,
+      avatar: user.avatar || '🦸‍♂️',
+      customAvatarUrl: user.customAvatarUrl,
+      level: user.level || 1,
+      characterIds,
+      teamPower,
+      isHost: false,
+      isReady: false,
+    };
+
+    room.players.push(newPlayer);
+    socketTournamentRoom.set(socket.id, room.id);
+    socket.join(room.id);
+
+    io.to(room.id).emit('tournament_room_updated', room);
+    cb?.({ success: true, room });
+  });
+
+  // 3. Update Tournament Team in Room
+  socket.on('tournament_update_team', (data: { characterIds: string[] }, callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
+    const roomId = socketTournamentRoom.get(socket.id);
+    if (!roomId) return cb?.({ success: false, error: 'Not in a tournament room.' });
+    const room = tournamentRooms.get(roomId);
+    if (!room) return cb?.({ success: false, error: 'Room not found.' });
+
+    const player = room.players.find(p => p.socketId === socket.id);
+    if (player) {
+      player.characterIds = (data?.characterIds || []).slice(0, room.teamSize);
+      player.teamPower = calculateTeamPower(player.characterIds, player.userId);
+      io.to(room.id).emit('tournament_room_updated', room);
+    }
+    cb?.({ success: true, room });
+  });
+
+  // 4. Toggle Ready in Tournament Room
+  socket.on('tournament_toggle_ready', (callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
+    const roomId = socketTournamentRoom.get(socket.id);
+    if (!roomId) return cb?.({ success: false, error: 'Not in a tournament room.' });
+    const room = tournamentRooms.get(roomId);
+    if (!room) return cb?.({ success: false, error: 'Room not found.' });
+
+    const player = room.players.find(p => p.socketId === socket.id);
+    if (player) {
+      player.isReady = !player.isReady;
+      io.to(room.id).emit('tournament_room_updated', room);
+    }
+    cb?.({ success: true, room });
+  });
+
+  // 5. Leave Tournament Room
+  socket.on('tournament_leave_room', (callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
+    const roomId = socketTournamentRoom.get(socket.id);
+    if (roomId) {
+      const room = tournamentRooms.get(roomId);
+      if (room) {
+        room.players = room.players.filter(p => p.socketId !== socket.id);
+        socket.leave(roomId);
+        socketTournamentRoom.delete(socket.id);
+
+        if (room.players.length === 0) {
+          tournamentRooms.delete(roomId);
+        } else {
+          if (room.hostUserId === socketUserMap.get(socket.id)) {
+            room.hostUserId = room.players[0].userId;
+            room.players[0].isHost = true;
+          }
+          io.to(room.id).emit('tournament_room_updated', room);
+        }
+      }
+    }
+    cb?.({ success: true });
+  });
+
+  // 6. Tournament Matchmaking Queue (Quick Match)
+  socket.on('tournament_queue', (data: { teamSize: number; maxPlayers: number; characterIds: string[] }, callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
+    const userId = socketUserMap.get(socket.id);
+    if (!userId) return cb?.({ success: false, error: 'Not authenticated.' });
+    const user = database.getRawUser(userId);
+    if (!user) return cb?.({ success: false, error: 'User not found.' });
+
+    const teamSize = Math.min(5, Math.max(1, Number(data?.teamSize) || 1));
+    const maxPlayers = [2, 4, 6, 8, 10].includes(Number(data?.maxPlayers)) ? Number(data.maxPlayers) : 2;
+    const characterIds = (data?.characterIds || []).slice(0, teamSize);
+    const teamPower = calculateTeamPower(characterIds, userId);
+
+    // Remove existing from queue
+    const oldIdx = tournamentQueue.findIndex(q => q.socketId === socket.id || q.userId === userId);
+    if (oldIdx >= 0) tournamentQueue.splice(oldIdx, 1);
+
+    const entry: TournamentQueueEntry = {
+      socketId: socket.id,
+      userId,
+      name: user.displayName || user.username,
+      avatar: user.avatar || '🦸‍♂️',
+      customAvatarUrl: user.customAvatarUrl,
+      level: user.level || 1,
+      teamSize,
+      maxPlayers,
+      characterIds,
+      teamPower,
+      queuedAt: Date.now(),
+    };
+
+    // Check for matching opponents in queue (matching teamSize)
+    const opponents = tournamentQueue.filter(q => q.teamSize === teamSize && io.sockets.sockets.has(q.socketId));
+
+    if (opponents.length >= maxPlayers - 1) {
+      // Full match found!
+      const matchedEntries = [entry, ...opponents.slice(0, maxPlayers - 1)];
+      matchedEntries.slice(1).forEach(m => {
+        const idx = tournamentQueue.findIndex(q => q.socketId === m.socketId);
+        if (idx >= 0) tournamentQueue.splice(idx, 1);
+      });
+
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const roomId = `TOURN-${code}`;
+
+      const players: TournamentPlayerState[] = matchedEntries.map((m, idx) => ({
+        userId: m.userId,
+        socketId: m.socketId,
+        name: m.name,
+        avatar: m.avatar,
+        customAvatarUrl: m.customAvatarUrl,
+        level: m.level,
+        characterIds: m.characterIds,
+        teamPower: m.teamPower,
+        isHost: idx === 0,
+        isReady: true,
+      }));
+
+      const room: TournamentRoomState = {
+        id: roomId,
+        code,
+        hostUserId: players[0].userId,
+        teamSize,
+        maxPlayers,
+        phase: maxPlayers === 2 ? 'BRACKET' : 'LOBBY',
+        players,
+        currentRound: 1,
+        bracketMatches: maxPlayers === 2 ? generateTournamentBracket(players, maxPlayers) : [],
+        createdAt: Date.now(),
+      };
+
+      tournamentRooms.set(roomId, room);
+
+      matchedEntries.forEach(m => {
+        socketTournamentRoom.set(m.socketId, roomId);
+        const s = io.sockets.sockets.get(m.socketId);
+        s?.join(roomId);
+      });
+
+      io.to(roomId).emit('tournament_match_found', { roomId, room });
+      io.to(roomId).emit('tournament_room_updated', room);
+      return cb?.({ success: true, queued: false, room });
+    }
+
+    // Otherwise add to queue
+    tournamentQueue.push(entry);
+    cb?.({ success: true, queued: true, queuePosition: tournamentQueue.length });
+  });
+
+  // 7. Cancel Tournament Queue
+  socket.on('tournament_cancel_queue', (callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
+    const idx = tournamentQueue.findIndex(q => q.socketId === socket.id);
+    if (idx >= 0) tournamentQueue.splice(idx, 1);
+    cb?.({ success: true });
+  });
+
+  // 8. Invite Friend to Tournament
+  socket.on('tournament_invite_friend', (data: { targetUserId: string; roomId: string }, callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
+    const userId = socketUserMap.get(socket.id);
+    if (!userId) return cb?.({ success: false, error: 'Not authenticated.' });
+    const user = database.getRawUser(userId);
+    if (!user) return cb?.({ success: false, error: 'User not found.' });
+
+    const room = tournamentRooms.get(data?.roomId);
+    if (!room) return cb?.({ success: false, error: 'Tournament room not found.' });
+
+    const targetSocketId = userSocketMap.get(data.targetUserId);
+    if (!targetSocketId) return cb?.({ success: false, error: 'Player is offline.' });
+
+    io.to(targetSocketId).emit('team_battle_invite_received', {
+      inviterId: userId,
+      inviterName: user.displayName || user.username,
+      inviterAvatar: user.avatar || '🦸‍♂️',
+      roomId: room.id,
+      roomCode: room.code,
+      teamSize: room.teamSize,
+      maxPlayers: room.maxPlayers,
+    });
+
+    cb?.({ success: true, message: 'Tournament invitation dispatched.' });
+  });
+
+  // 9. Start Tournament Bracket
+  socket.on('tournament_start', (callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
+    const roomId = socketTournamentRoom.get(socket.id);
+    if (!roomId) return cb?.({ success: false, error: 'Not in a tournament room.' });
+    const room = tournamentRooms.get(roomId);
+    if (!room) return cb?.({ success: false, error: 'Room not found.' });
+
+    if (room.players.length < 2) {
+      return cb?.({ success: false, error: 'At least 2 real players required to start the tournament.' });
+    }
+
+    room.phase = 'BRACKET';
+    room.currentRound = 1;
+    room.bracketMatches = generateTournamentBracket(room.players, room.maxPlayers);
+
+    io.to(room.id).emit('tournament_bracket_started', room);
+    io.to(room.id).emit('tournament_room_updated', room);
+    cb?.({ success: true, room });
+  });
+
+  // 10. Simulate / Resolve Tournament Bracket Match
+  socket.on('tournament_simulate_match', (data: { matchId: string }, callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
+    const roomId = socketTournamentRoom.get(socket.id);
+    if (!roomId) return cb?.({ success: false, error: 'Not in a tournament room.' });
+    const room = tournamentRooms.get(roomId);
+    if (!room) return cb?.({ success: false, error: 'Room not found.' });
+
+    const match = room.bracketMatches.find(m => m.id === data?.matchId);
+    if (!match || match.status === 'COMPLETED' || !match.player1 || !match.player2) {
+      return cb?.({ success: false, error: 'Match cannot be simulated.' });
+    }
+
+    // Determine winner based on team power + combat variance
+    const p1Power = match.player1.teamPower + Math.floor(Math.random() * 20);
+    const p2Power = match.player2.teamPower + Math.floor(Math.random() * 20);
+    const winner = p1Power >= p2Power ? match.player1 : match.player2;
+
+    match.winner = winner;
+    match.status = 'COMPLETED';
+
+    io.to(room.id).emit('tournament_match_resolved', { matchId: match.id, winner, room });
+    io.to(room.id).emit('tournament_room_updated', room);
+    cb?.({ success: true, winner, room });
+  });
+
+  // 11. Advance Tournament Round
+  socket.on('tournament_advance_round', (callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
+    const roomId = socketTournamentRoom.get(socket.id);
+    if (!roomId) return cb?.({ success: false, error: 'Not in a tournament room.' });
+    const room = tournamentRooms.get(roomId);
+    if (!room) return cb?.({ success: false, error: 'Room not found.' });
+
+    const currentMatches = room.bracketMatches.filter(m => m.round === room.currentRound);
+    const allCompleted = currentMatches.every(m => m.status === 'COMPLETED');
+    if (!allCompleted) {
+      return cb?.({ success: false, error: 'All matches in the current round must be finished.' });
+    }
+
+    const roundWinners = currentMatches.map(m => m.winner).filter(Boolean) as TournamentPlayerState[];
+
+    if (roundWinners.length <= 1) {
+      // Tournament Winner!
+      const champ = roundWinners[0] || room.players[0];
+      room.champion = champ;
+      room.phase = 'CHAMPION';
+
+      // Award Champion in database
+      if (champ?.userId) {
+        const u = database.getRawUser(champ.userId);
+        if (u) {
+          u.astra = (u.astra || 0) + 5000;
+          u.cardShards = (u.cardShards || 0) + 50;
+          u.tournamentWins = (u.tournamentWins || 0) + 1;
+          database.save();
+        }
+      }
+
+      io.to(room.id).emit('tournament_champion_crowned', { champion: champ, room });
+      io.to(room.id).emit('tournament_room_updated', room);
+      return cb?.({ success: true, room });
+    }
+
+    // Generate next round
+    const nextRound = room.currentRound + 1;
+    const nextMatches: TournamentBracketMatch[] = [];
+    for (let i = 0; i < roundWinners.length; i += 2) {
+      if (i + 1 < roundWinners.length) {
+        nextMatches.push({
+          id: `match-r${nextRound}-${Math.floor(i / 2) + 1}`,
+          round: nextRound,
+          matchNumber: Math.floor(i / 2) + 1,
+          player1: roundWinners[i],
+          player2: roundWinners[i + 1],
+          status: 'PENDING',
+        });
+      } else {
+        // Bye
+        nextMatches.push({
+          id: `match-r${nextRound}-bye`,
+          round: nextRound,
+          matchNumber: Math.floor(i / 2) + 1,
+          player1: roundWinners[i],
+          winner: roundWinners[i],
+          status: 'COMPLETED',
+        });
+      }
+    }
+
+    room.currentRound = nextRound;
+    room.bracketMatches.push(...nextMatches);
+
+    io.to(room.id).emit('tournament_room_updated', room);
+    cb?.({ success: true, room });
+  });
+
+  // Team Battle Tournament Invite (Legacy Event compatibility)
+  socket.on('team_battle_invite', (data: { targetUserId: string; teamSize: number; maxPlayers: number; roomId?: string; roomCode?: string }, callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
+    const userId = socketUserMap.get(socket.id);
+    if (!userId) return cb?.({ success: false, error: 'Not authenticated.' });
+    const user = database.getRawUser(userId);
+    if (!user) return cb?.({ success: false, error: 'User not found.' });
+
+    const targetSocketId = userSocketMap.get(data?.targetUserId);
+    if (!targetSocketId) {
+      return cb?.({ success: false, error: 'Player is currently offline.' });
+    }
+
+    io.to(targetSocketId).emit('team_battle_invite_received', {
+      inviterId: userId,
+      inviterName: user.displayName || user.username,
+      inviterAvatar: user.avatar || '🦸‍♂️',
+      teamSize: data?.teamSize || 1,
+      maxPlayers: data?.maxPlayers || 10,
+      roomId: data?.roomId,
+      roomCode: data?.roomCode,
+    });
+
+    cb?.({ success: true, message: 'Tournament invitation sent.' });
+  });
+
   // Disconnect Handling
   socket.on('disconnect', () => {
     const userId = socketUserMap.get(socket.id);
@@ -1909,6 +2549,29 @@ io.on('connection', (socket: Socket) => {
       userSocketMap.delete(userId);
       socketUserMap.delete(socket.id);
       notifyFriendsPresence(userId, false);
+    }
+
+    // Clean up tournament queue
+    const tourneyQIdx = tournamentQueue.findIndex(q => q.socketId === socket.id);
+    if (tourneyQIdx >= 0) tournamentQueue.splice(tourneyQIdx, 1);
+
+    // Clean up tournament rooms
+    const tourneyRoomId = socketTournamentRoom.get(socket.id);
+    if (tourneyRoomId) {
+      socketTournamentRoom.delete(socket.id);
+      const room = tournamentRooms.get(tourneyRoomId);
+      if (room && room.phase === 'LOBBY') {
+        room.players = room.players.filter(p => p.socketId !== socket.id);
+        if (room.players.length === 0) {
+          tournamentRooms.delete(tourneyRoomId);
+        } else {
+          if (room.hostUserId === userId) {
+            room.hostUserId = room.players[0].userId;
+            room.players[0].isHost = true;
+          }
+          io.to(room.id).emit('tournament_room_updated', room);
+        }
+      }
     }
 
     const queueIndex = ascensionQueue.findIndex(item => item.socketId === socket.id);
