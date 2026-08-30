@@ -17,13 +17,15 @@ interface Props {
 }
 
 export function PlayerProfileModal({ player, profile: directProfile, onClose }: Props) {
-  const { user: authUser, logout, isAuthenticated, updateCustomAvatar } = useAuth();
+  const { user: authUser, logout, isAuthenticated, updateCustomAvatar, updateAvatar } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [bioInput, setBioInput] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [customAvatarPreview, setCustomAvatarPreview] = useState<string | null>(null);
+  const [isSelectingFavorite, setIsSelectingFavorite] = useState(false);
+  const [favoriteHeroId, setFavoriteHeroId] = useState<string | undefined>(undefined);
 
   // Prefer direct profile, then player.profile, then authUser if player matches, then fallback
   let profile: any;
@@ -83,14 +85,24 @@ export function PlayerProfileModal({ player, profile: directProfile, onClose }: 
   const winRate = profile.matchesPlayed > 0 ? Math.round((profile.wins / profile.matchesPlayed) * 100) : 0;
   const playtime = profile.playtimeFormatted || formatPlaytime(profile.playtimeSeconds || 0);
 
-  const favoriteHero = profile.favoriteCharacterId 
-    ? ALL_CHARACTERS.find(c => c.id === profile.favoriteCharacterId)
+  const activeFavId = favoriteHeroId ?? profile.favoriteCharacterId;
+  const favoriteHero = activeFavId 
+    ? ALL_CHARACTERS.find(c => c.id === activeFavId)
     : (player?.collection?.[0] || ALL_CHARACTERS[0]);
 
   const isOwnProfile = authUser && (
     profile.id === authUser.id || 
     (profile.username && profile.username.toLowerCase() === authUser.username.toLowerCase())
   );
+
+  const handleSelectFavoriteHero = async (charId: string) => {
+    setFavoriteHeroId(charId);
+    if (updateAvatar) {
+      await updateAvatar(profile.avatar || '🦸‍♂️', charId);
+      soundManager.playVictory();
+    }
+    setIsSelectingFavorite(false);
+  };
 
   const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -307,27 +319,80 @@ export function PlayerProfileModal({ player, profile: directProfile, onClose }: 
 
         {/* Favorite Signature Character Showcase */}
         {favoriteHero && (
-          <div className="bg-black/60 p-3 sm:p-3.5 rounded-2xl border border-cyan-500/30 flex items-center gap-3.5">
-            <div className="w-14 h-14 rounded-xl overflow-hidden border border-cyan-400 shrink-0 bg-black">
-              <img
-                src={`/images/characters/${favoriteHero.id}.jpg`}
-                alt={favoriteHero.name}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
+          <div className="bg-black/60 p-3 sm:p-3.5 rounded-2xl border border-cyan-500/30 flex items-center justify-between gap-3.5">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-14 h-14 rounded-xl overflow-hidden border border-cyan-400 shrink-0 bg-black">
+                <img
+                  src={`/images/characters/${favoriteHero.id}.jpg`}
+                  alt={favoriteHero.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[9px] text-amber-400 font-mono font-bold uppercase tracking-widest block">
+                  FAVORITE SIGNATURE HERO
+                </span>
+                <h4 className="text-sm sm:text-base font-heading font-black text-white truncate">
+                  {favoriteHero.name}
+                </h4>
+                <p className="text-[11px] text-slate-300 truncate">
+                  {favoriteHero.powers}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <span className="text-[9px] text-amber-400 font-mono font-bold uppercase tracking-widest block">
-                FAVORITE SIGNATURE HERO
+            {isOwnProfile && (
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playClick();
+                  setIsSelectingFavorite(prev => !prev);
+                }}
+                className="shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-heading font-black uppercase tracking-wider bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 hover:text-white transition-all cursor-pointer"
+              >
+                {isSelectingFavorite ? 'Close' : 'Change'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Favorite Hero Picker Grid (when toggled open) */}
+        {isOwnProfile && isSelectingFavorite && (
+          <div className="p-3 bg-slate-950/90 rounded-2xl border border-cyan-500/40 space-y-2 animate-fadeIn">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-heading font-black text-cyan-300 uppercase tracking-wide">
+                Choose Signature Champion
               </span>
-              <h4 className="text-sm sm:text-base font-heading font-black text-white truncate">
-                {favoriteHero.name}
-              </h4>
-              <p className="text-[11px] text-slate-300 truncate">
-                {favoriteHero.powers}
-              </p>
+              <span className="text-[10px] text-slate-400 font-mono">
+                {authUser?.ownedCharacters?.length ? `${authUser.ownedCharacters.length} Owned` : 'All Champions'}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto custom-scrollbar p-1">
+              {(authUser?.ownedCharacters && authUser.ownedCharacters.length > 0
+                ? ALL_CHARACTERS.filter(c => authUser.ownedCharacters.includes(c.id))
+                : ALL_CHARACTERS.slice(0, 24)
+              ).map(char => (
+                <button
+                  key={char.id}
+                  type="button"
+                  onClick={() => handleSelectFavoriteHero(char.id)}
+                  className={`p-1.5 rounded-xl border text-center transition-all cursor-pointer ${
+                    (favoriteHeroId || profile.favoriteCharacterId) === char.id
+                      ? 'bg-amber-500/20 border-amber-400 text-amber-200 shadow-glow-gold'
+                      : 'bg-black/40 border-white/10 hover:border-cyan-400/60 text-slate-300'
+                  }`}
+                >
+                  <img
+                    src={`/images/characters/${char.id}.jpg`}
+                    alt={char.name}
+                    className="w-10 h-10 mx-auto rounded-lg object-cover mb-1"
+                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                  />
+                  <div className="text-[10px] font-bold truncate text-white">{char.name}</div>
+                </button>
+              ))}
             </div>
           </div>
         )}

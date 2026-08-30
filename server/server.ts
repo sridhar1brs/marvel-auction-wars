@@ -451,6 +451,131 @@ app.delete('/api/admin/codes/:code', (req, res) => {
   res.json(result);
 });
 
+// ==========================================
+// 🌌 v4.0 — PROGRESSION, FORGE, MISSIONS & TEAMS APIs
+// ==========================================
+
+// Forge info & wheel prizes public metadata
+app.get('/api/progression/forge-info', (_req, res) => {
+  res.json(database.getForgeInfo());
+});
+
+// Milestone Crates
+app.post('/api/progression/claim-crate', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.claimLevelCrate(user.id, Number(req.body?.level));
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+// Card Forge Crafting
+app.post(['/api/forge/craft', '/api/progression/craft-card'], (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.craftCard(user.id, req.body?.category);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+// Character Mastery
+app.post('/api/mastery/award', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { characterId, xp } = req.body;
+  const result = database.awardMasteryXp(user.id, characterId, Number(xp) || 0);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+// Daily Missions
+app.get('/api/missions/daily', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  res.json(database.getDailyMissions(user.id));
+});
+
+app.post('/api/missions/daily/claim', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.claimDailyMission(user.id, req.body?.missionId);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+// Weekly Challenges
+app.get('/api/missions/weekly', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  res.json(database.getWeeklyChallenges(user.id));
+});
+
+app.post('/api/missions/weekly/claim', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.claimWeeklyChallenge(user.id, req.body?.missionId);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+// Achievements
+app.get('/api/achievements', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  res.json(database.getAchievements(user.id));
+});
+
+app.post('/api/achievements/claim', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.claimAchievement(user.id, req.body?.achievementId);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+// Mystery Wheel
+app.post('/api/wheel/spin', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.spinMysteryWheel(user.id);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+// Team Builder
+app.get('/api/teams', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  res.json(database.getTeams(user.id));
+});
+
+app.post('/api/teams/save', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { name, characterIds, teamId } = req.body;
+  const result = database.saveTeam(user.id, name, characterIds, teamId);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+app.delete('/api/teams/:id', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.deleteTeam(user.id, req.params.id);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+// Admin Grant Reward
+app.post('/api/admin/grant-reward', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { targetUsername, rewardType, amount, characterId } = req.body;
+  const result = database.adminGrantReward(user.id, targetUsername, rewardType, Number(amount) || 0, characterId);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
 // Gemini 2.0 Flash AI Chat Proxy (TODO-025 Secure Server-Side Integration)
 app.post('/api/gemini/chat', async (req, res) => {
   try {

@@ -4,8 +4,10 @@ import { DungeonSettings, DungeonState, DungeonCombatLog, DungeonPlayer } from '
 import { 
   selectEnemyForWave, 
   summonRandomPlayerHero, 
-  executeDungeonCombatTurn 
+  executeDungeonCombatTurn,
+  generateEnemyIntent
 } from '../../engine/dungeonEngine';
+import { TacticalActionMode, EnemyIntentInfo } from '../../types/dungeon';
 import { getSkillsForCharacter, CharacterSkill } from '../../data/skills/characterSkills';
 import { CharacterPortrait } from '../common/CharacterPortrait';
 import { CombatFXOverlay, CombatEffectType, ComicBurst } from '../battle/fx/CombatFXOverlay';
@@ -84,6 +86,7 @@ export function DungeonArena({ settings, onExit }: Props) {
 
   const [randomizingPlayerId, setRandomizingPlayerId] = useState<string | null>(null);
   const [selectedSkill, setSelectedSkill] = useState<CharacterSkill | null>(null);
+  const [selectedAction, setSelectedAction] = useState<TacticalActionMode>('STRIKE');
   const [isClashing, setIsClashing] = useState(false);
   const [recentLog, setRecentLog] = useState<string>('');
   const [showPotionEffect, setShowPotionEffect] = useState(false);
@@ -121,6 +124,7 @@ export function DungeonArena({ settings, onExit }: Props) {
   useEffect(() => {
     if (dungeonState.phase === 'ALTAR_SUMMON' || dungeonState.phase === 'COMBAT_READY') {
       const enemy = selectEnemyForWave(dungeonState.currentWave, dungeonState.settings);
+      const intent = generateEnemyIntent(enemy, dungeonState.currentWave);
       // Scale boss health based on player count and wave tier
       const teamMultiplier = Math.max(1, dungeonState.players.length * 0.75);
       const enemyMaxHp = Math.round((80 + dungeonState.currentWave * 9 + (enemy.overallPower * 0.45)) * teamMultiplier);
@@ -128,6 +132,7 @@ export function DungeonArena({ settings, onExit }: Props) {
       setDungeonState(prev => ({
         ...prev,
         enemyHero: enemy,
+        enemyIntent: intent,
         enemyHp: enemyMaxHp,
         enemyMaxHp: enemyMaxHp
       }));
@@ -249,7 +254,9 @@ export function DungeonArena({ settings, onExit }: Props) {
       currentHero,
       selectedSkill,
       dungeonState.enemyHero,
-      roundNumber
+      roundNumber,
+      selectedAction,
+      dungeonState.enemyIntent
     );
 
     const updatedUsedSkills = selectedSkill 
@@ -343,11 +350,14 @@ export function DungeonArena({ settings, onExit }: Props) {
             searchCount++;
           }
 
+          const nextIntent = prev.enemyHero ? generateEnemyIntent(prev.enemyHero, prev.currentWave) : prev.enemyIntent;
+
           return {
             ...prev,
             players: updatedPlayers,
             activePlayerIndex: nextIndex,
             enemyHp: nextEnemyHp,
+            enemyIntent: nextIntent,
             totalDamageDealt: prev.totalDamageDealt + turnResult.playerDamageDealt,
             combatLogs: [...turnResult.combatLogs, ...prev.combatLogs]
           };
@@ -585,6 +595,33 @@ export function DungeonArena({ settings, onExit }: Props) {
               superAbilityName={selectedSkill ? selectedSkill.name : 'SIGNATURE STRIKE'}
             />
 
+            {/* Enemy Intent Telegraph Telemetry Banner */}
+            {dungeonState.enemyIntent && (
+              <div className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-red-950/80 via-purple-950/70 to-slate-950/80 border border-red-500/40 shadow-glow-red flex items-center justify-between flex-wrap gap-2 animate-fadeIn">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="text-2xl sm:text-3xl shrink-0 p-1.5 rounded-xl bg-black/60 border border-red-400/30">
+                    {dungeonState.enemyIntent.icon}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] uppercase font-mono font-bold text-red-400 tracking-wider">
+                        GUARDIAN INTENT TELEMETRY:
+                      </span>
+                      <span className="text-xs sm:text-sm font-heading font-black text-amber-300 uppercase">
+                        {dungeonState.enemyIntent.title}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 truncate">
+                      {dungeonState.enemyIntent.description}
+                    </p>
+                  </div>
+                </div>
+                <div className="px-2.5 py-1 rounded-xl bg-amber-500/20 border border-amber-400/40 text-[10px] font-mono text-amber-200">
+                  💡 {dungeonState.enemyIntent.counterRecommendation}
+                </div>
+              </div>
+            )}
+
             {/* Duelists Stage Layout */}
             <div className="grid grid-cols-2 gap-3 sm:gap-6 items-center">
               
@@ -688,6 +725,87 @@ export function DungeonArena({ settings, onExit }: Props) {
 
             </div>
 
+            {/* Tactical Action Mode Selector (4 Strategic Stances) */}
+            <div className="p-3 bg-slate-950/80 rounded-2xl border border-cyan-500/30 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-heading font-black text-cyan-300 uppercase tracking-wide flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>TACTICAL COMBAT ACTION (COUNTER GUARDIAN INTENT)</span>
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  Select 1 stance for this clash
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  {
+                    mode: 'STRIKE' as TacticalActionMode,
+                    icon: '⚔️',
+                    label: 'Direct Strike',
+                    desc: 'Physical Assault',
+                    counterBadge: 'Interrupts Energy Surge (+60%)',
+                    activeColor: 'from-amber-600 to-orange-600 border-amber-400 text-amber-100 shadow-glow-gold'
+                  },
+                  {
+                    mode: 'SPECIAL_BLAST' as TacticalActionMode,
+                    icon: '⚡',
+                    label: 'Special Blast',
+                    desc: 'Armor Piercing',
+                    counterBadge: 'Shatters Iron Fortress (+70%)',
+                    activeColor: 'from-blue-600 to-cyan-600 border-cyan-400 text-cyan-100 shadow-glow-cyan'
+                  },
+                  {
+                    mode: 'DEFEND_COUNTER' as TacticalActionMode,
+                    icon: '🛡️',
+                    label: 'Defend & Counter',
+                    desc: 'Reflect Guard',
+                    counterBadge: 'Absorbs 75% Brute & Ambush',
+                    activeColor: 'from-emerald-600 to-teal-600 border-emerald-400 text-emerald-100 shadow-glow-blue'
+                  },
+                  {
+                    mode: 'EVADE_AMBUSH' as TacticalActionMode,
+                    icon: '💨',
+                    label: 'Evade & Ambush',
+                    desc: 'Flanking Dodge',
+                    counterBadge: '65% 0-DMG Dodge & Flank',
+                    activeColor: 'from-purple-600 to-indigo-600 border-purple-400 text-purple-100 shadow-glow-purple'
+                  }
+                ].map(action => {
+                  const isSelected = selectedAction === action.mode;
+                  return (
+                    <button
+                      key={action.mode}
+                      type="button"
+                      disabled={isClashing}
+                      onClick={() => {
+                        soundManager.playClick();
+                        setSelectedAction(action.mode);
+                      }}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        isSelected
+                          ? `bg-gradient-to-br ${action.activeColor} scale-105`
+                          : 'bg-slate-900/80 border-white/10 hover:border-cyan-500/40 text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-base">{action.icon}</span>
+                        <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                          {action.desc}
+                        </span>
+                      </div>
+                      <h4 className="text-xs font-heading font-black truncate text-white">
+                        {action.label}
+                      </h4>
+                      <p className="text-[9px] font-mono mt-0.5 opacity-90 truncate">
+                        {action.counterBadge}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* 5 Unique Character Special Abilities Grid */}
             <div className="p-3 bg-black/60 rounded-2xl border border-white/10 space-y-2">
               <div className="flex items-center justify-between text-xs">
@@ -696,7 +814,7 @@ export function DungeonArena({ settings, onExit }: Props) {
                   <span>{activePlayer.name}&apos;S UNIQUE ABILITIES (5 SKILLS)</span>
                 </span>
                 <span className="text-[10px] text-slate-400 font-mono">
-                  Select 1 skill to empower this strike (1-time use per skill)
+                  Optional: combine 1 skill with your tactical stance
                 </span>
               </div>
 
@@ -753,8 +871,8 @@ export function DungeonArena({ settings, onExit }: Props) {
                 <Swords className="w-5 h-5 text-amber-200" />
                 <span>
                   {selectedSkill 
-                    ? `EXECUTE ${selectedSkill.name.toUpperCase()} STRIKE ⚡` 
-                    : `EXECUTE ${activePlayer.name.toUpperCase()}'S ATTACK ⚔️`}
+                    ? `EXECUTE [${selectedAction.replace('_', ' ')}] + ${selectedSkill.name.toUpperCase()} ⚡` 
+                    : `EXECUTE [${selectedAction.replace('_', ' ')}] ATTACK ⚔️`}
                 </span>
               </button>
             </div>

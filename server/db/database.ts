@@ -1862,6 +1862,9 @@ class DatabaseManager {
     if (isVictory) {
       this.updateMissionProgressForUser(user, 'dungeon_complete', 1);
     }
+    // Track dungeon achievements globally (works from any game mode)
+    this.updateAchievementProgressForUser(user, 'dungeon_1', user.dungeonsCompleted || 0);
+    this.updateAchievementProgressForUser(user, 'dungeon_10', user.dungeonsCompleted || 0);
     this.updateAchievementProgressForUser(user, 'dungeon_master', user.dungeonsCompleted || 0);
     // ─────────────────────────────────────────────────────────
 
@@ -2008,10 +2011,10 @@ class DatabaseManager {
       return { success: true, choices: [], completed: true };
     }
     if (!user.onboardingChoices || user.onboardingChoices.length !== 5) {
-      user.onboardingChoices = [...ALL_CHARACTERS]
-        .sort(() => Math.random() - 0.5)
-        .slice(0, 5)
-        .map(character => character.id);
+      const bAndCPool = ALL_CHARACTERS.filter(c => c.grade === 'B' || c.grade === 'C');
+      const pool = bAndCPool.length >= 5 ? bAndCPool : ALL_CHARACTERS;
+      const selectedIds = [...new Set([...pool].sort(() => Math.random() - 0.5).map(character => character.id))].slice(0, 5);
+      user.onboardingChoices = selectedIds;
       this.save();
     }
     return {
@@ -2027,11 +2030,23 @@ class DatabaseManager {
     if (user.onboardingCompleted || (user.ownedCharacters || []).length > 0) {
       return { success: false, error: 'Onboarding has already been completed.' };
     }
+    const starterChoices = user.onboardingChoices || [];
+    if (!starterChoices.length) {
+      const bAndCPool = ALL_CHARACTERS.filter(c => c.grade === 'B' || c.grade === 'C');
+      const pool = bAndCPool.length >= 5 ? bAndCPool : ALL_CHARACTERS;
+      const freshChoices = [...new Set([...pool].sort(() => Math.random() - 0.5).map(character => character.id))].slice(0, 5);
+      user.onboardingChoices = freshChoices;
+    }
     if (!(user.onboardingChoices || []).includes(characterId)) {
       return { success: false, error: 'Choose one of the five offered characters.' };
     }
-    user.ownedCharacters = [characterId];
-    user.characterLevels[characterId] = 1;
+
+    const starterSet = [...new Set([...(user.onboardingChoices || []), characterId])];
+    user.ownedCharacters = starterSet;
+    starterSet.forEach(id => {
+      if (!user.characterLevels) user.characterLevels = {};
+      user.characterLevels[id] = 1;
+    });
     user.onboardingCompleted = true;
     user.onboardingChoices = [];
     this.save();
@@ -2042,7 +2057,7 @@ class DatabaseManager {
     const user = this.getRawUser(userId);
     const normalized = String(category || '').toUpperCase();
     if (!user) return { success: false, error: 'User not found.' };
-    if (!['C', 'B', 'A', 'MYTHIC'].includes(normalized)) return { success: false, error: 'Invalid shard category.' };
+    if (!['C', 'B', 'A', 'MYTHIC', 'HERO', 'VILLAIN'].includes(normalized)) return { success: false, error: 'Invalid shard category.' };
     const current = Number(user.categoryShards?.[normalized]) || 0;
     if (current < 10) return { success: false, error: `Need 10 ${normalized} category shards.` };
     user.categoryShards[normalized] = current - 10;
@@ -2056,7 +2071,15 @@ class DatabaseManager {
     const normalized = String(category || '').toUpperCase();
     const character = ALL_CHARACTERS.find(candidate => candidate.id === characterId);
     if (!user) return { success: false, error: 'User not found.' };
-    if (!['C', 'B', 'A', 'MYTHIC'].includes(normalized) || !character || getCharacterShardCategory(character.grade) !== normalized) {
+    if (!['C', 'B', 'A', 'MYTHIC', 'HERO', 'VILLAIN'].includes(normalized) || !character) {
+      return { success: false, error: 'Character is not valid for this token category.' };
+    }
+    const expectedCategories = new Set([
+      getCharacterShardCategory(character),
+      getCharacterShardCategory(character.grade),
+      character.alignment === 'Hero' || character.alignment === 'Anti-Hero' ? 'HERO' : character.alignment === 'Villain' ? 'VILLAIN' : undefined,
+    ].filter(Boolean) as string[]);
+    if (!expectedCategories.has(normalized)) {
       return { success: false, error: 'Character is not valid for this token category.' };
     }
     if ((user.characterTokens[normalized] || 0) < 1) return { success: false, error: 'You do not have a token for this category.' };
@@ -2077,9 +2100,9 @@ class DatabaseManager {
     if (user.crateInventory[key] < 1) return { success: false, error: 'You do not have this crate.' };
     user.crateInventory[key] -= 1;
     if (crateType === 'SHARD_CRATE') {
-      const categories: CharacterShardCategory[] = ['C', 'B', 'A', 'MYTHIC'];
+      const categories: CharacterShardCategory[] = ['C', 'B', 'A', 'MYTHIC', 'HERO', 'VILLAIN'];
       const category = categories[Math.floor(Math.random() * categories.length)];
-      const amount = category === 'MYTHIC' ? 2 : category === 'A' ? 4 : category === 'B' ? 7 : 12;
+      const amount = category === 'MYTHIC' ? 2 : category === 'A' ? 4 : category === 'B' ? 7 : category === 'HERO' || category === 'VILLAIN' ? 8 : 12;
       user.categoryShards[category] = (user.categoryShards[category] || 0) + amount;
       this.save();
       return { success: true, crateType, reward: { category, amount }, user: this.sanitizeUser(user) };
@@ -2087,7 +2110,7 @@ class DatabaseManager {
     const pool = ALL_CHARACTERS.filter(character => !user.ownedCharacters.includes(character.id));
     const character = (pool.length ? pool : ALL_CHARACTERS)[Math.floor(Math.random() * (pool.length ? pool : ALL_CHARACTERS).length)];
     if (user.ownedCharacters.includes(character.id)) {
-      const category = getCharacterShardCategory(character.grade);
+      const category = getCharacterShardCategory(character);
       user.categoryShards[category] = (user.categoryShards[category] || 0) + 10;
       this.save();
       return { success: true, crateType, reward: { character, duplicate: true, category, amount: 10 }, user: this.sanitizeUser(user) };
