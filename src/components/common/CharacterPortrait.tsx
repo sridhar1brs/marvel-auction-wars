@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Character, CharacterGrade } from '../../types/game';
 import { Zap } from 'lucide-react';
 import { generateHeroSVGDataUrl } from '../../data/heroArtwork';
+import { CHARACTER_PORTRAITS } from '../../data/characterPortraits';
 
 interface Props {
   character: Character;
@@ -43,17 +44,15 @@ export function CharacterPortrait({ character, className = '', size = 'md', show
     }
   };
 
-  // Local first-party high-resolution downloaded portraits (100% reliable)
+  // Direct local character portrait mapped strictly by character ID from Images Marvel
   const localJpgUrl = `/images/characters/${character.id}.jpg`;
-  const localWebpUrl = `/images/characters/${character.id}.webp`;
+  const curatedUrl = CHARACTER_PORTRAITS[character.id];
   const embeddedSvgDataUrl = generateHeroSVGDataUrl(character.name, character.grade, character.color);
 
   const currentSrc = imageStep === 0 
     ? localJpgUrl
     : imageStep === 1 
-    ? (character.imageUrl || localWebpUrl)
-    : imageStep === 2
-    ? localWebpUrl
+    ? (curatedUrl || character.imageUrl || localJpgUrl)
     : embeddedSvgDataUrl;
 
   return (

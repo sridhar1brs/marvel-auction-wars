@@ -10,7 +10,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 14,
     powers: 'Mjolnir mastery, lightning manipulation, divine strength, weather control, flight.',
     description: 'The Norse God of Thunder and founding Avenger, commanding thunderbolts with the enchanted hammer Mjolnir.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/b/b2/Eric_Masterson_%28Earth-616%29_from_Thor_Vol_1_443_001.jpg/revision/latest?cb=20210621055633',
+    imageUrl: '/images/characters/char-a-001.jpg',
     color: '#0284C7',
     stats: { strength: 95, speed: 89, durability: 94, intelligence: 85, energy: 95, combat: 95 },
     specialAbilities: [
@@ -27,7 +27,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 15,
     powers: 'Chaos Magic, reality distortion, probability manipulation, psionic blasts, telekinesis.',
     description: 'The mythical nexus being wielding ancient Chaos Magic capable of altering the fabric of reality itself.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/1/1d/Wanda_Maximoff_%28Earth-12%29_from_Exiles_Vol_1_14_0001.jpg/revision/latest?cb=20191231013147',
+    imageUrl: '/images/characters/char-a-002.jpg',
     color: '#E11D48',
     stats: { strength: 65, speed: 82, durability: 80, intelligence: 92, energy: 98, combat: 85 },
     specialAbilities: [
@@ -44,7 +44,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 13,
     powers: 'Mystic arts mastery, Eye of Agamotto, Cloak of Levitation, astral projection, dimensional travel.',
     description: 'Master of the mystic arts and Earth defender against interdimensional horrors and cosmic spells.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/a/ac/Asim_Strange_%28Earth-65%29_from_Spider-Gwen_Vol_2_34.jpg/revision/latest?cb=20181231172547',
+    imageUrl: '/images/characters/char-a-003.jpg',
     color: '#F59E0B',
     stats: { strength: 68, speed: 84, durability: 83, intelligence: 98, energy: 96, combat: 90 },
     specialAbilities: [
@@ -61,7 +61,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 13,
     powers: 'Binary energy form, photon blasts, stellar flight, superhuman physical stats, energy absorption.',
     description: 'Infused with cosmic Tesseract energy, Carol Danvers stands as one of the universe most formidable defenders.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/8/80/Secret_Avengers_Vol_1_27_Textless.jpg/revision/latest?cb=20120314011719',
+    imageUrl: '/images/characters/char-a-004.jpg',
     color: '#FBBF24',
     stats: { strength: 92, speed: 94, durability: 92, intelligence: 86, energy: 96, combat: 91 },
     specialAbilities: [
@@ -78,7 +78,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 15,
     powers: 'Eternal-Deviant physiology, titan strength, master tactician, cosmic energy projection, invulnerability.',
     description: 'Warlord of Titan whose sheer physical prowess and strategic brilliance rival the universe greatest forces.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/d/d9/Armour_%28Thanosi%29_%28Earth-616%29_from_Infinity_Abyss_Vol_1_1_001.jpg/revision/latest?cb=20170403050927',
+    imageUrl: '/images/characters/char-a-005.jpg',
     color: '#7C3AED',
     stats: { strength: 96, speed: 84, durability: 96, intelligence: 97, energy: 92, combat: 97 },
     specialAbilities: [
@@ -95,7 +95,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 12,
     powers: 'Infinite rage strength scaling, accelerated healing factor, thunderclaps, gamma resilience.',
     description: 'The strongest one there is, whose physical strength multiplies indefinitely as his fury escalates.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/0/07/The_Incredible_Hulk_%281977_film%29_Poster_002.jpg/revision/latest?cb=20071103075751',
+    imageUrl: '/images/characters/char-a-006.jpg',
     color: '#22C55E',
     stats: { strength: 97, speed: 82, durability: 96, intelligence: 70, energy: 88, combat: 90 },
     specialAbilities: [
@@ -112,7 +112,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 14,
     powers: 'Titanium-alloy armored exoskeleton, master sorcery, technological genius, force fields, Doombots.',
     description: 'Monarch of Latveria whose unified mastery over science and sorcery makes him one of the deadliest beings alive.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/a/a1/Victor_Van_Damme_%28Earth-1610%29_from_Miles_Morales_Ultimate_Spider-Man_Vol_1_11_001.jpg/revision/latest?cb=20150313011109',
+    imageUrl: '/images/characters/char-a-007.jpg',
     color: '#059669',
     stats: { strength: 86, speed: 82, durability: 92, intelligence: 99, energy: 94, combat: 93 },
     specialAbilities: [
@@ -129,7 +129,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 13,
     powers: 'Necrosword generation, army resurrection, Asgardian divine physiology, death touch.',
     description: 'Firstborn of Odin whose power grows directly from Asgard, summoning endless blades of black necro-steel.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/e/ec/Queen_in_Black_Vol_1_1_Textless.jpg/revision/latest?cb=20260223065039',
+    imageUrl: '/images/characters/char-a-008.jpg',
     color: '#10B981',
     stats: { strength: 93, speed: 88, durability: 94, intelligence: 90, energy: 91, combat: 96 },
     specialAbilities: [
@@ -146,7 +146,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 12,
     powers: 'Omega-level magnetism manipulation, electromagnetic force fields, matter control, flight.',
     description: 'Master of Magnetism fighting for mutantkind, commanding the entire planetary electromagnetic spectrum.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/3/35/Ultimate_Origins_Vol_1_3_Textless.jpg/revision/latest?cb=20260124151032',
+    imageUrl: '/images/characters/char-a-009.jpg',
     color: '#DC2626',
     stats: { strength: 74, speed: 82, durability: 90, intelligence: 96, energy: 96, combat: 90 },
     specialAbilities: [
@@ -163,7 +163,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 15,
     powers: 'Power of a million exploding suns, molecule manipulation, light projection, immortality.',
     description: 'A tragic golden guardian with limitless strength held back only by the lurking darkness of The Void.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/5/5e/Project_Sentry_%28Earth-616%29_from_Sentry_Vol_2_8_001.jpg/revision/latest?cb=20250510104327',
+    imageUrl: '/images/characters/char-a-010.jpg',
     color: '#EAB308',
     stats: { strength: 97, speed: 96, durability: 96, intelligence: 88, energy: 98, combat: 90 },
     specialAbilities: [
@@ -180,7 +180,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 12,
     powers: 'Celestial techno-organic armor, cellular molecular shapeshifting, telepathy, energy blasts.',
     description: 'The ancient mutant tyrant who tests the world through the principle of survival of the fittest.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/4/48/En_Sabah_Nur_%28Earth-295%29_from_Age_of_Apocalypse_The_Chosen_Vol_1_1_0002.png/revision/latest?cb=20260816075431',
+    imageUrl: '/images/characters/char-a-011.jpg',
     color: '#475569',
     stats: { strength: 94, speed: 82, durability: 95, intelligence: 96, energy: 92, combat: 93 },
     specialAbilities: [
@@ -197,7 +197,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 14,
     powers: 'Omega-level telepathy & telekinesis, matter molecular breakdown, cosmic fiery aura.',
     description: 'Omega-level telepath whose connection to the Phoenix Force unlocks godlike psychic destruction.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/a/a2/Jean_Grey_%28Earth-12131%29_from_Marvel_Avengers_Alliance_0002.png/revision/latest?cb=20130406035718',
+    imageUrl: '/images/characters/char-a-012.jpg',
     color: '#EA580C',
     stats: { strength: 70, speed: 88, durability: 88, intelligence: 95, energy: 98, combat: 88 },
     specialAbilities: [
@@ -214,7 +214,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 13,
     powers: 'Quantum magic, cosmic energy manipulation, Soul Gem resonance, superhuman stats, regeneration.',
     description: 'Genetically engineered to be the pinnacle of evolution, destined to balance universal life and death.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/f/f0/Adam_Warlock_%28Earth-616%29_from_Infinity_Wars_Infinity_Vol_1_1_001.jpg/revision/latest?cb=20190302234015',
+    imageUrl: '/images/characters/char-a-013.jpg',
     color: '#D97706',
     stats: { strength: 91, speed: 90, durability: 92, intelligence: 94, energy: 95, combat: 92 },
     specialAbilities: [
@@ -231,7 +231,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 10,
     powers: 'Density control (intangibility to diamond hardness), solar gem solar beam, flight, supercomputer mind.',
     description: 'Created with vibranium and an artificial mind, Vision possesses near-unbreakable density and pure intellect.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/b/bf/Vision_%28Earth-616%29_from_Vision_and_the_Scarlet_Witch_Vol_3_1_001.jpg/revision/latest?cb=20250919162046',
+    imageUrl: '/images/characters/char-a-014.jpg',
     color: '#059669',
     stats: { strength: 88, speed: 86, durability: 94, intelligence: 98, energy: 91, combat: 86 },
     specialAbilities: [
@@ -248,7 +248,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 12,
     powers: 'Hypersonic quasi-sonic scream, electron particle manipulation, matter disruption, master monarch.',
     description: 'Monarch of Attilan whose mere whisper can level mountains and tear apart planetary crusts.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/f/f1/IVX_Vol_1_1_Inhumans_Variant_Textless.jpg/revision/latest?cb=20161209094800',
+    imageUrl: '/images/characters/char-a-015.jpg',
     color: '#1E293B',
     stats: { strength: 90, speed: 86, durability: 91, intelligence: 90, energy: 97, combat: 92 },
     specialAbilities: [
@@ -265,7 +265,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 11,
     powers: 'Korbinite cybernetic enhancement, Stormbreaker hammer, lightning summoning, cosmic flight.',
     description: 'The noble Korbinite champion deemed worthy of Mjolnir, gifted Stormbreaker to defend his people.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/c/c3/Beta_Ray_Bill_%28Earth-616%29_from_Mortal_Thor_Vol_1_2_Clarke_Variant.jpg/revision/latest?cb=20250926064724',
+    imageUrl: '/images/characters/char-a-016.jpg',
     color: '#CA8A04',
     stats: { strength: 94, speed: 88, durability: 93, intelligence: 84, energy: 92, combat: 94 },
     specialAbilities: [
@@ -282,7 +282,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 12,
     powers: 'Confidence-fueled strength & speed, heat vision, cosmic flight, near-invulnerability.',
     description: 'Praetor of the Shi\'ar Imperial Guard whose power scales directly with his supreme self-confidence.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/6/6c/Anthony_Stark_%28Earth-616%29_and_Melvin_Potter_%28Earth-616%29_from_Iron_Man_Vol_5_3_001.jpg/revision/latest?cb=20201117030011',
+    imageUrl: '/images/characters/char-a-017.jpg',
     color: '#9333EA',
     stats: { strength: 96, speed: 95, durability: 95, intelligence: 82, energy: 90, combat: 93 },
     specialAbilities: [
@@ -299,7 +299,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 11,
     powers: 'Time travel manipulation, 40th-century battlesuit, chronal weapons, temporal duplicates.',
     description: 'Master of the timestream who conquered countless eras and timelines with futuristic technology.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/5/5b/Nathaniel_Richards_%28Rama-Tut%29_%28Earth-6311%29_from_Avengers_Vol_7_4_001.jpg/revision/latest?cb=20170202083006',
+    imageUrl: '/images/characters/char-a-018.jpg',
     color: '#059669',
     stats: { strength: 80, speed: 85, durability: 90, intelligence: 99, energy: 94, combat: 91 },
     specialAbilities: [
@@ -316,7 +316,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 11,
     powers: 'Hellfire projection, Penance Stare, enchanted mystic chain, hell cycle, immortality.',
     description: 'Stunt motorcyclist bound to Zarathos, delivering demonic hellfire retribution upon the guilty.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/6/6e/Ghost_Rider_Vol_10_11_Mobili_Variant_Textless.jpg/revision/latest?cb=20240806004855',
+    imageUrl: '/images/characters/char-a-019.jpg',
     color: '#EA580C',
     stats: { strength: 90, speed: 87, durability: 94, intelligence: 80, energy: 93, combat: 91 },
     specialAbilities: [
@@ -333,7 +333,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 11,
     powers: 'Adamantium exoskeleton, encephalo-ray, technopathy, drone swarm coordination, energy beams.',
     description: 'Artificial intelligence with a pure hatred for humanity, constantly upgrading his adamantium form.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/0/05/Ultron_%28Earth-51156%29_from_Marvel_Future_Fight_005.png/revision/latest?cb=20200325102726',
+    imageUrl: '/images/characters/char-a-020.jpg',
     color: '#DC2626',
     stats: { strength: 90, speed: 84, durability: 97, intelligence: 98, energy: 92, combat: 89 },
     specialAbilities: [
@@ -350,7 +350,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 10,
     powers: 'Full Nova Force access, Xandarian Worldmind connection, gravitational control, FTL flight.',
     description: 'Sole bearer of the entire Xandarian Nova Force, safeguarding galaxies with immense energy.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/a/a5/Richard_Rider_%28Earth-51156%29_from_Marvel_Future_Fight_001.jpg/revision/latest?cb=20200615161303',
+    imageUrl: '/images/characters/char-a-021.jpg',
     color: '#0284C7',
     stats: { strength: 89, speed: 94, durability: 90, intelligence: 88, energy: 94, combat: 90 },
     specialAbilities: [
@@ -367,7 +367,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 13,
     powers: 'Antimatter generation & control, superhuman strength & durability, scientific genius, energy shields.',
     description: 'Antimatter reactor pioneer possessing staggering cosmic strength and a brilliant scientific mind.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/9/97/Adam_Brashear_%28Earth-616%29_from_Marvel_Legends_promotional_artwork_001.jpg/revision/latest?cb=20220314224837',
+    imageUrl: '/images/characters/char-a-022.jpg',
     color: '#2563EB',
     stats: { strength: 95, speed: 92, durability: 95, intelligence: 97, energy: 96, combat: 91 },
     specialAbilities: [
@@ -384,7 +384,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 12,
     powers: 'Solar energy absorption, atomic vision, colossal physical might, super-speed flight.',
     description: 'Last surviving Eternal of Earth-712 who draws immense power from solar radiation.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/9/9f/Hyperion_Vol_1_1_Textless.jpg/revision/latest?cb=20151023184219',
+    imageUrl: '/images/characters/char-a-023.jpg',
     color: '#F59E0B',
     stats: { strength: 96, speed: 93, durability: 95, intelligence: 85, energy: 93, combat: 90 },
     specialAbilities: [
@@ -401,7 +401,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 11,
     powers: 'Atmospheric manipulation, lightning bolts, hurricane winds, cosmic weather control.',
     description: 'Omega-level weather goddess capable of commanding planetary ecosystems and solar winds.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/5/5d/Ororo_Munroe_%28Earth-12%29_from_Exiles_Vol_1_14_0001.jpg/revision/latest?cb=20191231020331',
+    imageUrl: '/images/characters/char-a-024.jpg',
     color: '#38BDF8',
     stats: { strength: 70, speed: 88, durability: 82, intelligence: 92, energy: 97, combat: 91 },
     specialAbilities: [
@@ -418,7 +418,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 10,
     powers: 'Thermal manipulation, absolute zero freeze, organic ice clones, immortality as water.',
     description: 'Omega mutant able to halt atomic motion completely and regenerate continuously from ice.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/3/3a/X-Men_Vol_6_13_Trading_Card_Variant_Textless.jpg/revision/latest?cb=20220726054440',
+    imageUrl: '/images/characters/char-a-025.jpg',
     color: '#06B6D4',
     stats: { strength: 80, speed: 86, durability: 93, intelligence: 85, energy: 95, combat: 85 },
     specialAbilities: [
@@ -435,7 +435,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 10,
     powers: 'Unstoppable physical momentum, mystical force field, immense strength, invulnerability.',
     description: 'Empowered by the Gem of Cyttorak, nothing in existence can halt his forward charge.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/7/7e/Cain_Marko_%28Earth-8096%29_from_Wolverine_and_the_X-Men_%28animated_series%29_Season_1_13_0001.jpg/revision/latest?cb=20200916004042',
+    imageUrl: '/images/characters/char-a-026.jpg',
     color: '#B91C1C',
     stats: { strength: 96, speed: 78, durability: 98, intelligence: 72, energy: 82, combat: 88 },
     specialAbilities: [
@@ -452,7 +452,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 11,
     powers: 'High-temperature heat emission, energy absorption, military tactical genius, superhuman strength.',
     description: 'General Ross transformed into a red behemoth who emits searing radiation and drains enemy energy.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/6/6f/Robert_Maverick_%28Earth-616%29_from_U.S.Avengers_Vol_1_1_001.jpg/revision/latest?cb=20170107233505',
+    imageUrl: '/images/characters/char-a-027.jpg',
     color: '#DC2626',
     stats: { strength: 95, speed: 82, durability: 94, intelligence: 88, energy: 90, combat: 93 },
     specialAbilities: [
@@ -469,7 +469,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 10,
     powers: 'Soulsword creation, stepping discs teleportation, dark sorcery, eldritch demon armor.',
     description: 'Mistress of Limbo wielding the Soulsword, disrupting magical enchantments with teleportation discs.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/5/54/X-Men_Vol_7_2_Magik_Virgin_Variant.jpg/revision/latest?cb=20240811043500',
+    imageUrl: '/images/characters/char-a-028.jpg',
     color: '#EAB308',
     stats: { strength: 76, speed: 88, durability: 88, intelligence: 88, energy: 94, combat: 94 },
     specialAbilities: [
@@ -486,7 +486,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 12,
     powers: 'Cosmic Control Rod, insectoid army command, energy manipulation, cellular regeneration.',
     description: 'Ruler of the Negative Zone who launched the catastrophic Annihilation Wave across the cosmos.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/7/7e/Annihilation_-_Scourge_Alpha_Vol_1_1_Lim_Variant_Textless.jpg/revision/latest?cb=20200725173811',
+    imageUrl: '/images/characters/char-a-029.jpg',
     color: '#84CC16',
     stats: { strength: 91, speed: 90, durability: 92, intelligence: 90, energy: 96, combat: 90 },
     specialAbilities: [
@@ -503,7 +503,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 11,
     powers: 'Olympian divine physiology, legendary physical strength, adamantine mace, archery mastery.',
     description: 'Olympian demigod and legendary hero renowned across myth for his unmatched brawling strength.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/5/51/Incredible_Hercules_Vol_1_126_Textless.jpg/revision/latest?cb=20120927131140',
+    imageUrl: '/images/characters/char-a-030.jpg',
     color: '#D97706',
     stats: { strength: 96, speed: 82, durability: 95, intelligence: 80, energy: 80, combat: 96 },
     specialAbilities: [
@@ -520,7 +520,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 9,
     powers: 'Omega-level telepathy, mind control, memory erasure, psionic illusions, astral projection.',
     description: 'Founder of the X-Men and world foremost psychic mind, commanding unmatched mental mastery.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/4/44/House_of_X_Vol_1_1_Flower_Variant_Textless.jpg/revision/latest?cb=20200514075425',
+    imageUrl: '/images/characters/char-a-031.jpg',
     color: '#3B82F6',
     stats: { strength: 40, speed: 60, durability: 70, intelligence: 100, energy: 97, combat: 75 },
     specialAbilities: [
@@ -537,7 +537,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 9,
     powers: 'Omega telepathy, organic diamond form, superhuman durability, mental shields.',
     description: 'White Queen possessing flawless telepathic finesse and an invulnerable organic diamond skin.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/7/74/Marvel_Comics_Vol_1_1000_Artgerm_Collectibles_Exclusive_Emma_Frost_Virgin_Variant.jpg/revision/latest?cb=20211002082122',
+    imageUrl: '/images/characters/char-a-032.jpg',
     color: '#E2E8F0',
     stats: { strength: 82, speed: 78, durability: 95, intelligence: 96, energy: 92, combat: 86 },
     specialAbilities: [
@@ -554,7 +554,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 10,
     powers: 'Aquatic dominance, superhuman strength & flight, trident mastery, hydrokinesis.',
     description: 'First mutant and fierce King of Atlantis, possessing immense strength both on land and beneath the seas.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/f/f1/Namor_Conquered_Shores_Vol_1_1_Clarke_Variant_Textless.jpg/revision/latest?cb=20220718073333',
+    imageUrl: '/images/characters/char-a-033.jpg',
     color: '#0D9488',
     stats: { strength: 92, speed: 89, durability: 90, intelligence: 88, energy: 86, combat: 93 },
     specialAbilities: [
@@ -571,7 +571,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 11,
     powers: 'Quantum Bands construct projection, FTL flight, quantum energy absorption, cosmic shields.',
     description: 'Protector of the Universe wielding Quantum Bands capable of manifesting hard-light energy constructs.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/c/c2/Wendell_Vaughn_%28Earth-110%29_from_Big_Town_Vol_1_4.jpg/revision/latest?cb=20160113160809',
+    imageUrl: '/images/characters/char-a-034.jpg',
     color: '#3B82F6',
     stats: { strength: 88, speed: 94, durability: 92, intelligence: 89, energy: 95, combat: 88 },
     specialAbilities: [
@@ -588,7 +588,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 9,
     powers: 'Combined powers of the Fantastic Four: Fire, Invisibility, Elasticity, Rock Strength.',
     description: 'Skrull champion bio-engineered with all four abilities of the Fantastic Four simultaneously.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/a/aa/Super-Skrulls_%28Earth-616%29_from_Secret_Invasion_Vol_1_2_001.jpg/revision/latest?cb=20170925042928',
+    imageUrl: '/images/characters/char-a-035.jpg',
     color: '#16A34A',
     stats: { strength: 90, speed: 85, durability: 91, intelligence: 88, energy: 92, combat: 91 },
     specialAbilities: [
@@ -605,7 +605,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 11,
     powers: 'Cosmic energy eye beams, high-speed flight, near-immortality, superhuman physical might.',
     description: 'Prime Eternal created by the Celestials, possessing devastating laser vision and cosmic flight.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/a/a7/Ikaris_%28Earth_616%29_from_Eternals_Forever_Vol_1_1_Frigeri_Variant_cover_001.jpg/revision/latest?cb=20211107042245',
+    imageUrl: '/images/characters/char-a-036.jpg',
     color: '#2563EB',
     stats: { strength: 93, speed: 92, durability: 94, intelligence: 86, energy: 93, combat: 91 },
     specialAbilities: [
@@ -622,7 +622,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 10,
     powers: 'Cosmic weapon materialization (spears, swords, shields), immortal agility, divine martial arts.',
     description: 'Eternal warrior with centuries of battle experience, crafting hard cosmic light weapons at will.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/2/24/Eternals_Vol_5_1_Cho_Variant_Textless.jpg/revision/latest?cb=20210504065948',
+    imageUrl: '/images/characters/char-a-037.jpg',
     color: '#F59E0B',
     stats: { strength: 90, speed: 93, durability: 91, intelligence: 89, energy: 88, combat: 98 },
     specialAbilities: [
@@ -639,7 +639,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 9,
     powers: 'Colossal celestial strength, golden cosmic energy exo-fists, extreme durability.',
     description: 'The physically strongest Eternal, whose cosmic-shielded fists can shatter mountains.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/7/7b/Eternals_Vol_5_5_Parel_Variant_Textless.jpg/revision/latest?cb=20211130005649',
+    imageUrl: '/images/characters/char-a-038.jpg',
     color: '#D97706',
     stats: { strength: 96, speed: 80, durability: 95, intelligence: 82, energy: 86, combat: 92 },
     specialAbilities: [
@@ -656,7 +656,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 10,
     powers: 'Universal Weapon (Cosmi-Rod), Kree cybernetic armor, gravity manipulation, energy blasts.',
     description: 'Zealous Kree Accuser executing the will of the Supreme Intelligence with his Universal Weapon.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/5/53/Ronan_%28Earth-616%29_from_Legendary_Star-Lord_Vol_1_12_001.jpg/revision/latest?cb=20210718222107',
+    imageUrl: '/images/characters/char-a-039.jpg',
     color: '#047857',
     stats: { strength: 89, speed: 83, durability: 91, intelligence: 90, energy: 90, combat: 93 },
     specialAbilities: [
@@ -673,7 +673,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 11,
     powers: 'Faltine flame sorcery, dimensional banishment, mystical shield casting, astral manipulation.',
     description: 'Niece of Dormammu and Sorceress Supreme of the Dark Dimension with mastery over Faltine flames.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/5/5f/Sorcerer_Supreme_Vol_1_5_Fanyang_Variant_Textless.jpg/revision/latest?cb=20260427073207',
+    imageUrl: '/images/characters/char-a-040.jpg',
     color: '#9333EA',
     stats: { strength: 72, speed: 85, durability: 86, intelligence: 96, energy: 95, combat: 90 },
     specialAbilities: [
@@ -690,7 +690,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 13,
     powers: 'Limitless psionic telekinesis, precognition, dimensional phase traversal, telepathy.',
     description: 'Genetically engineered mutant from the Age of Apocalypse with staggering raw psychic potential.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/8/86/Uncanny_X-Men_Vol_5_4_Textless.jpg/revision/latest?cb=20180919023849',
+    imageUrl: '/images/characters/char-a-041.jpg',
     color: '#3B82F6',
     stats: { strength: 75, speed: 89, durability: 88, intelligence: 95, energy: 98, combat: 89 },
     specialAbilities: [
@@ -707,7 +707,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 11,
     powers: 'Omega telekinesis & telepathy, techno-organic arm, futuristic plasma weaponry, cybernetic eye.',
     description: 'Time-traveling soldier possessing immense psionic force alongside heavy futuristic ordnance.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/5/5d/Cable_Reloaded_Vol_1_1_Textless.jpg/revision/latest?cb=20210521181044',
+    imageUrl: '/images/characters/char-a-042.jpg',
     color: '#0284C7',
     stats: { strength: 88, speed: 85, durability: 92, intelligence: 94, energy: 93, combat: 97 },
     specialAbilities: [
@@ -724,7 +724,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 9,
     powers: 'Seductive mind-charm, Asgardian magical blasts, illusion casting, elemental shields.',
     description: 'Asgardian sorceress whose enchanting spells can enslave the minds of gods and mortals alike.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/b/bf/Amora_%28Earth-8096%29_from_Avengers_Earth%27s_Mightiest_Heroes_%28animated_series%29_Season_2_8_001.png/revision/latest?cb=20120527230747',
+    imageUrl: '/images/characters/char-a-043.jpg',
     color: '#10B981',
     stats: { strength: 80, speed: 82, durability: 85, intelligence: 94, energy: 93, combat: 85 },
     specialAbilities: [
@@ -741,7 +741,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 11,
     powers: 'Evolutionary accelerator, silver armor energy blasts, force fields, telepathy, cosmic knowledge.',
     description: 'Genius bio-scientist seeking to engineer genetic perfection with cosmic armor and godlike tech.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/5/5a/Avengers_Vol_7_673_Textless.jpg/revision/latest?cb=20170822214529',
+    imageUrl: '/images/characters/char-a-044.jpg',
     color: '#9333EA',
     stats: { strength: 84, speed: 84, durability: 92, intelligence: 100, energy: 93, combat: 86 },
     specialAbilities: [
@@ -758,7 +758,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 9,
     powers: 'Supreme telekinesis, psychological manipulation, micro-levitation, telekinetic shields.',
     description: 'The silver-tongued lieutenant of Thanos whose effortless telekinesis restrains the strongest foes.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/8/86/Black_Order_Vol_1_5_Textless.jpg/revision/latest?cb=20181218214739',
+    imageUrl: '/images/characters/char-a-045.jpg',
     color: '#64748B',
     stats: { strength: 60, speed: 80, durability: 82, intelligence: 98, energy: 94, combat: 84 },
     specialAbilities: [
@@ -775,7 +775,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 8,
     powers: 'Colossal physical strength, dense armored hide, transforming hammer-shield weapon.',
     description: 'Brutal powerhouse of the Black Order whose sheer mass and transforming hammer crush all foes.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/b/b6/Cull_Obsidian_%28Earth-199999%29_from_Avengers_Infinity_War_001.jpg/revision/latest?cb=20180510170656',
+    imageUrl: '/images/characters/char-a-046.jpg',
     color: '#78350F',
     stats: { strength: 95, speed: 75, durability: 95, intelligence: 70, energy: 75, combat: 91 },
     specialAbilities: [
@@ -792,7 +792,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 8,
     powers: 'Three-pronged spear forged in a supernova, light-speed spears, superhuman agility.',
     description: 'Deadliest combatant in Thanos army whose spear never misses and carries toxic stellar energy.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/9/98/Infinity_Vol_1_5_Generals_Variant_Textless.jpg/revision/latest?cb=20130628193424',
+    imageUrl: '/images/characters/char-a-047.jpg',
     color: '#0284C7',
     stats: { strength: 86, speed: 92, durability: 88, intelligence: 86, energy: 89, combat: 97 },
     specialAbilities: [
@@ -809,7 +809,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 8,
     powers: 'Atom-slicing glaive blade, immortality while glaive is intact, master general.',
     description: 'Cruel general whose otherworldly glaive can slice through atoms and grants him instant resurrection.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/1/17/Infinity_Vol_1_3_Generals_Variant_Textless.jpg/revision/latest?cb=20130613185047',
+    imageUrl: '/images/characters/char-a-048.jpg',
     color: '#475569',
     stats: { strength: 87, speed: 90, durability: 89, intelligence: 91, energy: 85, combat: 96 },
     specialAbilities: [
@@ -826,7 +826,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 8,
     powers: 'Gamma mutation, superior base physical strength, hardened reptilian scales, high jump.',
     description: 'Emil Blonsky injected with super-soldier serum and gamma rays, retaining full tactical intellect.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/7/77/Incredible_Hulk_Vol_6_30_Hotz_Second_Printing_Variant.jpg/revision/latest?cb=20260215055934',
+    imageUrl: '/images/characters/char-a-049.jpg',
     color: '#15803D',
     stats: { strength: 95, speed: 78, durability: 94, intelligence: 82, energy: 80, combat: 90 },
     specialAbilities: [
@@ -843,7 +843,7 @@ export const GRADE_A_CHARACTERS: Character[] = [
     startingPrice: 12,
     powers: 'Disintegration visor beam, enchanted uru armor, immunity to magic and physical harm.',
     description: 'Enchanted Asgardian war machine forged by Odin to combat the Celestials, firing total disintegration beams.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/2/2b/Loki_Laufeyson_%28Kid_Loki%29_%28Earth-616%29_and_Destroyer_%28Enchanted_Armor%29_from_Journey_Into_Mystery_Vol_4_626_001.png/revision/latest?cb=20210620220226',
+    imageUrl: '/images/characters/char-a-050.jpg',
     color: '#94A3B8',
     stats: { strength: 96, speed: 80, durability: 98, intelligence: 70, energy: 97, combat: 92 },
     specialAbilities: [

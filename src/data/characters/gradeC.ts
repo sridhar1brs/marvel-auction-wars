@@ -10,7 +10,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 3,
     powers: 'Master archer, trick arrows (explosive, sonic, grapple, EMP), tactical marksmanship.',
     description: 'World greatest marksman whose specialized trick arrows hit targets from impossible distances.',
-    imageUrl: 'https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/313-hawkeye.jpg',
+    imageUrl: '/images/characters/char-c-001.jpg',
     color: '#7C3AED',
     stats: { strength: 60, speed: 74, durability: 68, intelligence: 82, energy: 40, combat: 88 },
     specialAbilities: [
@@ -27,7 +27,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 4,
     powers: 'Red Room master assassin, Widow Bite electro-gauntlets, espionage, acrobatic martial arts.',
     description: 'Deadly Red Room operative turned Avenger specializing in espionage and close-quarters takedowns.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/7/72/Black_Widow_Pale_Little_Spider_Vol_1_1_Textless.jpg/revision/latest?cb=20190809082317',
+    imageUrl: '/images/characters/char-c-002.jpg',
     color: '#DC2626',
     stats: { strength: 62, speed: 78, durability: 68, intelligence: 88, energy: 45, combat: 93 },
     specialAbilities: [
@@ -44,7 +44,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 3,
     powers: 'Prodigy archery, trick arrows, fencing, martial arts gymnastics.',
     description: 'Charming young archer mentored by Clint Barton wielding custom high-velocity trick arrows.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/d/df/Katherine_Bishop_%28Earth-616%29_from_Hawkeye_Kate_Bishop_Vol_1_1_cover.jpg/revision/latest?cb=20211130210330',
+    imageUrl: '/images/characters/char-c-003.jpg',
     color: '#9333EA',
     stats: { strength: 58, speed: 74, durability: 65, intelligence: 80, energy: 35, combat: 84 },
     specialAbilities: [
@@ -61,7 +61,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 3,
     powers: 'Red Room conditioning, dual batons, tactical knives, stealth assassination.',
     description: 'Fierce and witty Red Room assassin fighting with elite tactical knives and grapples.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/4/4f/White_Widow_Vol_1_1_Artgerm_Virgin_Variant.jpg/revision/latest?cb=20240808165820',
+    imageUrl: '/images/characters/char-c-004.jpg',
     color: '#E2E8F0',
     stats: { strength: 62, speed: 76, durability: 68, intelligence: 84, energy: 35, combat: 91 },
     specialAbilities: [
@@ -78,7 +78,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 3,
     powers: 'Soviet super-soldier serum, heavy red shield, heavyweight boxing brute force.',
     description: 'Soviet counterpart to Captain America possessing enhanced strength and nostalgic bravado.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/8/82/Alexei_Shostakov_%28Earth-616%29_from_Thunderbolts_Vol_6_1_0001.jpg/revision/latest?cb=20250610131224',
+    imageUrl: '/images/characters/char-c-005.jpg',
     color: '#B91C1C',
     stats: { strength: 78, speed: 68, durability: 78, intelligence: 72, energy: 30, combat: 84 },
     specialAbilities: [
@@ -95,7 +95,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 4,
     powers: 'Flawless projectile accuracy with any object, adamantium-laced spine, throwing knives.',
     description: 'Psychopathic assassin who can turn toothpicks and paperclips into lethal projectile weapons.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/f/ff/Bullseye_%28Earth-701306%29_from_Daredevil_%28film%29_0003.jpg/revision/latest?cb=20110616232229',
+    imageUrl: '/images/characters/char-c-006.jpg',
     color: '#334155',
     stats: { strength: 66, speed: 76, durability: 74, intelligence: 82, energy: 30, combat: 92 },
     specialAbilities: [
@@ -112,7 +112,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 4,
     powers: 'Twin sai blades, Hand ninjutsu, silent infiltration, peak agility.',
     description: 'Deadly assassin trained by the Chaste and the Hand, striking with lightning-fast twin sais.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/c/cf/Elektra_Natchios_%28Earth-9997%29_from_Paradise_X_Vol_1_10_001.jpg/revision/latest?cb=20090720160536',
+    imageUrl: '/images/characters/char-c-007.jpg',
     color: '#DC2626',
     stats: { strength: 64, speed: 82, durability: 68, intelligence: 82, energy: 35, combat: 94 },
     specialAbilities: [
@@ -129,7 +129,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 3,
     powers: 'Vibro-shock gauntlets, padded insulating quilt suit, concussive vibrational waves.',
     description: 'Bank robber armed with thumb-triggered gauntlets that fire high-frequency vibrational blasts.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/a/ad/Herman_Schultz_%28Earth-616%29_from_Amazing_Spider-Man_Vol_7_10_001.jpg/revision/latest?cb=20260124143953',
+    imageUrl: '/images/characters/char-c-008.jpg',
     color: '#CA8A04',
     stats: { strength: 64, speed: 68, durability: 72, intelligence: 80, energy: 70, combat: 72 },
     specialAbilities: [
@@ -146,7 +146,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 2,
     powers: 'Savate French kickboxing mastery, Olympic-level jumping and leg agility.',
     description: 'French mercenary and master kickboxer who can leap great heights to deliver bone-shattering kicks.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/f/fa/Georges_Batroc_%28Earth-616%29_from_Unbelievable_Gwenpool_Vol_1_2_001.jpg/revision/latest?cb=20160513012149',
+    imageUrl: '/images/characters/char-c-009.jpg',
     color: '#B45309',
     stats: { strength: 65, speed: 76, durability: 66, intelligence: 74, energy: 25, combat: 86 },
     specialAbilities: [
@@ -163,7 +163,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 3,
     powers: 'Pyrotechnic energy plasmoids (fireworks), gymnastics, rollerblade agility.',
     description: 'Young X-Man who generates multi-colored plasma sparks capable of blinding foes or blasting steel.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/6/61/Jubilee_Lee_%28Earth-90126%29_from_Wolverine_%28video_game%29_001.png/revision/latest?cb=20251116225825',
+    imageUrl: '/images/characters/char-c-010.jpg',
     color: '#FACC15',
     stats: { strength: 52, speed: 72, durability: 60, intelligence: 76, energy: 78, combat: 72 },
     specialAbilities: [
@@ -180,7 +180,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 2,
     powers: 'Prehensile 13-foot tongue, superhuman leaping, adhesive saliva secretion.',
     description: 'Brotherhood mutant possessing an elastic prehensile tongue and caustic acidic spit.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/9/94/Mortimer_Toynbee_%28Earth-12%29_from_Exiles_Vol_1_14_0001.jpg/revision/latest?cb=20191231012014',
+    imageUrl: '/images/characters/char-c-011.jpg',
     color: '#65A30D',
     stats: { strength: 60, speed: 74, durability: 66, intelligence: 68, energy: 40, combat: 70 },
     specialAbilities: [
@@ -197,7 +197,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 3,
     powers: 'Gravitational center-of-mass anchoring, impact-absorbing blubber, brute strength.',
     description: 'Immovable mutant who cannot be budged or injured once his feet are firmly planted.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/b/be/Frederick_Dukes_%28Earth-12%29_from_Exiles_Vol_1_14_0001.jpg/revision/latest?cb=20191231012359',
+    imageUrl: '/images/characters/char-c-012.jpg',
     color: '#78350F',
     stats: { strength: 80, speed: 45, durability: 86, intelligence: 60, energy: 20, combat: 72 },
     specialAbilities: [
@@ -214,7 +214,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 3,
     powers: 'Flamethrower harness, pyrokinesis (fire shaping into flaming beasts), flame immunity.',
     description: 'Mutant able to shape and magnify any flame into roaring fire birds and serpents.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/6/63/X-Factor_Vol_5_3_Pyro_Virgin_Variant.jpg/revision/latest?cb=20241021204809',
+    imageUrl: '/images/characters/char-c-013.jpg',
     color: '#EA580C',
     stats: { strength: 58, speed: 70, durability: 64, intelligence: 76, energy: 82, combat: 72 },
     specialAbilities: [
@@ -231,7 +231,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 3,
     powers: 'Seismic wave hands, earth fissure generation, structural vibration disruption.',
     description: 'Generates powerful low-frequency seismic waves capable of fracturing asphalt and buildings.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/4/49/Avalanche_%28Mesmero%27s_Brotherhood%29_%28Earth-616%29_from_X-Men_Gold_Vol_2_3_001.jpg/revision/latest?cb=20170619012725',
+    imageUrl: '/images/characters/char-c-014.jpg',
     color: '#475569',
     stats: { strength: 68, speed: 64, durability: 74, intelligence: 70, energy: 78, combat: 74 },
     specialAbilities: [
@@ -248,7 +248,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 3,
     powers: 'Photographic muscle memory, master martial artist, ancestral spiritual strength.',
     description: 'Deaf martial artist capable of replicating any physical move and channeling ancestral power.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/6/68/Echo_%28TV_series%29_Poster_001.jpg/revision/latest?cb=20231103171035',
+    imageUrl: '/images/characters/char-c-015.jpg',
     color: '#BE123C',
     stats: { strength: 66, speed: 78, durability: 70, intelligence: 82, energy: 50, combat: 92 },
     specialAbilities: [
@@ -265,7 +265,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 3,
     powers: 'Stark-tech bionic arm (concussive blasts, magnetic lock), detective marksmanship.',
     description: 'Former NYPD detective equipped with a high-tech bionic arm from Tony Stark.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/0/0a/Captain_America_Sam_Wilson_Vol_1_16_Textless.jpg/revision/latest?cb=20160920191244',
+    imageUrl: '/images/characters/char-c-016.jpg',
     color: '#D97706',
     stats: { strength: 74, speed: 72, durability: 74, intelligence: 86, energy: 55, combat: 86 },
     specialAbilities: [
@@ -282,7 +282,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 3,
     powers: 'Katana sword mastery, chi-focusing blade, samurai discipline, martial arts.',
     description: 'Expert swordsman proficient in bushido, capable of channeling chi into her heirloom katana.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/9/96/Infinity_Watch_Vol_1_5_Colleen_Wing_Virgin_Variant.jpg/revision/latest?cb=20250523093555',
+    imageUrl: '/images/characters/char-c-017.jpg',
     color: '#059669',
     stats: { strength: 64, speed: 80, durability: 68, intelligence: 80, energy: 60, combat: 92 },
     specialAbilities: [
@@ -299,7 +299,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 4,
     powers: 'Superhuman physical strength, guided jumping/flight, high impact resistance, detective.',
     description: 'Private investigator possessing immense raw strength and stubborn investigative grit.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/b/b6/Marvel%27s_Jessica_Jones_poster_002.jpg/revision/latest?cb=20151022034941',
+    imageUrl: '/images/characters/char-c-018.jpg',
     color: '#475569',
     stats: { strength: 80, speed: 70, durability: 78, intelligence: 84, energy: 30, combat: 80 },
     specialAbilities: [
@@ -316,7 +316,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 3,
     powers: 'Blind martial arts supremacy, bo staff combat, chi awareness, spiritual discipline.',
     description: 'Blind master who trained Daredevil and Elektra, wielding his wooden staff with lethal precision.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/3/3d/Stick_%28Earth-616%29_from_All-New%2C_All-Different_Point_One_Vol_1_1_001.jpg/revision/latest?cb=20151116053203',
+    imageUrl: '/images/characters/char-c-019.jpg',
     color: '#78350F',
     stats: { strength: 62, speed: 76, durability: 68, intelligence: 88, energy: 45, combat: 96 },
     specialAbilities: [
@@ -333,7 +333,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 4,
     powers: 'Espionage mastermind, tactical weapons, stealth tech, indestructible resourcefulness.',
     description: 'Legendary director of S.H.I.E.L.D. who brought together Earth Mightiest Heroes.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/9/9c/Ultimate_Comics_Ultimates_Vol_1_7_Coipel_Variant_Textless.jpg/revision/latest?cb=20120204072229',
+    imageUrl: '/images/characters/char-c-020.jpg',
     color: '#0F172A',
     stats: { strength: 64, speed: 70, durability: 72, intelligence: 96, energy: 40, combat: 86 },
     specialAbilities: [
@@ -350,7 +350,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 2,
     powers: 'Destroyer energy blaster weapon, tactical field agent, diplomatic leadership.',
     description: 'Beloved senior S.H.I.E.L.D. agent armed with prototype energy weapons reverse-engineered from Asgard.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/d/d7/Infinity_Watch_Vol_1_4_Phil_Coulson_Virgin_Variant.jpg/revision/latest?cb=20250428043602',
+    imageUrl: '/images/characters/char-c-021.jpg',
     color: '#334155',
     stats: { strength: 58, speed: 64, durability: 65, intelligence: 88, energy: 65, combat: 78 },
     specialAbilities: [
@@ -367,7 +367,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 3,
     powers: 'Dual Glock precision marksmanship, military command, tactical infiltration.',
     description: 'Former Deputy Director of S.H.I.E.L.D. with unmatched command composure and lethal aim.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/4/4b/Maria_Hill_%28Earth-616%29_from_Avengers_World_Vol_1_14_001.png/revision/latest?cb=20150220062849',
+    imageUrl: '/images/characters/char-c-022.jpg',
     color: '#1E293B',
     stats: { strength: 60, speed: 72, durability: 66, intelligence: 90, energy: 30, combat: 84 },
     specialAbilities: [
@@ -384,7 +384,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 3,
     powers: 'SSR field combat, espionage mastermind, hand-to-hand combat, indomitable bravery.',
     description: 'Legendary SSR agent and co-founder of S.H.I.E.L.D. whose tactical brilliance turned the tide of war.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/6/63/Margaret_Carter_%28Earth-616%29_from_Captain_America_Sentinel_of_Liberty_Vol_2_8_001.jpg/revision/latest?cb=20240807122944',
+    imageUrl: '/images/characters/char-c-023.jpg',
     color: '#1E3A8A',
     stats: { strength: 60, speed: 70, durability: 68, intelligence: 92, energy: 30, combat: 85 },
     specialAbilities: [
@@ -401,7 +401,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     startingPrice: 3,
     powers: 'Madripoor black market network, combat knives, tactical weapons, master spy.',
     description: 'Former CIA operative turned ruthless Power Broker of Madripoor ruling the underworld.',
-    imageUrl: 'https://static.wikia.nocookie.net/marveldatabase/images/6/6c/Sharon_Carter_%28Earth-616%29_from_Captain_America_Sentinel_of_Liberty_Vol_2_11_001.jpg/revision/latest?cb=20230415234335',
+    imageUrl: '/images/characters/char-c-024.jpg',
     color: '#0D9488',
     stats: { strength: 60, speed: 74, durability: 66, intelligence: 88, energy: 35, combat: 85 },
     specialAbilities: [
@@ -418,7 +418,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 5,
     "powers": "Radioactive spider physiology, anarchic electric guitar sonic riffs, wall-crawling, spider-sense.",
     "description": "Rockstar spider-anarchist from Earth-138 wielding an electric guitar that unleashes 15,000-volt sonic feedback chords.",
-    "imageUrl": "https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=800&q=80",
+    "imageUrl": '/images/characters/char-c-025.jpg',
     "color": "#DC2626",
     "stats": {
       "strength": 78,
@@ -448,7 +448,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 4,
     "powers": "Noir spider abilities, trenchcoat dual revolvers, shadowy stealth, organic webbing.",
     "description": "Gritty 1930s Great Depression private eye wielding twin pistols and fighting mob syndicates in shadows.",
-    "imageUrl": "https://images.unsplash.com/photo-1635863138275-d9b33299680b?auto=format&fit=crop&w=800&q=80",
+    "imageUrl": '/images/characters/char-c-026.jpg',
     "color": "#0F172A",
     "stats": {
       "strength": 76,
@@ -478,7 +478,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 4,
     "powers": "High-tech biomechanical SP//dr spider-mech, radioactive spider co-pilot, cyber-web cannons.",
     "description": "Genius teen pilot bonded psychic-link to the high-tech SP//dr armor mech with rapid web thrusters.",
-    "imageUrl": "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80",
+    "imageUrl": '/images/characters/char-c-027.jpg',
     "color": "#EF4444",
     "stats": {
       "strength": 82,
@@ -508,7 +508,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 4,
     "powers": "Cartoon physics distortion, giant wooden mallet from pocket dimension, anvil dropping, spider-sense.",
     "description": "Spectacular porcine web-slinger from Earth-8311 who bends reality through cartoon comedy physics.",
-    "imageUrl": "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=800&q=80",
+    "imageUrl": '/images/characters/char-c-028.jpg',
     "color": "#BE123C",
     "stats": {
       "strength": 75,
@@ -538,7 +538,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 5,
     "powers": "Super Soldier Serum, Union Jack Vibranium Shield mastery, superhuman athleticism, military leadership.",
     "description": "First Avenger of Earth-82111 infused with the Super Soldier Serum wielding the Union Jack Vibranium Shield.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/149-captain-america.jpg",
+    "imageUrl": '/images/characters/char-c-029.jpg',
     "color": "#1E3A8A",
     "stats": {
       "strength": 80,
@@ -568,7 +568,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 5,
     "powers": "Stark nanotech armor, 4 golden mechanical waldoes, repulsor gliding, HUD tactical AI.",
     "description": "Peter Parker equipped with Tony Stark legendary nano-tech suit featuring 4 deadly golden spider legs.",
-    "imageUrl": "https://images.unsplash.com/photo-1604200213928-ba3cf4fc8436?auto=format&fit=crop&w=800&q=80",
+    "imageUrl": '/images/characters/char-c-030.jpg',
     "color": "#B91C1C",
     "stats": {
       "strength": 82,
@@ -598,7 +598,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 5,
     "powers": "Titanium-alloy heavy exo-frame, hydraulic jackhammer fists, arc-reactor overdrive, satellite drop repair.",
     "description": "Massive heavy combat exosuit engineered specifically to go toe-to-toe with the Incredible Hulk.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/346-iron-man.jpg",
+    "imageUrl": '/images/characters/char-c-031.jpg',
     "color": "#991B1B",
     "stats": {
       "strength": 90,
@@ -628,7 +628,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 5,
     "powers": "Deadpool healing factor + Venom symbiote tendrils, dual katanas, unhinged fourth-wall chaos.",
     "description": "Lethal combination of the Venom alien symbiote and the Merc with a Mouth with tendril-wielded katanas.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/213-deadpool.jpg",
+    "imageUrl": '/images/characters/char-c-032.jpg',
     "color": "#831843",
     "stats": {
       "strength": 85,
@@ -658,7 +658,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 4,
     "powers": "Gutterspace reality manipulation, fourth-wall breaking, comic lore knowledge, dual rocket launchers.",
     "description": "Real-world comic reader transported into the Marvel Universe who steps out of comic panels to alter reality.",
-    "imageUrl": "https://images.unsplash.com/photo-1612036782180-6f0b6cd846fe?auto=format&fit=crop&w=800&q=80",
+    "imageUrl": '/images/characters/char-c-033.jpg',
     "color": "#F472B6",
     "stats": {
       "strength": 68,
@@ -688,7 +688,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 5,
     "powers": "Spider-Man powers enhanced by Doc Ock intellect, 4 carbon-steel nano-spider arms, spider-bots network.",
     "description": "Doctor Octopus mind in Peter Parker body, fighting crime with ruthlessness and four mechanical legs.",
-    "imageUrl": "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=800&q=80",
+    "imageUrl": '/images/characters/char-c-034.jpg',
     "color": "#991B1B",
     "stats": {
       "strength": 82,
@@ -718,7 +718,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 5,
     "powers": "Hellcharger 1969 Dodge Charger, Hellfire chains, Spirit of Eli Morrow possession, penance burn.",
     "description": "East LA mechanic bonded with the Spirit of Vengeance driving the flaming supercharged Hellcharger.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/280-ghost-rider.jpg",
+    "imageUrl": '/images/characters/char-c-035.jpg',
     "color": "#EA580C",
     "stats": {
       "strength": 84,
@@ -748,7 +748,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 4,
     "powers": "Shapeshifting into South American sacred animals (jaguar, anaconda, condor), divine volcano strength.",
     "description": "Honorary Avenger and ward of Edwin Jarvis blessed with the shape-shifting power of the volcano goddess Peliali.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/599-silverclaw.jpg",
+    "imageUrl": '/images/characters/char-c-036.jpg',
     "color": "#94A3B8",
     "stats": {
       "strength": 82,
@@ -778,7 +778,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 5,
     "powers": "Ambient microwave radiation conversion, intense heat projection, plasma blasts, flight.",
     "description": "Mutant heroine and Avenger capable of superheating microwave radiation into searing thermal plasma.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/259-firestar.jpg",
+    "imageUrl": '/images/characters/char-c-037.jpg',
     "color": "#F97316",
     "stats": {
       "strength": 75,
@@ -808,7 +808,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 5,
     "powers": "Geothermal earth manipulation, molten magma form, seismic shockwaves, lava projectile blast.",
     "description": "Nova Roma mutant who transforms into living molten lava and commands subterranean magma.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/422-magma.jpg",
+    "imageUrl": '/images/characters/char-c-038.jpg',
     "color": "#EA580C",
     "stats": {
       "strength": 78,
@@ -838,7 +838,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 5,
     "powers": "Superhuman agility, spider-sense, bio-magnetic wall-crawling, repelling shockwave touch.",
     "description": "Daughter of Peter Parker from Earth-982 continuing the heroic Spider-Man legacy.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/618-spider-girl.jpg",
+    "imageUrl": '/images/characters/char-c-039.jpg',
     "color": "#3B82F6",
     "stats": {
       "strength": 80,
@@ -868,7 +868,7 @@ export const GRADE_C_CHARACTERS: Character[] = [
     "startingPrice": 5,
     "powers": "Carnage symbiote + Spider-Man clone powers, blood-red tendril blades, berserk fury.",
     "description": "Ben Reilly possessed by the psychotic Carnage symbiote, creating a lethal red-and-black menace.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/162-carnage.jpg",
+    "imageUrl": '/images/characters/char-c-040.jpg',
     "color": "#991B1B",
     "stats": {
       "strength": 86,

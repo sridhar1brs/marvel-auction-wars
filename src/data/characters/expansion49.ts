@@ -29,7 +29,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 96,
-    "imageUrl": "/images/characters/char-exp49-001.jpg"
+    "imageUrl": '/images/characters/char-exp49-001.jpg'
   },
   {
     "id": "char-exp49-002",
@@ -59,7 +59,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 90,
-    "imageUrl": "/images/characters/char-exp49-002.jpg"
+    "imageUrl": '/images/characters/char-exp49-002.jpg'
   },
   {
     "id": "char-exp49-003",
@@ -89,7 +89,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 91,
-    "imageUrl": "/images/characters/char-exp49-003.jpg"
+    "imageUrl": '/images/characters/char-exp49-003.jpg'
   },
   {
     "id": "char-exp49-004",
@@ -119,7 +119,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 91,
-    "imageUrl": "/images/characters/char-exp49-004.jpg"
+    "imageUrl": '/images/characters/char-exp49-004.jpg'
   },
   {
     "id": "char-exp49-005",
@@ -149,7 +149,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 85,
-    "imageUrl": "/images/characters/char-exp49-005.jpg"
+    "imageUrl": '/images/characters/char-exp49-005.jpg'
   },
   {
     "id": "char-exp49-006",
@@ -179,7 +179,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 84,
-    "imageUrl": "/images/characters/char-exp49-006.jpg"
+    "imageUrl": '/images/characters/char-exp49-006.jpg'
   },
   {
     "id": "char-exp49-007",
@@ -209,7 +209,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 76,
-    "imageUrl": "/images/characters/char-exp49-007.jpg"
+    "imageUrl": '/images/characters/char-exp49-007.jpg'
   },
   {
     "id": "char-exp49-008",
@@ -239,7 +239,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 99,
-    "imageUrl": "/images/characters/char-exp49-008.jpg"
+    "imageUrl": '/images/characters/char-exp49-008.jpg'
   },
   {
     "id": "char-exp49-009",
@@ -269,7 +269,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 97,
-    "imageUrl": "/images/characters/char-exp49-009.jpg"
+    "imageUrl": '/images/characters/char-exp49-009.jpg'
   },
   {
     "id": "char-exp49-010",
@@ -299,7 +299,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 97,
-    "imageUrl": "/images/characters/char-exp49-010.jpg"
+    "imageUrl": '/images/characters/char-exp49-010.jpg'
   },
   {
     "id": "char-exp49-011",
@@ -329,7 +329,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 95,
-    "imageUrl": "/images/characters/char-exp49-011.jpg"
+    "imageUrl": '/images/characters/char-exp49-011.jpg'
   },
   {
     "id": "char-exp49-012",
@@ -359,7 +359,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 95,
-    "imageUrl": "/images/characters/char-exp49-012.jpg"
+    "imageUrl": '/images/characters/char-exp49-012.jpg'
   },
   {
     "id": "char-exp49-013",
@@ -389,7 +389,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 95,
-    "imageUrl": "/images/characters/char-exp49-013.jpg"
+    "imageUrl": '/images/characters/char-exp49-013.jpg'
   },
   {
     "id": "char-exp49-014",
@@ -419,7 +419,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 98,
-    "imageUrl": "/images/characters/char-exp49-014.jpg"
+    "imageUrl": '/images/characters/char-exp49-014.jpg'
   },
   {
     "id": "char-exp49-015",
@@ -449,7 +449,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 89,
-    "imageUrl": "/images/characters/char-exp49-015.jpg"
+    "imageUrl": '/images/characters/char-exp49-015.jpg'
   },
   {
     "id": "char-exp49-016",
@@ -479,7 +479,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 91,
-    "imageUrl": "/images/characters/char-exp49-016.jpg"
+    "imageUrl": '/images/characters/char-exp49-016.jpg'
   },
   {
     "id": "char-exp49-017",
@@ -509,7 +509,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 89,
-    "imageUrl": "/images/characters/char-exp49-017.jpg"
+    "imageUrl": '/images/characters/char-exp49-017.jpg'
   },
   {
     "id": "char-exp49-018",
@@ -539,7 +539,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 90,
-    "imageUrl": "/images/characters/char-exp49-018.jpg"
+    "imageUrl": '/images/characters/char-exp49-018.jpg'
   },
   {
     "id": "char-exp49-019",
@@ -569,7 +569,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 88,
-    "imageUrl": "/images/characters/char-exp49-019.jpg"
+    "imageUrl": '/images/characters/char-exp49-019.jpg'
   },
   {
     "id": "char-exp49-020",
@@ -599,7 +599,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 95,
-    "imageUrl": "/images/characters/char-exp49-020.jpg"
+    "imageUrl": '/images/characters/char-exp49-020.jpg'
   },
   {
     "id": "char-exp49-021",
@@ -629,7 +629,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 92,
-    "imageUrl": "/images/characters/char-exp49-021.jpg"
+    "imageUrl": '/images/characters/char-exp49-021.jpg'
   },
   {
     "id": "char-exp49-022",
@@ -659,7 +659,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 93,
-    "imageUrl": "/images/characters/char-exp49-022.jpg"
+    "imageUrl": '/images/characters/char-exp49-022.jpg'
   },
   {
     "id": "char-exp49-023",
@@ -689,7 +689,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 92,
-    "imageUrl": "/images/characters/char-exp49-023.jpg"
+    "imageUrl": '/images/characters/char-exp49-023.jpg'
   },
   {
     "id": "char-exp49-024",
@@ -719,7 +719,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 95,
-    "imageUrl": "/images/characters/char-exp49-024.jpg"
+    "imageUrl": '/images/characters/char-exp49-024.jpg'
   },
   {
     "id": "char-exp49-025",
@@ -749,7 +749,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 90,
-    "imageUrl": "/images/characters/char-exp49-025.jpg"
+    "imageUrl": '/images/characters/char-exp49-025.jpg'
   },
   {
     "id": "char-exp49-026",
@@ -779,7 +779,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 92,
-    "imageUrl": "/images/characters/char-exp49-026.jpg"
+    "imageUrl": '/images/characters/char-exp49-026.jpg'
   },
   {
     "id": "char-exp49-027",
@@ -809,7 +809,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 92,
-    "imageUrl": "/images/characters/char-exp49-027.jpg"
+    "imageUrl": '/images/characters/char-exp49-027.jpg'
   },
   {
     "id": "char-exp49-028",
@@ -839,7 +839,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 89,
-    "imageUrl": "/images/characters/char-exp49-028.jpg"
+    "imageUrl": '/images/characters/char-exp49-028.jpg'
   },
   {
     "id": "char-exp49-029",
@@ -869,7 +869,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 85,
-    "imageUrl": "/images/characters/char-exp49-029.jpg"
+    "imageUrl": '/images/characters/char-exp49-029.jpg'
   },
   {
     "id": "char-exp49-030",
@@ -899,7 +899,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 84,
-    "imageUrl": "/images/characters/char-exp49-030.jpg"
+    "imageUrl": '/images/characters/char-exp49-030.jpg'
   },
   {
     "id": "char-exp49-031",
@@ -929,7 +929,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 86,
-    "imageUrl": "/images/characters/char-exp49-031.jpg"
+    "imageUrl": '/images/characters/char-exp49-031.jpg'
   },
   {
     "id": "char-exp49-032",
@@ -959,7 +959,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 85,
-    "imageUrl": "/images/characters/char-exp49-032.jpg"
+    "imageUrl": '/images/characters/char-exp49-032.jpg'
   },
   {
     "id": "char-exp49-033",
@@ -989,7 +989,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 86,
-    "imageUrl": "/images/characters/char-exp49-033.jpg"
+    "imageUrl": '/images/characters/char-exp49-033.jpg'
   },
   {
     "id": "char-exp49-034",
@@ -1019,7 +1019,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 85,
-    "imageUrl": "/images/characters/char-exp49-034.jpg"
+    "imageUrl": '/images/characters/char-exp49-034.jpg'
   },
   {
     "id": "char-exp49-035",
@@ -1049,7 +1049,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 85,
-    "imageUrl": "/images/characters/char-exp49-035.jpg"
+    "imageUrl": '/images/characters/char-exp49-035.jpg'
   },
   {
     "id": "char-exp49-036",
@@ -1079,7 +1079,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 88,
-    "imageUrl": "/images/characters/char-exp49-036.jpg"
+    "imageUrl": '/images/characters/char-exp49-036.jpg'
   },
   {
     "id": "char-exp49-037",
@@ -1109,7 +1109,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 84,
-    "imageUrl": "/images/characters/char-exp49-037.jpg"
+    "imageUrl": '/images/characters/char-exp49-037.jpg'
   },
   {
     "id": "char-exp49-038",
@@ -1139,7 +1139,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 87,
-    "imageUrl": "/images/characters/char-exp49-038.jpg"
+    "imageUrl": '/images/characters/char-exp49-038.jpg'
   },
   {
     "id": "char-exp49-039",
@@ -1169,7 +1169,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 83,
-    "imageUrl": "/images/characters/char-exp49-039.jpg"
+    "imageUrl": '/images/characters/char-exp49-039.jpg'
   },
   {
     "id": "char-exp49-040",
@@ -1199,7 +1199,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 87,
-    "imageUrl": "/images/characters/char-exp49-040.jpg"
+    "imageUrl": '/images/characters/char-exp49-040.jpg'
   },
   {
     "id": "char-exp49-041",
@@ -1229,7 +1229,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 86,
-    "imageUrl": "/images/characters/char-exp49-041.jpg"
+    "imageUrl": '/images/characters/char-exp49-041.jpg'
   },
   {
     "id": "char-exp49-042",
@@ -1259,7 +1259,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 88,
-    "imageUrl": "/images/characters/char-exp49-042.jpg"
+    "imageUrl": '/images/characters/char-exp49-042.jpg'
   },
   {
     "id": "char-exp49-043",
@@ -1289,7 +1289,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 85,
-    "imageUrl": "/images/characters/char-exp49-043.jpg"
+    "imageUrl": '/images/characters/char-exp49-043.jpg'
   },
   {
     "id": "char-exp49-044",
@@ -1319,7 +1319,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 77,
-    "imageUrl": "/images/characters/char-exp49-044.jpg"
+    "imageUrl": '/images/characters/char-exp49-044.jpg'
   },
   {
     "id": "char-exp49-045",
@@ -1349,7 +1349,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 76,
-    "imageUrl": "/images/characters/char-exp49-045.jpg"
+    "imageUrl": '/images/characters/char-exp49-045.jpg'
   },
   {
     "id": "char-exp49-046",
@@ -1379,7 +1379,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 75,
-    "imageUrl": "/images/characters/char-exp49-046.jpg"
+    "imageUrl": '/images/characters/char-exp49-046.jpg'
   },
   {
     "id": "char-exp49-047",
@@ -1409,7 +1409,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 79,
-    "imageUrl": "/images/characters/char-exp49-047.jpg"
+    "imageUrl": '/images/characters/char-exp49-047.jpg'
   },
   {
     "id": "char-exp49-048",
@@ -1439,7 +1439,7 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 80,
-    "imageUrl": "/images/characters/char-exp49-048.jpg"
+    "imageUrl": '/images/characters/char-exp49-048.jpg'
   },
   {
     "id": "char-exp49-049",
@@ -1469,6 +1469,6 @@ export const EXPANSION_49_CHARACTERS: Character[] = [
       }
     ],
     "overallPower": 78,
-    "imageUrl": "/images/characters/char-exp49-049.jpg"
+    "imageUrl": '/images/characters/char-exp49-049.jpg'
   }
 ];

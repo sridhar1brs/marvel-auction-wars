@@ -10,7 +10,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Centuries of absorbed mystical demonic beings, absolute mystic warding, time distortion, dragon summons.",
     "description": "Tragic alternate Doctor Strange who absorbed hundreds of mystic entities gaining overwhelming dark sorcery.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/226-doctor-strange.jpg",
+    "imageUrl": '/images/characters/char-c-041.jpg',
     "color": "#581C87",
     "stats": {
       "strength": 82,
@@ -40,7 +40,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 4,
     "powers": "Marrow cell bio-mimicry, superpower absorption upon physical contact, cubic head acoustic horn.",
     "description": "Mad Thinker creation capable of mimicking any superhuman physical or energy power upon touch.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/43-arnim-zola.jpg",
+    "imageUrl": '/images/characters/char-c-042.jpg',
     "color": "#475569",
     "stats": {
       "strength": 88,
@@ -70,7 +70,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Immense Tanaraq mystical beast strength, superhuman leaping, thick orange fur durability, healing.",
     "description": "Alpha Flight powerhouse possessing the gamma-infused mystical form of the Great Beast Tanaraq.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/573-sasquatch.jpg",
+    "imageUrl": '/images/characters/char-c-043.jpg',
     "color": "#D97706",
     "stats": {
       "strength": 90,
@@ -100,7 +100,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 4,
     "powers": "Compressed super-dense muscular body, spinning cartwheel impact strikes, superhuman durability.",
     "description": "Alpha Flight veteran whose compressed rubber-like anatomy enables deadly kinetic bouncing strikes.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/528-puck.jpg",
+    "imageUrl": '/images/characters/char-c-044.jpg',
     "color": "#78350F",
     "stats": {
       "strength": 78,
@@ -130,7 +130,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Stark-engineered heavy artillery exoskeleton, shoulder micro-missiles, Gatling cannons, lethal tactical combat.",
     "description": "Frank Castle commandeers Rhodey's War Machine armor to wage a one-man war on international cartels.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/530-punisher.jpg",
+    "imageUrl": '/images/characters/char-c-045.jpg',
     "color": "#0F172A",
     "stats": {
       "strength": 85,
@@ -160,7 +160,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Shapeshifting into Arctic creatures, divine Inua god physiology, flight, mystical senses.",
     "description": "Daughter of the Northern goddess Nelvanna capable of morphing into any legendary Arctic predator.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/607-snowbird.jpg",
+    "imageUrl": '/images/characters/char-c-046.jpg',
     "color": "#E0F2FE",
     "stats": {
       "strength": 80,
@@ -190,7 +190,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Solid sonic acoustic constructs, flight via sound wings, ultrasonic scream blasts.",
     "description": "Thunderbolts veteran who uses a sonic harness to materialize solid sound forcefields and weapons.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/610-songbird.jpg",
+    "imageUrl": '/images/characters/char-c-047.jpg',
     "color": "#F43F5E",
     "stats": {
       "strength": 74,
@@ -220,7 +220,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Cybernetic battlesuit, gravitational electromagnetic pulse, forcefield, hypersonic flight.",
     "description": "Founder and leader of Alpha Flight wearing the electromagnetic Canadian battlesuit.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/308-guardian.jpg",
+    "imageUrl": '/images/characters/char-c-048.jpg',
     "color": "#DC2626",
     "stats": {
       "strength": 80,
@@ -250,7 +250,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Sub-light speed flight, photonic flash emission, kinetic acceleration strikes.",
     "description": "Twin sister of Northstar who channels brilliant photonic aura and blistering acceleration.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/56-aurora.jpg",
+    "imageUrl": '/images/characters/char-c-049.jpg',
     "color": "#BAE6FD",
     "stats": {
       "strength": 74,
@@ -280,7 +280,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Sonic scream, sonic lance propulsion, echolocation, vocal trance hypnotism.",
     "description": "Irish mutant daughter of Banshee possessing an acoustic vocal scream capable of shattering steel.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/604-siryn.jpg",
+    "imageUrl": '/images/characters/char-c-050.jpg',
     "color": "#10B981",
     "stats": {
       "strength": 72,
@@ -310,7 +310,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Body composed of billions of mutant bees, hive-mind dispersion, venomous stings.",
     "description": "Nazi scientist whose consciousness fused into a sentient swarm of billions of stinging killer bees.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/646-swarm.jpg",
+    "imageUrl": '/images/characters/char-c-051.jpg',
     "color": "#EAB308",
     "stats": {
       "strength": 76,
@@ -340,7 +340,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Mutant aura synchronization, power mimicry and amplification, energy bio-field.",
     "description": "Generation X and Krakoan mutant prodigy who synchronizes with nearby superpowers to replicate them.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/648-synch.jpg",
+    "imageUrl": '/images/characters/char-c-052.jpg',
     "color": "#8B5CF6",
     "stats": {
       "strength": 80,
@@ -370,7 +370,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Genetic infusion of tiger shark DNA and Namor tissue, water breathing, razor teeth, super strength.",
     "description": "Olympic swimmer bio-engineered into an amphibious predator with titanium-teethed jaws.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/666-tiger-shark.jpg",
+    "imageUrl": '/images/characters/char-c-053.jpg',
     "color": "#0284C7",
     "stats": {
       "strength": 86,
@@ -400,7 +400,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Pseudo-vampirism, night gliding, echolocation, hypnotism, super strength, blood hunger.",
     "description": "Biochemist mutated into a living vampire with an insatiable bloodlust and deadly predatory instincts.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/465-morbius.jpg",
+    "imageUrl": '/images/characters/char-c-054.jpg',
     "color": "#475569",
     "stats": {
       "strength": 82,
@@ -430,7 +430,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Centuries of dark witchcraft, magic energy siphon, illusion casting, mystic familiars.",
     "description": "Ancient sorceress supreme of New Salem who manipulates purple chaos runes and drains opponent magic.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/245-enchantress.jpg",
+    "imageUrl": '/images/characters/char-c-055.jpg',
     "color": "#4C1D95",
     "stats": {
       "strength": 55,
@@ -460,7 +460,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 4,
     "powers": "Lycanthropy curse, razor claws, enhanced senses, moon-amplified ferocity, rapid healing.",
     "description": "Cursed Transylvanian bloodline transformee who roams as an apex supernatural werewolf predator.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/716-wolfsbane.jpg",
+    "imageUrl": '/images/characters/char-c-056.jpg',
     "color": "#78350F",
     "stats": {
       "strength": 82,
@@ -490,7 +490,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Nexus of All Realities swamp monster physiology, empathy-based sulfuric acid secretion, plant body.",
     "description": "Guardian of the Nexus of All Realities — 'Whatever knows fear burns at the Man-Thing's touch!'",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/428-man-thing.jpg",
+    "imageUrl": '/images/characters/char-c-057.jpg',
     "color": "#14532D",
     "stats": {
       "strength": 88,
@@ -520,7 +520,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Bloodgem choker immortality, superhuman immunity to poisons/vampirism, heavy arsenal proficiency.",
     "description": "Fearless monster hunter armed with a magical Bloodgem choker and dual heavy shotguns.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/240-elixir.jpg",
+    "imageUrl": '/images/characters/char-c-058.jpg',
     "color": "#BE123C",
     "stats": {
       "strength": 78,
@@ -550,7 +550,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Dimensional darkforce spotted portals, localized spacewarping, multiversal travel.",
     "description": "Scientist covered in dimensional portals that allow him to punch and kick from any spatial angle.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/685-vanisher.jpg",
+    "imageUrl": '/images/characters/char-c-059.jpg',
     "color": "#1E293B",
     "stats": {
       "strength": 74,
@@ -580,7 +580,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Undead Super Soldier physique, insatiable viral hunger, vibranium shield ricochet.",
     "description": "Undead leader of the Zombie Avengers driven by an eternal cosmic hunger for fresh flesh.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/1-a-bomb.jpg",
+    "imageUrl": '/images/characters/char-c-060.jpg',
     "color": "#1E3A8A",
     "stats": {
       "strength": 82,
@@ -610,7 +610,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Corroded cybernetic armor, decaying repulsor blasts, relentless undead stamina.",
     "description": "Undead Tony Stark wielding rusted repulsor tech and a corrupted unibeam.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/11-agent-zero.jpg",
+    "imageUrl": '/images/characters/char-c-061.jpg',
     "color": "#7F1D1D",
     "stats": {
       "strength": 84,
@@ -640,7 +640,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Super Soldier mastery, Cosmic Cube tactical empowerment, Supreme Leader military command.",
     "description": "Cosmic Cube-altered Steve Rogers who took over America as Supreme Leader of Hydra.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/550-red-guardian.jpg",
+    "imageUrl": '/images/characters/char-c-062.jpg',
     "color": "#064E3B",
     "stats": {
       "strength": 84,
@@ -670,7 +670,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Avatar of Taweret, golden divine wings, dual enchanted short swords, Egyptian magic warding.",
     "description": "Egypt's fierce superhero avatar endowed by the goddess Taweret with gleaming golden wings.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/344-invisible-woman.jpg",
+    "imageUrl": '/images/characters/char-c-063.jpg',
     "color": "#D97706",
     "stats": {
       "strength": 80,
@@ -700,7 +700,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "All-Black Necrosword dark matter construct, spiked tentacles, god-slaying dark blade.",
     "description": "Living shadow soldier manifested from the All-Black Necrosword to slaughter divine pantheons.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/105-blackheart.jpg",
+    "imageUrl": '/images/characters/char-c-064.jpg',
     "color": "#09090B",
     "stats": {
       "strength": 86,
@@ -730,7 +730,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Inhuman aquatic physiology, underwater speed, superhuman pressure resistance, echolocation.",
     "description": "Inhuman Royal Family aquatic scout who thrives in the deepest depths of the ocean.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/677-triton.jpg",
+    "imageUrl": '/images/characters/char-c-065.jpg',
     "color": "#059669",
     "stats": {
       "strength": 80,
@@ -760,7 +760,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Superhuman Apache athletic prowess, dense muscle tissue, relentless stamina, tracking.",
     "description": "Proud Apache warrior and founding Giant-Size X-Men member possessing superhuman physical resilience.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/661-thunderbird.jpg",
+    "imageUrl": '/images/characters/char-c-066.jpg',
     "color": "#B91C1C",
     "stats": {
       "strength": 82,
@@ -790,7 +790,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Enchanted mace Thunderstrike, Asgardian divine power, weather control, mystic armor.",
     "description": "Heroic architect granted the enchanted mace Thunderstrike by Odin to defend Midgard.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/664-thunderstrike.jpg",
+    "imageUrl": '/images/characters/char-c-067.jpg',
     "color": "#D97706",
     "stats": {
       "strength": 86,
@@ -820,7 +820,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Adamantium dual arm claws and foot claw, rapid cellular regeneration, heightened senses.",
     "description": "Clone-daughter of Logan who carries the legendary Wolverine mantle with pride and lethality.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/723-x-23.jpg",
+    "imageUrl": '/images/characters/char-c-068.jpg',
     "color": "#FACC15",
     "stats": {
       "strength": 80,
@@ -850,7 +850,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Genetically perfected superhuman strength, chain weapon mastery, warrior stamina.",
     "description": "Time-traveling matriarchal warrior supreme from the alternate future of Femizonia.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/665-thundra.jpg",
+    "imageUrl": '/images/characters/char-c-069.jpg',
     "color": "#EA580C",
     "stats": {
       "strength": 88,
@@ -880,7 +880,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Grendel primordial dragon symbiote spine, necro-tendril tendrils, absolute bloodthirsty madness.",
     "description": "Cletus Kasady bonded with the primordial Grendel symbiote to harvest codices for Knull.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/672-toxin.jpg",
+    "imageUrl": '/images/characters/char-c-070.jpg',
     "color": "#7F1D1D",
     "stats": {
       "strength": 88,
@@ -910,7 +910,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Apocalypse celestial death-transmutation, kinetic card charging into toxic lethal gas.",
     "description": "Remy LeBeau augmented by Apocalypse as the Horseman of Death with lethal black kinetic charge.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/276-gambit.jpg",
+    "imageUrl": '/images/characters/char-c-071.jpg',
     "color": "#18181B",
     "stats": {
       "strength": 78,
@@ -940,7 +940,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 4,
     "powers": "Master hand-to-hand assassin, Hand ninjutsu, katana mastery, shuriken precision lethal accuracy.",
     "description": "Deadly Hand assassin inspired by Bullseye who never misses a vital target.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/141-bullseye.jpg",
+    "imageUrl": '/images/characters/char-c-072.jpg',
     "color": "#E2E8F0",
     "stats": {
       "strength": 70,
@@ -970,7 +970,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "1000th generation symbiote strength surpassing Carnage and Venom, toxic fangs, camo stealth.",
     "description": "Offspring of Carnage bonded to NYC cop Pat Mulligan with power exceeding both father and grandfather.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/671-toxin.jpg",
+    "imageUrl": '/images/characters/char-c-073.jpg',
     "color": "#DC2626",
     "stats": {
       "strength": 90,
@@ -1000,7 +1000,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 4,
     "powers": "Genius engineering, weapon crafting, cybernetic sabotages, high-tech gadgets.",
     "description": "Underground mastermind engineer who equips Marvel supervillains with devastating high-tech weaponry.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/668-tinkerer.jpg",
+    "imageUrl": '/images/characters/char-c-074.jpg',
     "color": "#64748B",
     "stats": {
       "strength": 55,
@@ -1030,7 +1030,7 @@ export const GRADE_C_PART2: Character[] = [
     "startingPrice": 5,
     "powers": "Geothermal battlesuit, electromagnetic forcefields, tectonic blast discharge, flight.",
     "description": "Leader of Alpha Flight wearing the Canadian Guardian battlesuit powered by geothermal energy.",
-    "imageUrl": "https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/693-vindicator.jpg",
+    "imageUrl": '/images/characters/char-c-075.jpg',
     "color": "#DC2626",
     "stats": {
       "strength": 78,
