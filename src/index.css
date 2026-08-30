@@ -62,25 +62,28 @@ html, body {
 
 /* Custom Marvel Glows & Glassmorphism */
 .glass-panel {
-  background: rgba(18, 22, 32, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(18, 22, 32, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .glass-panel-glow {
-  background: rgba(18, 22, 32, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(18, 22, 32, 0.90);
   border: 1px solid rgba(230, 36, 41, 0.3);
   box-shadow: 0 0 30px rgba(230, 36, 41, 0.15);
 }
 
 .cosmic-panel {
   background: linear-gradient(135deg, rgba(30, 15, 55, 0.9) 0%, rgba(10, 10, 20, 0.95) 100%);
-  backdrop-filter: blur(20px);
   border: 1px solid rgba(168, 85, 247, 0.4);
   box-shadow: 0 0 35px rgba(168, 85, 247, 0.25);
+}
+
+/* Modal Backdrops: Always keep background UI crisp and sharp without blur */
+.fixed.inset-0,
+.modal-overlay,
+.modal-backdrop {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 /* Metallic Comic Text Gradients */

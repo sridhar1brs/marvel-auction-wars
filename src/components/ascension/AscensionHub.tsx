@@ -22,6 +22,7 @@ import { CharacterMastery } from './CharacterMastery';
 import { CrateOpening } from './CrateOpening';
 import { NewPlayerChooser } from './NewPlayerChooser';
 import { CharacterTokenForge } from './CharacterTokenForge';
+import { FriendsModal } from '../social/FriendsModal';
 import { soundManager } from '../../audio/soundManager';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -61,6 +62,7 @@ export function AscensionHub({ onBackToHome }: Props) {
   const [isRedeemOpen, setIsRedeemOpen] = useState(false);
   const [isCrateOpen, setIsCrateOpen] = useState(false);
   const [availableCrates, setAvailableCrates] = useState<any[]>([]);
+  const [isFriendsOpen, setIsFriendsOpen] = useState(false);
   const [showNewPlayerChooser, setShowNewPlayerChooser] = useState(false);
 
   const isAdmin = user?.username?.toLowerCase() === 'darksenseify' && user?.role === 'admin' && user?.isAdmin;
@@ -136,6 +138,7 @@ export function AscensionHub({ onBackToHome }: Props) {
       <AscensionHeader
         onBackToHome={onBackToHome}
         onOpenProfile={() => setIsProfileOpen(true)}
+        onOpenFriends={() => setIsFriendsOpen(true)}
       />
 
       {/* 2. Top Navigation Tabs Bar — 18 Buttons Unified */}
@@ -180,16 +183,12 @@ export function AscensionHub({ onBackToHome }: Props) {
             <button
               type="button"
               onClick={() => { soundManager.playClick(); setIsCrateOpen(true); }}
-              className={`relative shrink-0 h-9 flex items-center justify-center gap-1.5 px-3 rounded-xl text-[11px] sm:text-xs font-heading font-black uppercase tracking-wider transition-all cursor-pointer ${
-                claimableCratesCount > 0
-                  ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-black animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.4)] border border-amber-400'
-                  : 'bg-slate-900/70 hover:bg-slate-800 text-amber-300 hover:text-white border border-amber-500/30 hover:border-amber-500'
-              }`}
+              className="relative shrink-0 h-9 flex items-center justify-center gap-1.5 px-3 rounded-xl text-[11px] sm:text-xs font-heading font-black uppercase tracking-wider bg-gradient-to-r from-amber-500/20 to-yellow-600/20 hover:from-amber-500/30 hover:to-yellow-600/30 text-amber-300 border border-amber-500/40 hover:border-amber-400 transition-all cursor-pointer"
             >
               <Package className="w-3.5 h-3.5 text-amber-400" />
               <span>Crates</span>
               {claimableCratesCount > 0 && (
-                <span className="ml-1 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow">
+                <span className="ml-1 w-4 h-4 bg-amber-500 text-black text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">
                   {claimableCratesCount}
                 </span>
               )}
@@ -198,25 +197,22 @@ export function AscensionHub({ onBackToHome }: Props) {
         </div>
       </nav>
 
-      {/* 3. Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
-        {/* ——— Existing Tabs ——— */}
-        {activeTab === 'HOME' && <AscensionHome onNavigateTab={handleTabClick} />}
-        {activeTab === 'CHARACTERS' && <CharacterDatabase />}
-        {activeTab === 'SHOP' && <AscensionShop />}
-        {activeTab === 'RELICS' && <AscensionRelicVault />}
-        {activeTab === 'SKILLS' && <AscensionSkillVault />}
-        {activeTab === 'BATTLE' && <AscensionBattleArena />}
-        {activeTab === 'RANKED' && <AscensionRankedArena />}
-        {activeTab === 'INVENTORY' && <AscensionInventory />}
-        {activeTab === 'BATTLE_PASS' && <AscensionBattlePass />}
+      {/* 3. Main Content Views (18 Tabs) */}
+      <main className="flex-1 max-w-[1700px] w-full mx-auto p-3 sm:p-6">
+        {activeTab === 'HOME'         && <AscensionHome onNavigateTab={handleTabClick} />}
+        {activeTab === 'CHARACTERS'   && <CharacterDatabase />}
+        {activeTab === 'SHOP'         && <AscensionShop />}
+        {activeTab === 'RELICS'       && <AscensionRelicVault />}
+        {activeTab === 'SKILLS'       && <AscensionSkillVault />}
+        {activeTab === 'BATTLE'       && <AscensionBattleArena />}
+        {activeTab === 'RANKED'       && <AscensionRankedArena />}
+        {activeTab === 'INVENTORY'    && <AscensionInventory />}
+        {activeTab === 'BATTLE_PASS'  && <AscensionBattlePass />}
         {activeTab === 'LEADERBOARDS' && <AscensionLeaderboards />}
-        {activeTab === 'ADMIN' && <AscensionAdminPanel />}
-
-        {/* ——— v4.0 New Tabs ——— */}
-        {activeTab === 'MISSIONS'      && <DailyMissions />}
-        {activeTab === 'ACHIEVEMENTS'  && <Achievements />}
-        {activeTab === 'CARD_FORGE'    && <CardForge />}
+        {activeTab === 'ADMIN'        && isAdmin && <AscensionAdminPanel />}
+        {activeTab === 'MISSIONS'     && <DailyMissions />}
+        {activeTab === 'ACHIEVEMENTS' && <Achievements />}
+        {activeTab === 'CARD_FORGE'   && <CardForge />}
         {activeTab === 'MYSTERY_WHEEL' && <MysteryWheel />}
         {activeTab === 'TEAM_BUILDER'  && <TeamBuilder />}
         {activeTab === 'MASTERY'       && <CharacterMastery />}
@@ -226,6 +222,13 @@ export function AscensionHub({ onBackToHome }: Props) {
       {/* 4. Modals */}
       {isProfileOpen && (
         <PlayerProfileModal onClose={() => setIsProfileOpen(false)} />
+      )}
+
+      {isFriendsOpen && (
+        <FriendsModal
+          isOpen={isFriendsOpen}
+          onClose={() => setIsFriendsOpen(false)}
+        />
       )}
 
       {isRedeemOpen && (

@@ -49,7 +49,7 @@ export function AscensionGiftingModal({ onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn select-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 animate-fadeIn select-none">
       <div className="relative w-full max-w-md bg-[#0D0F1B] border-2 border-cyan-500/50 rounded-3xl shadow-[0_0_50px_rgba(6,182,212,0.35)] overflow-hidden p-5 sm:p-6 space-y-5">
         
         {/* Header */}

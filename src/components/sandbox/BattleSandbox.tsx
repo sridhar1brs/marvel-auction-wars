@@ -1123,7 +1123,7 @@ export function BattleSandbox({ onBack }: Props) {
 
       {/* 9. Character Picker Modal Drawer */}
       {activeSlotSelection && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
           <div className="glass-panel p-6 rounded-3xl border border-white/20 bg-[#0C101A] max-w-3xl w-full max-h-[85vh] flex flex-col space-y-4 animate-scaleUp">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div>

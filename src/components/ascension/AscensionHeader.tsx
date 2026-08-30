@@ -7,9 +7,10 @@ import { getRankLabel } from '../../data/ascensionProgression';
 interface Props {
   onBackToHome: () => void;
   onOpenProfile: () => void;
+  onOpenFriends?: () => void;
 }
 
-export function AscensionHeader({ onBackToHome, onOpenProfile }: Props) {
+export function AscensionHeader({ onBackToHome, onOpenProfile, onOpenFriends }: Props) {
   const { user, isAuthenticated } = useAuth();
 
   const getRankDisplay = () => {
@@ -38,34 +39,43 @@ export function AscensionHeader({ onBackToHome, onOpenProfile }: Props) {
             title="Return to Main Platform Hub"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Platform Hub</span>
+            <span className="hidden xs:inline font-heading font-black">PLATFORM</span>
           </button>
 
-          <div className="flex items-center gap-1.5 select-none">
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-heading font-black text-xs sm:text-base px-2 py-0.5 rounded shadow-glow-cosmic">
-              MARVEL
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-purple-600 flex items-center justify-center text-base shadow-glow-cyan">
+              ⚡
             </div>
-            <span className="font-heading font-black text-sm sm:text-lg bg-gradient-to-r from-cyan-300 via-amber-300 to-white bg-clip-text text-transparent uppercase tracking-wider">
-              ASCENSION
-            </span>
+            <div>
+              <h1 className="font-heading font-black text-sm sm:text-base text-white tracking-wider leading-none">
+                MARVEL ASCENSION
+              </h1>
+              <span className="text-[10px] text-cyan-400 font-mono tracking-widest hidden sm:inline">
+                RPG PROTOCOL v4.0
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Center/Right: Commander Status, Astra & Rank */}
-        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+        {/* Right: Currency & Profile Badges */}
+        <div className="flex items-center gap-2 sm:gap-3">
           
-          {/* 🎟️ REDEEM CODE BUTTON */}
-          {false && (
+          {/* Alliance & Squad Trigger */}
+          {isAuthenticated && user && onOpenFriends && (
             <button
               type="button"
               onClick={() => {
                 soundManager.playClick();
+                onOpenFriends();
               }}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-purple-950/70 hover:bg-purple-900 border border-purple-400/60 text-purple-200 hover:text-white text-xs font-bold transition-all shadow-sm"
-              title="Redeem Promotional Key"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-950/80 to-indigo-950/80 border border-purple-500/50 hover:border-purple-400 text-purple-200 hover:text-white text-xs font-heading font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm"
+              title="Open Alliance & Friends List"
             >
-              <span>🎟️</span>
-              <span className="hidden md:inline">Redeem Code</span>
+              <span>👥</span>
+              <span className="hidden sm:inline">ALLIANCE</span>
+              <span className="text-[9px] bg-purple-600 text-white font-mono px-1.5 py-0.2 rounded-full">
+                {user.friendsCount || (user.friends || []).length}
+              </span>
             </button>
           )}
 

@@ -39,6 +39,68 @@ const ascensionQueue: Array<{
   format: AscensionBattleState['format']; mode: 'casual' | 'ranked'; team: Character[]; queuedAt: number;
 }> = [];
 
+// ==========================================
+// 👥 SOCIAL / FRIENDS & PARTY IN-MEMORY STATE
+// ==========================================
+export interface PartyMember {
+  userId: string;
+  socketId: string;
+  username: string;
+  displayName: string;
+  avatar: string;
+  customAvatarUrl?: string;
+  level: number;
+  isLeader: boolean;
+  isReady: boolean;
+}
+
+export interface PartyState {
+  id: string;
+  leaderId: string;
+  members: PartyMember[];
+  createdAt: number;
+}
+
+const userSocketMap = new Map<string, string>(); // userId -> socketId
+const socketUserMap = new Map<string, string>(); // socketId -> userId
+const parties = new Map<string, PartyState>(); // partyId -> PartyState
+const userPartyMap = new Map<string, string>(); // userId -> partyId
+
+function notifyFriendsPresence(userId: string, isOnline: boolean) {
+  const user = database.getRawUser(userId);
+  if (!user || !user.friends) return;
+  user.friends.forEach(friendId => {
+    const friendSocketId = userSocketMap.get(friendId);
+    if (friendSocketId) {
+      io.to(friendSocketId).emit('player_presence_changed', { userId, isOnline });
+    }
+  });
+}
+
+function leaveParty(userId: string, socketId?: string) {
+  const partyId = userPartyMap.get(userId);
+  if (!partyId) return;
+  userPartyMap.delete(userId);
+  const party = parties.get(partyId);
+  if (!party) return;
+
+  party.members = party.members.filter(m => m.userId !== userId);
+  if (socketId) {
+    io.sockets.sockets.get(socketId)?.leave(`party_${partyId}`);
+  }
+
+  if (party.members.length === 0) {
+    parties.delete(partyId);
+  } else {
+    // If leader left, promote next member
+    if (party.leaderId === userId) {
+      party.leaderId = party.members[0].userId;
+      party.members[0].isLeader = true;
+    }
+    io.to(`party_${partyId}`).emit('party_state_updated', party);
+  }
+}
+
 function ascensionSocketSessionHasProfile(profileId: string): boolean {
   for (const session of ascensionSocketSession.values()) {
     if (session.profileId === profileId) return true;
@@ -572,6 +634,98 @@ app.post('/api/admin/grant-reward', (req, res) => {
   if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
   const { targetUsername, rewardType, amount, characterId } = req.body;
   const result = database.adminGrantReward(user.id, targetUsername, rewardType, Number(amount) || 0, characterId);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+// ==========================================
+// 👥 SOCIAL / FRIENDS & PARTY APIs
+// ==========================================
+app.get('/api/social/friends', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const data = database.getFriendsData(user.id);
+  if (data.friends) {
+    data.friends.forEach((f: any) => {
+      f.isOnline = userSocketMap.has(f.id);
+    });
+  }
+  res.json(data);
+});
+
+app.post('/api/social/friends/request', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { targetUsername } = req.body;
+  const result = database.sendFriendRequest(user.id, targetUsername);
+  if (!result.success) return res.status(400).json(result);
+
+  // Notify target user via socket if online
+  if (result.targetUser) {
+    const targetSocketId = userSocketMap.get(result.targetUser.id);
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('friend_request_received', {
+        id: user.id,
+        username: user.username,
+        displayName: user.displayName || user.username,
+        avatar: user.avatar,
+        customAvatarUrl: user.customAvatarUrl,
+        level: user.level,
+      });
+    }
+  }
+  res.json(result);
+});
+
+app.post('/api/social/friends/accept', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { requesterUserId } = req.body;
+  const result = database.acceptFriendRequest(user.id, requesterUserId);
+  if (!result.success) return res.status(400).json(result);
+
+  // Notify requester via socket
+  const requesterSocketId = userSocketMap.get(requesterUserId);
+  if (requesterSocketId) {
+    io.to(requesterSocketId).emit('friend_request_accepted', {
+      id: user.id,
+      username: user.username,
+      displayName: user.displayName || user.username,
+      avatar: user.avatar,
+      customAvatarUrl: user.customAvatarUrl,
+    });
+  }
+  res.json(result);
+});
+
+app.post('/api/social/friends/decline', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { requesterUserId } = req.body;
+  const result = database.declineFriendRequest(user.id, requesterUserId);
+  res.json(result);
+});
+
+app.post('/api/social/friends/remove', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { targetUserId } = req.body;
+  const result = database.removeFriend(user.id, targetUserId);
+  res.json(result);
+});
+
+app.get('/api/social/profile/:id', (req, res) => {
+  const result = database.getUserPublicProfile(req.params.id);
+  if (!result.success) return res.status(404).json(result);
+  res.json(result);
+});
+
+// Ranked Reward Claiming
+app.post('/api/ranked/claim-reward', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { rankId } = req.body;
+  const result = database.claimRankReward(user.id, rankId);
   if (!result.success) return res.status(400).json(result);
   res.json(result);
 });
@@ -1561,8 +1715,202 @@ io.on('connection', (socket: Socket) => {
     }
   });
 
+  // ==========================================
+  // 👥 SOCIAL & PARTY SOCKET EVENT HANDLERS
+  // ==========================================
+
+  // Social presence authentication
+  socket.on('social_auth', (data: { token?: string }) => {
+    if (!data?.token) return;
+    const payload = database.verifyToken(data.token);
+    if (!payload) return;
+    userSocketMap.set(payload.id, socket.id);
+    socketUserMap.set(socket.id, payload.id);
+    notifyFriendsPresence(payload.id, true);
+  });
+
+  // Party Creation
+  socket.on('party_create', (_data, callback) => {
+    const userId = socketUserMap.get(socket.id);
+    if (!userId) return callback?.({ success: false, error: 'Not authenticated.' });
+    const user = database.getRawUser(userId);
+    if (!user) return callback?.({ success: false, error: 'User not found.' });
+
+    // Leave any existing party
+    const existingPartyId = userPartyMap.get(userId);
+    if (existingPartyId) {
+      leaveParty(userId, socket.id);
+    }
+
+    const partyId = `PARTY-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const party: PartyState = {
+      id: partyId,
+      leaderId: userId,
+      createdAt: Date.now(),
+      members: [{
+        userId,
+        socketId: socket.id,
+        username: user.username,
+        displayName: user.displayName || user.username,
+        avatar: user.avatar || '🦸‍♂️',
+        customAvatarUrl: user.customAvatarUrl,
+        level: user.level || 1,
+        isLeader: true,
+        isReady: true,
+      }],
+    };
+
+    parties.set(partyId, party);
+    userPartyMap.set(userId, partyId);
+    socket.join(`party_${partyId}`);
+    callback?.({ success: true, party });
+  });
+
+  // Party Invite
+  socket.on('party_invite', (data: { targetUserId: string }, callback) => {
+    const userId = socketUserMap.get(socket.id);
+    if (!userId) return callback?.({ success: false, error: 'Not authenticated.' });
+    const user = database.getRawUser(userId);
+    if (!user) return callback?.({ success: false, error: 'User not found.' });
+
+    let partyId = userPartyMap.get(userId);
+    let party = partyId ? parties.get(partyId) : undefined;
+    if (!party) {
+      partyId = `PARTY-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      party = {
+        id: partyId,
+        leaderId: userId,
+        createdAt: Date.now(),
+        members: [{
+          userId,
+          socketId: socket.id,
+          username: user.username,
+          displayName: user.displayName || user.username,
+          avatar: user.avatar || '🦸‍♂️',
+          customAvatarUrl: user.customAvatarUrl,
+          level: user.level || 1,
+          isLeader: true,
+          isReady: true,
+        }],
+      };
+      parties.set(partyId, party);
+      userPartyMap.set(userId, partyId);
+      socket.join(`party_${partyId}`);
+    }
+
+    if (party.leaderId !== userId) {
+      return callback?.({ success: false, error: 'Only the party leader can invite players.' });
+    }
+
+    if (party.members.length >= 5) {
+      return callback?.({ success: false, error: 'Party is already full (max 5 players).' });
+    }
+
+    const targetSocketId = userSocketMap.get(data.targetUserId);
+    if (!targetSocketId) {
+      return callback?.({ success: false, error: 'Player is currently offline.' });
+    }
+
+    io.to(targetSocketId).emit('party_invite_received', {
+      partyId: party.id,
+      inviterId: userId,
+      inviterName: user.displayName || user.username,
+      inviterAvatar: user.avatar || '🦸‍♂️',
+      inviterCustomAvatar: user.customAvatarUrl,
+      inviterLevel: user.level || 1,
+    });
+
+    callback?.({ success: true, message: 'Party invitation sent.' });
+  });
+
+  // Party Invite Response
+  socket.on('party_invite_response', (data: { partyId: string; accept: boolean }, callback) => {
+    const userId = socketUserMap.get(socket.id);
+    if (!userId) return callback?.({ success: false, error: 'Not authenticated.' });
+    const user = database.getRawUser(userId);
+    if (!user) return callback?.({ success: false, error: 'User not found.' });
+
+    const party = parties.get(data.partyId);
+    if (!party) {
+      return callback?.({ success: false, error: 'Party no longer exists.' });
+    }
+
+    if (!data.accept) {
+      const leaderSocketId = userSocketMap.get(party.leaderId);
+      if (leaderSocketId) {
+        io.to(leaderSocketId).emit('party_invite_declined', {
+          userId,
+          name: user.displayName || user.username,
+        });
+      }
+      return callback?.({ success: true, message: 'Invitation declined.' });
+    }
+
+    if (party.members.length >= 5) {
+      return callback?.({ success: false, error: 'Party is full.' });
+    }
+
+    // Leave any previous party
+    const oldPartyId = userPartyMap.get(userId);
+    if (oldPartyId) {
+      leaveParty(userId, socket.id);
+    }
+
+    const newMember: PartyMember = {
+      userId,
+      socketId: socket.id,
+      username: user.username,
+      displayName: user.displayName || user.username,
+      avatar: user.avatar || '🦸‍♂️',
+      customAvatarUrl: user.customAvatarUrl,
+      level: user.level || 1,
+      isLeader: false,
+      isReady: false,
+    };
+
+    party.members.push(newMember);
+    userPartyMap.set(userId, party.id);
+    socket.join(`party_${party.id}`);
+
+    io.to(`party_${party.id}`).emit('party_state_updated', party);
+    callback?.({ success: true, party });
+  });
+
+  // Party Toggle Ready
+  socket.on('party_toggle_ready', (callback) => {
+    const userId = socketUserMap.get(socket.id);
+    if (!userId) return;
+    const partyId = userPartyMap.get(userId);
+    const party = partyId ? parties.get(partyId) : undefined;
+    if (!party) return;
+
+    const member = party.members.find(m => m.userId === userId);
+    if (member) {
+      member.isReady = !member.isReady;
+      io.to(`party_${party.id}`).emit('party_state_updated', party);
+      callback?.({ success: true, isReady: member.isReady });
+    }
+  });
+
+  // Party Leave
+  socket.on('party_leave', (callback) => {
+    const userId = socketUserMap.get(socket.id);
+    if (userId) {
+      leaveParty(userId, socket.id);
+    }
+    callback?.({ success: true });
+  });
+
   // Disconnect Handling
   socket.on('disconnect', () => {
+    const userId = socketUserMap.get(socket.id);
+    if (userId) {
+      leaveParty(userId, socket.id);
+      userSocketMap.delete(userId);
+      socketUserMap.delete(socket.id);
+      notifyFriendsPresence(userId, false);
+    }
+
     const queueIndex = ascensionQueue.findIndex(item => item.socketId === socket.id);
     if (queueIndex >= 0) ascensionQueue.splice(queueIndex, 1);
     const ascensionSession = ascensionSocketSession.get(socket.id);

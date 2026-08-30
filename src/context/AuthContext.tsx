@@ -79,6 +79,10 @@ export interface UserProfile extends PlayerProfile {
   lastWheelSpinDate: string;
   totalWheelSpins: number;
   gameModesPlayed: string[];
+  starterCharactersGranted?: boolean;
+  claimedRankRewards?: string[];
+  friends?: string[];
+  friendsCount?: number;
 }
 
 export interface MatchOutcomeParams {

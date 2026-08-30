@@ -51,7 +51,7 @@ export function SkillVaultModal({
   const skillsList = selectedHero ? getSkillsForCharacter(selectedHero) : [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-lg overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 overflow-y-auto">
       <div className="relative max-w-5xl w-full bg-gradient-to-b from-slate-950 via-slate-900 to-black rounded-3xl border border-cyan-500/40 shadow-2xl p-4 sm:p-6 space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-white/10 pb-4">

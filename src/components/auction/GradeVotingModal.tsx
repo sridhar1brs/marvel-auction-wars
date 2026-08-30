@@ -106,7 +106,7 @@ export function GradeVotingModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-fadeIn">
       <div className="max-w-2xl w-full glass-panel-glow p-6 sm:p-8 rounded-3xl border border-purple-500/50 space-y-6 shadow-glow-cosmic">
         {/* Modal Header */}
         <div className="text-center space-y-2">

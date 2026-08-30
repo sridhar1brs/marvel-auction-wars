@@ -19,7 +19,7 @@ export function DiscardConfirmModal({
   onCancel,
 }: Props) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn select-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fadeIn select-none">
       <div className="relative w-full max-w-md bg-[#0F0C08] border-2 border-red-500/80 rounded-3xl p-6 shadow-[0_0_50px_rgba(239,68,68,0.4)] space-y-5 text-center">
         
         {/* Close button */}

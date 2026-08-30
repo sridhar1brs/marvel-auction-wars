@@ -13,10 +13,12 @@ import { getLevelFromXp, formatPlaytime } from '../../utils/progression';
 interface Props {
   player?: Player | null;
   profile?: PlayerProfile | null;
+  viewOnlyProfile?: any | null;
+  isOpen?: boolean;
   onClose: () => void;
 }
 
-export function PlayerProfileModal({ player, profile: directProfile, onClose }: Props) {
+export function PlayerProfileModal({ player, profile: directProfile, viewOnlyProfile, isOpen = true, onClose }: Props) {
   const { user: authUser, logout, isAuthenticated, updateCustomAvatar, updateAvatar } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -27,9 +29,13 @@ export function PlayerProfileModal({ player, profile: directProfile, onClose }: 
   const [isSelectingFavorite, setIsSelectingFavorite] = useState(false);
   const [favoriteHeroId, setFavoriteHeroId] = useState<string | undefined>(undefined);
 
-  // Prefer direct profile, then player.profile, then authUser if player matches, then fallback
+  if (isOpen === false) return null;
+
+  // Prefer viewOnlyProfile, then direct profile, then player.profile, then authUser if player matches, then fallback
   let profile: any;
-  if (directProfile) {
+  if (viewOnlyProfile) {
+    profile = viewOnlyProfile;
+  } else if (directProfile) {
     profile = directProfile;
   } else if (player?.profile) {
     profile = player.profile;
@@ -141,7 +147,7 @@ export function PlayerProfileModal({ player, profile: directProfile, onClose }: 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn select-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 animate-fadeIn select-none">
       <div className="relative w-full max-w-xl max-h-[92vh] overflow-y-auto custom-scrollbar bg-gradient-to-b from-[#141A2E] via-[#0D1222] to-[#070914] border-2 border-cyan-500/50 rounded-3xl p-5 sm:p-6 shadow-[0_0_60px_rgba(6,182,212,0.4)] space-y-5 text-white">
         
         {/* Close Button */}

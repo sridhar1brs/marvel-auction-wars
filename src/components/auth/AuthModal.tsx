@@ -86,7 +86,7 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'signin' }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 animate-fadeIn">
       <div className="relative w-full max-w-md bg-gradient-to-b from-[#141A2E] via-[#0D1220] to-[#060810] border-2 border-cyan-500/50 rounded-3xl p-5 sm:p-6 shadow-[0_0_50px_rgba(6,182,212,0.35)] space-y-5 text-white">
         
         {/* Close Button */}

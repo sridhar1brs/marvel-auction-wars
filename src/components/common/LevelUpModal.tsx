@@ -32,7 +32,7 @@ export function LevelUpModal({ isOpen, onClose, oldLevel, newLevel, username }: 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-lg animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 animate-fadeIn">
       <div className="relative w-full max-w-sm bg-gradient-to-b from-[#1C1438] via-[#100C24] to-[#080512] border-2 border-amber-400 rounded-3xl p-6 shadow-[0_0_60px_rgba(245,158,11,0.5)] text-center space-y-5 text-white animate-scaleUp">
         
         {/* Close Button */}

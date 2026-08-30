@@ -1,6 +1,20 @@
 {
-  "lastUpdated": "2026-08-29T12:58:38.981Z",
+  "lastUpdated": "2026-08-30T11:56:10.854Z",
   "logs": [
+    {
+      "id": "log-1788090970854-7e0n",
+      "action": "OWNER CREATED CODE",
+      "details": "Created code 2761179709 (+10000 Astra, Max: 5)",
+      "adminUsername": "darksenseify",
+      "timestamp": 1788090970854
+    },
+    {
+      "id": "log-1788090902432-40yl",
+      "action": "OWNER REVOKED CODE",
+      "details": "Permanently deleted code 8323566267",
+      "adminUsername": "darksenseify",
+      "timestamp": 1788090902432
+    },
     {
       "id": "log-1788008318980-k9hv",
       "action": "OWNER CREATED CODE",

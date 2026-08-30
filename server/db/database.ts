@@ -9,6 +9,8 @@ import {
   getBattlePassReward,
   getCharacterShardCategory,
   CharacterShardCategory,
+  ALL_RANK_DEFINITIONS,
+  RankedTierReward,
 } from '../../src/data/ascensionProgression';
 import { ALL_CHARACTERS } from '../../src/data/characters/index';
 
@@ -287,6 +289,11 @@ export interface UserAccount {
   totalWheelSpins: number;                  // Total wheel spins ever
   gameModesPlayed: string[];                // Tracks unique game modes for achievements
   adminRewardHistory: string[];             // Prevent duplicate admin reward grants
+  starterCharactersGranted?: boolean;       // Permanent 5 starter characters granted flag
+  claimedRankRewards?: string[];            // Claimed rank tier reward IDs
+  friends?: string[];                       // Friend user IDs (max 100)
+  friendRequestsIncoming?: string[];        // Incoming friend request user IDs
+  friendRequestsOutgoing?: string[];        // Outgoing friend request user IDs
 }
 
 export interface SanitizedUserProfile {
@@ -374,6 +381,12 @@ export interface SanitizedUserProfile {
   lastWheelSpinDate: string;
   totalWheelSpins: number;
   gameModesPlayed: string[];
+  starterCharactersGranted?: boolean;
+  claimedRankRewards?: string[];
+  friendsCount?: number;
+  friends?: string[];
+  friendRequestsIncoming?: string[];
+  friendRequestsOutgoing?: string[];
 }
 
 export interface MatchRecordResult {
@@ -529,6 +542,11 @@ class DatabaseManager {
       totalWheelSpins: typeof u.totalWheelSpins === 'number' ? u.totalWheelSpins : 0,
       gameModesPlayed: Array.isArray(u.gameModesPlayed) ? u.gameModesPlayed : [],
       adminRewardHistory: Array.isArray(u.adminRewardHistory) ? u.adminRewardHistory : [],
+      starterCharactersGranted: u.starterCharactersGranted !== undefined ? !!u.starterCharactersGranted : (Array.isArray(u.ownedCharacters) && u.ownedCharacters.length > 0),
+      claimedRankRewards: Array.isArray(u.claimedRankRewards) ? u.claimedRankRewards : [],
+      friends: Array.isArray(u.friends) ? u.friends : [],
+      friendRequestsIncoming: Array.isArray(u.friendRequestsIncoming) ? u.friendRequestsIncoming : [],
+      friendRequestsOutgoing: Array.isArray(u.friendRequestsOutgoing) ? u.friendRequestsOutgoing : [],
     };
   }
 
@@ -679,6 +697,12 @@ class DatabaseManager {
       lastWheelSpinDate: u.lastWheelSpinDate || '',
       totalWheelSpins: u.totalWheelSpins || 0,
       gameModesPlayed: u.gameModesPlayed || [],
+      starterCharactersGranted: u.starterCharactersGranted !== undefined ? !!u.starterCharactersGranted : ((u.ownedCharacters || []).length > 0),
+      claimedRankRewards: u.claimedRankRewards || [],
+      friendsCount: (u.friends || []).length,
+      friends: u.friends || [],
+      friendRequestsIncoming: u.friendRequestsIncoming || [],
+      friendRequestsOutgoing: u.friendRequestsOutgoing || [],
     };
   }
 
@@ -984,11 +1008,14 @@ class DatabaseManager {
       createdAt: Date.now(),
       lastActiveAt: Date.now(),
 
-      // Fresh Account 0-State
+      // Fresh Account 0-State with 5 Permanent Unique Starter Heroes (Grade B/C only)
       astra: 500, // Starter bonus
       ascensionCoins: 500,
       characterShards: {},
-      ownedCharacters: [],
+      ownedCharacters: (() => {
+        const bAndCPool = ALL_CHARACTERS.filter(c => c.grade === 'B' || c.grade === 'C');
+        return [...new Set([...bAndCPool].sort(() => Math.random() - 0.5).map(c => c.id))].slice(0, 5);
+      })(),
       characterLevels: {},
       characterStatsBoosts: {},
       ownedRelics: [],
@@ -1010,7 +1037,8 @@ class DatabaseManager {
       crateInventory: { shard: 0, character: 0 },
       categoryShards: {},
       characterTokens: {},
-      onboardingCompleted: false,
+      starterCharactersGranted: true,
+      onboardingCompleted: true,
       onboardingChoices: [],
       dailyLoginStreak: 0,
       lastDailyLoginDate: '',
@@ -1035,7 +1063,17 @@ class DatabaseManager {
       totalWheelSpins: 0,
       gameModesPlayed: [],
       adminRewardHistory: [],
+      claimedRankRewards: [],
+      friends: [],
+      friendRequestsIncoming: [],
+      friendRequestsOutgoing: [],
     };
+
+    // Initialize level 1 for all granted starter characters
+    newUser.ownedCharacters.forEach(id => {
+      newUser.characterLevels[id] = 1;
+    });
+    newUser.onboardingChoices = [...newUser.ownedCharacters];
 
     this.users.set(cleanUsername, newUser);
     this.save();
@@ -2006,50 +2044,60 @@ class DatabaseManager {
   public getOnboardingChoices(userId: string): { success: boolean; choices?: any[]; completed?: boolean; error?: string } {
     const user = this.getRawUser(userId);
     if (!user) return { success: false, error: 'User not found.' };
-    if (user.onboardingCompleted || (user.ownedCharacters || []).length > 0) {
+
+    // If user already has characters granted or has existing roster, return their roster
+    if (user.starterCharactersGranted || (user.ownedCharacters || []).length > 0) {
       user.onboardingCompleted = true;
-      return { success: true, choices: [], completed: true };
+      user.starterCharactersGranted = true;
+      return {
+        success: true,
+        choices: (user.ownedCharacters || []).map(id => ALL_CHARACTERS.find(character => character.id === id)).filter(Boolean),
+        completed: true,
+      };
     }
-    if (!user.onboardingChoices || user.onboardingChoices.length !== 5) {
-      const bAndCPool = ALL_CHARACTERS.filter(c => c.grade === 'B' || c.grade === 'C');
-      const pool = bAndCPool.length >= 5 ? bAndCPool : ALL_CHARACTERS;
-      const selectedIds = [...new Set([...pool].sort(() => Math.random() - 0.5).map(character => character.id))].slice(0, 5);
-      user.onboardingChoices = selectedIds;
-      this.save();
-    }
+
+    // New player: Generate exactly 5 random unique characters (Grade B or Grade C ONLY)
+    const bAndCPool = ALL_CHARACTERS.filter(c => c.grade === 'B' || c.grade === 'C');
+    const pool = bAndCPool.length >= 5 ? bAndCPool : ALL_CHARACTERS;
+    const selectedIds = [...new Set([...pool].sort(() => Math.random() - 0.5).map(character => character.id))].slice(0, 5);
+    
+    // Give ALL 5 characters directly to the player's collection
+    user.ownedCharacters = selectedIds;
+    if (!user.characterLevels) user.characterLevels = {};
+    selectedIds.forEach(id => {
+      user.characterLevels[id] = 1;
+    });
+    user.starterCharactersGranted = true;
+    user.onboardingCompleted = true;
+    user.onboardingChoices = selectedIds;
+    this.save();
+
     return {
       success: true,
-      choices: user.onboardingChoices.map(id => ALL_CHARACTERS.find(character => character.id === id)).filter(Boolean),
-      completed: false,
+      choices: selectedIds.map(id => ALL_CHARACTERS.find(character => character.id === id)).filter(Boolean),
+      completed: true,
     };
   }
 
-  public chooseOnboardingCharacter(userId: string, characterId: string): { success: boolean; user?: SanitizedUserProfile; error?: string } {
+  public chooseOnboardingCharacter(userId: string, _characterId?: string): { success: boolean; user?: SanitizedUserProfile; error?: string } {
     const user = this.getRawUser(userId);
     if (!user) return { success: false, error: 'User not found.' };
-    if (user.onboardingCompleted || (user.ownedCharacters || []).length > 0) {
-      return { success: false, error: 'Onboarding has already been completed.' };
-    }
-    const starterChoices = user.onboardingChoices || [];
-    if (!starterChoices.length) {
+    
+    // If not yet granted, grant all 5
+    if (!user.starterCharactersGranted || (user.ownedCharacters || []).length === 0) {
       const bAndCPool = ALL_CHARACTERS.filter(c => c.grade === 'B' || c.grade === 'C');
       const pool = bAndCPool.length >= 5 ? bAndCPool : ALL_CHARACTERS;
-      const freshChoices = [...new Set([...pool].sort(() => Math.random() - 0.5).map(character => character.id))].slice(0, 5);
-      user.onboardingChoices = freshChoices;
-    }
-    if (!(user.onboardingChoices || []).includes(characterId)) {
-      return { success: false, error: 'Choose one of the five offered characters.' };
-    }
-
-    const starterSet = [...new Set([...(user.onboardingChoices || []), characterId])];
-    user.ownedCharacters = starterSet;
-    starterSet.forEach(id => {
+      const selectedIds = [...new Set([...pool].sort(() => Math.random() - 0.5).map(character => character.id))].slice(0, 5);
+      user.ownedCharacters = selectedIds;
       if (!user.characterLevels) user.characterLevels = {};
-      user.characterLevels[id] = 1;
-    });
-    user.onboardingCompleted = true;
-    user.onboardingChoices = [];
-    this.save();
+      selectedIds.forEach(id => {
+        user.characterLevels[id] = 1;
+      });
+      user.starterCharactersGranted = true;
+      user.onboardingCompleted = true;
+      user.onboardingChoices = selectedIds;
+      this.save();
+    }
     return { success: true, user: this.sanitizeUser(user) };
   }
 
@@ -2674,6 +2722,251 @@ class DatabaseManager {
       this.updateAchievementProgressForUser(user, 'multiversal', user.gameModesPlayed.length);
       this.save();
     }
+  }
+
+  // ============================================================
+  // v4.0 — EXPORT FORGE CATEGORIES (for frontend)
+  // ============================================================
+
+  // ============================================================
+  // SOCIAL / FRIENDS SYSTEM (MAX 100 FRIENDS PER PLAYER)
+  // ============================================================
+
+  public sendFriendRequest(userId: string, targetUsername: string): { success: boolean; error?: string; targetUser?: SanitizedUserProfile } {
+    const sender = this.getRawUser(userId);
+    if (!sender) return { success: false, error: 'Sender user not found.' };
+
+    const cleanTarget = String(targetUsername || '').trim().toLowerCase();
+    if (!cleanTarget) return { success: false, error: 'Enter a valid username.' };
+    if (sender.username.toLowerCase() === cleanTarget) {
+      return { success: false, error: 'You cannot send a friend request to yourself.' };
+    }
+
+    const target = this.getRawUser(cleanTarget);
+    if (!target) return { success: false, error: `Player "${targetUsername}" not found.` };
+
+    if (!sender.friends) sender.friends = [];
+    if (!target.friends) target.friends = [];
+    if (!sender.friendRequestsOutgoing) sender.friendRequestsOutgoing = [];
+    if (!target.friendRequestsIncoming) target.friendRequestsIncoming = [];
+
+    if (sender.friends.length >= 100) return { success: false, error: 'You have reached the maximum limit of 100 friends.' };
+    if (target.friends.length >= 100) return { success: false, error: 'This player has reached the maximum limit of 100 friends.' };
+
+    if (sender.friends.includes(target.id)) return { success: false, error: 'You are already friends with this player.' };
+    if (sender.friendRequestsOutgoing.includes(target.id)) return { success: false, error: 'Friend request already sent.' };
+
+    // If target had already sent request to sender, auto-accept!
+    if ((sender.friendRequestsIncoming || []).includes(target.id)) {
+      const autoAccept = this.acceptFriendRequest(sender.id, target.id);
+      return { success: autoAccept.success, error: autoAccept.error, targetUser: this.sanitizeUser(target) };
+    }
+
+    sender.friendRequestsOutgoing.push(target.id);
+    target.friendRequestsIncoming.push(sender.id);
+    this.save();
+    return { success: true, targetUser: this.sanitizeUser(target) };
+  }
+
+  public acceptFriendRequest(userId: string, requesterUserId: string): { success: boolean; error?: string } {
+    const user = this.getRawUser(userId);
+    const requester = this.getRawUser(requesterUserId);
+    if (!user || !requester) return { success: false, error: 'User not found.' };
+
+    if (!user.friends) user.friends = [];
+    if (!requester.friends) requester.friends = [];
+
+    if (user.friends.length >= 100) return { success: false, error: 'You have reached the maximum limit of 100 friends.' };
+    if (requester.friends.length >= 100) return { success: false, error: 'Requester has reached the maximum limit of 100 friends.' };
+
+    // Remove from incoming/outgoing
+    user.friendRequestsIncoming = (user.friendRequestsIncoming || []).filter(id => id !== requester.id);
+    requester.friendRequestsOutgoing = (requester.friendRequestsOutgoing || []).filter(id => id !== user.id);
+
+    if (!user.friends.includes(requester.id)) user.friends.push(requester.id);
+    if (!requester.friends.includes(user.id)) requester.friends.push(user.id);
+
+    this.save();
+    return { success: true };
+  }
+
+  public declineFriendRequest(userId: string, requesterUserId: string): { success: boolean; error?: string } {
+    const user = this.getRawUser(userId);
+    const requester = this.getRawUser(requesterUserId);
+    if (!user) return { success: false, error: 'User not found.' };
+
+    user.friendRequestsIncoming = (user.friendRequestsIncoming || []).filter(id => id !== requesterUserId);
+    if (requester) {
+      requester.friendRequestsOutgoing = (requester.friendRequestsOutgoing || []).filter(id => id !== userId);
+    }
+    this.save();
+    return { success: true };
+  }
+
+  public removeFriend(userId: string, targetUserId: string): { success: boolean; error?: string } {
+    const user = this.getRawUser(userId);
+    const target = this.getRawUser(targetUserId);
+    if (!user) return { success: false, error: 'User not found.' };
+
+    user.friends = (user.friends || []).filter(id => id !== targetUserId);
+    if (target) {
+      target.friends = (target.friends || []).filter(id => id !== userId);
+    }
+    this.save();
+    return { success: true };
+  }
+
+  public getFriendsData(userId: string): {
+    success: boolean;
+    friends?: Array<{
+      id: string;
+      username: string;
+      displayName: string;
+      avatar: string;
+      customAvatarUrl?: string;
+      level: number;
+      xp: number;
+      rankedTier: string;
+      rankedDivision: number;
+      rankedRating: number;
+      wins: number;
+      matchesPlayed: number;
+      favoriteCharacterId?: string;
+      lastActiveAt: number;
+    }>;
+    incomingRequests?: Array<{
+      id: string;
+      username: string;
+      displayName: string;
+      avatar: string;
+      customAvatarUrl?: string;
+      level: number;
+    }>;
+    outgoingRequests?: Array<{
+      id: string;
+      username: string;
+      displayName: string;
+      avatar: string;
+      customAvatarUrl?: string;
+      level: number;
+    }>;
+    error?: string;
+  } {
+    const user = this.getRawUser(userId);
+    if (!user) return { success: false, error: 'User not found.' };
+
+    const friendsList = (user.friends || []).map(friendId => {
+      const f = this.getRawUser(friendId);
+      if (!f) return null;
+      return {
+        id: f.id,
+        username: f.username,
+        displayName: f.displayName || f.username,
+        avatar: f.avatar || '🦸‍♂️',
+        customAvatarUrl: f.customAvatarUrl,
+        level: getLevelFromXp(f.xp || 0).level,
+        xp: f.xp || 0,
+        rankedTier: f.rankedTier || 'UNRANKED',
+        rankedDivision: f.rankedDivision || 0,
+        rankedRating: f.rankedRating || 0,
+        wins: f.wins || 0,
+        matchesPlayed: f.matchesPlayed || 0,
+        favoriteCharacterId: f.favoriteCharacterId,
+        lastActiveAt: f.lastActiveAt || 0,
+      };
+    }).filter(Boolean);
+
+    const incoming = (user.friendRequestsIncoming || []).map(reqId => {
+      const u = this.getRawUser(reqId);
+      if (!u) return null;
+      return {
+        id: u.id,
+        username: u.username,
+        displayName: u.displayName || u.username,
+        avatar: u.avatar || '🦸‍♂️',
+        customAvatarUrl: u.customAvatarUrl,
+        level: getLevelFromXp(u.xp || 0).level,
+      };
+    }).filter(Boolean);
+
+    const outgoing = (user.friendRequestsOutgoing || []).map(reqId => {
+      const u = this.getRawUser(reqId);
+      if (!u) return null;
+      return {
+        id: u.id,
+        username: u.username,
+        displayName: u.displayName || u.username,
+        avatar: u.avatar || '🦸‍♂️',
+        customAvatarUrl: u.customAvatarUrl,
+        level: getLevelFromXp(u.xp || 0).level,
+      };
+    }).filter(Boolean);
+
+    return {
+      success: true,
+      friends: friendsList as any[],
+      incomingRequests: incoming as any[],
+      outgoingRequests: outgoing as any[],
+    };
+  }
+
+  public getUserPublicProfile(usernameOrId: string): { success: boolean; profile?: SanitizedUserProfile; error?: string } {
+    const user = this.getRawUser(usernameOrId);
+    if (!user) return { success: false, error: 'Player not found.' };
+    return { success: true, profile: this.sanitizeUser(user) };
+  }
+
+  // ============================================================
+  // COMPETITIVE RANKED REWARD CLAIMING
+  // ============================================================
+
+  public claimRankReward(userId: string, rankId: string): {
+    success: boolean;
+    error?: string;
+    reward?: RankedTierReward;
+    user?: SanitizedUserProfile;
+  } {
+    const user = this.getRawUser(userId);
+    if (!user) return { success: false, error: 'User not found.' };
+
+    const cleanRankId = String(rankId || '').trim().toUpperCase();
+    const rankDef = ALL_RANK_DEFINITIONS.find(r => r.id.toUpperCase() === cleanRankId);
+    if (!rankDef) return { success: false, error: 'Rank definition not found.' };
+
+    const userRating = user.rankedRating || 0;
+    if (userRating < rankDef.requiredRating) {
+      return { success: false, error: `Required rating of ${rankDef.requiredRating} MMR not reached.` };
+    }
+
+    if (!user.claimedRankRewards) user.claimedRankRewards = [];
+    if (user.claimedRankRewards.map(id => id.toUpperCase()).includes(rankDef.id.toUpperCase())) {
+      return { success: false, error: 'Rank reward already claimed.' };
+    }
+
+    const reward = rankDef.reward;
+    if (reward.astra) {
+      user.astra = (user.astra || 0) + reward.astra;
+      user.ascensionCoins = user.astra;
+    }
+    if (reward.cardShards) {
+      user.cardShards = (user.cardShards || 0) + reward.cardShards;
+    }
+    if (reward.cratesCount && reward.crateType) {
+      if (!user.crateInventory) user.crateInventory = { shard: 0, character: 0 };
+      if (reward.crateType === 'CHARACTER_CRATE') {
+        user.crateInventory.character += reward.cratesCount;
+      } else {
+        user.crateInventory.shard += reward.cratesCount;
+      }
+    }
+    if (reward.tokensCount && reward.tokenCategory) {
+      if (!user.characterTokens) user.characterTokens = {};
+      user.characterTokens[reward.tokenCategory] = (user.characterTokens[reward.tokenCategory] || 0) + reward.tokensCount;
+    }
+
+    user.claimedRankRewards.push(rankId);
+    this.save();
+    return { success: true, reward, user: this.sanitizeUser(user) };
   }
 
   // ============================================================

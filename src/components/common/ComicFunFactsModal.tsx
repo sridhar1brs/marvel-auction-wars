@@ -50,7 +50,7 @@ export function ComicFunFactsModal({ isOpen, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+    <div className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4 animate-fadeIn">
       <div className="bg-[#0A0D18]/95 border-2 border-red-500/60 shadow-[0_0_50px_rgba(239,68,68,0.4)] rounded-3xl max-w-2xl w-full flex flex-col overflow-hidden animate-scaleUp">
         
         {/* Header Bar */}

@@ -1,20 +1,17 @@
 {
-  "lastUpdated": "2026-08-29T12:58:47.799Z",
+  "lastUpdated": "2026-08-30T11:56:10.853Z",
   "codes": [
     {
-      "code": "8323566267",
-      "astraReward": 100,
-      "rewardType": "SHARD",
-      "rewardAmount": 50,
-      "characterId": "VILLAIN",
-      "maxUses": 1,
-      "usedCount": 1,
+      "code": "2761179709",
+      "astraReward": 10000,
+      "rewardType": "ASTRA",
+      "rewardAmount": 10000,
+      "maxUses": 5,
+      "usedCount": 0,
       "expiresAt": "2026-12-31",
       "isActive": true,
-      "createdAt": 1788008318979,
-      "redeemedBy": [
-        "usr-1787750647884-b70e8765"
-      ],
+      "createdAt": 1788090970853,
+      "redeemedBy": [],
       "creatorUsername": "darksenseify"
     }
   ]

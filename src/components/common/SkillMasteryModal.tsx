@@ -57,7 +57,7 @@ export function SkillMasteryModal({ isOpen, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-fadeIn">
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 sm:p-5 animate-fadeIn">
       <div className="bg-[#0A0E18]/95 border-2 border-amber-500/60 shadow-[0_0_50px_rgba(245,158,11,0.35)] rounded-3xl max-w-5xl w-full max-h-[92vh] flex flex-col overflow-hidden">
         
         {/* Header */}

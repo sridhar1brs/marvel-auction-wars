@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GamePhase } from '../../types/game';
 import { McuSoundEngine } from './McuSoundEngine';
 import { SkillMasteryModal } from './SkillMasteryModal';
@@ -6,10 +6,13 @@ import { ComicFunFactsModal } from './ComicFunFactsModal';
 import { AuthModal } from '../auth/AuthModal';
 import { PlayerProfileModal } from './PlayerProfileModal';
 import { SettingsModal } from '../settings/SettingsModal';
+import { FriendsModal, PartyState } from '../social/FriendsModal';
+import { PartyInviteBanner, PartyInviteData } from '../social/PartyInviteBanner';
 import { useAuth } from '../../context/AuthContext';
 import { useGameSettings } from '../../context/SettingsContext';
 import { soundManager } from '../../audio/soundManager';
-import { BookOpen, HelpCircle, Swords, ShoppingBag, Zap, Lightbulb, Menu, X, Shield, Settings, Sparkles } from 'lucide-react';
+import { socket } from '../../socket/socket';
+import { BookOpen, HelpCircle, Swords, ShoppingBag, Zap, Lightbulb, Menu, X, Shield, Settings, Sparkles, Users } from 'lucide-react';
 
 interface Props {
   phase: GamePhase;
@@ -32,7 +35,46 @@ export function Navbar({
   const [isFactsModalOpen, setIsFactsModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isFriendsModalOpen, setIsFriendsModalOpen] = useState(false);
+  const [partyState, setPartyState] = useState<PartyState | null>(null);
+  const [pendingPartyInvite, setPendingPartyInvite] = useState<PartyInviteData | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!socket) return;
+    const handlePartyInviteReceived = (invite: PartyInviteData) => {
+      soundManager.playClick();
+      setPendingPartyInvite(invite);
+    };
+    const handlePartyUpdated = (party: PartyState) => {
+      setPartyState(party);
+    };
+
+    socket.on('party_invite_received', handlePartyInviteReceived);
+    socket.on('party_state_updated', handlePartyUpdated);
+
+    return () => {
+      socket.off('party_invite_received', handlePartyInviteReceived);
+      socket.off('party_state_updated', handlePartyUpdated);
+    };
+  }, []);
+
+  const handleAcceptPartyInvite = (partyId: string) => {
+    if (!socket) return;
+    socket.emit('party_invite_response', { partyId, accept: true }, (res: any) => {
+      if (res?.success && res.party) {
+        setPartyState(res.party);
+        setIsFriendsModalOpen(true);
+      }
+      setPendingPartyInvite(null);
+    });
+  };
+
+  const handleDeclinePartyInvite = (partyId: string) => {
+    if (!socket) return;
+    socket.emit('party_invite_response', { partyId, accept: false });
+    setPendingPartyInvite(null);
+  };
 
   const handleMobileNav = (targetPhase: GamePhase) => {
     setIsMobileMenuOpen(false);
@@ -165,35 +207,59 @@ export function Navbar({
           <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 relative z-50">
             {/* Commander Account Badge / Sign In Trigger */}
             {isAuthenticated && user ? (
-              <button
-                type="button"
-                onClick={() => {
-                  soundManager.playClick();
-                  setIsProfileModalOpen(true);
-                }}
-                className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-gradient-to-r from-cyan-950 via-[#101932] to-purple-950 border border-cyan-500/50 hover:border-cyan-400 text-white transition-all shadow-glow-cyan transform hover:scale-105 cursor-pointer"
-                title="View Commander Dossier & Stats"
-              >
-                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-cyan-600/40 border border-cyan-400 overflow-hidden flex items-center justify-center text-xs sm:text-sm shrink-0 bg-black">
-                  {user.customAvatarUrl ? (
-                    <img
-                      src={user.customAvatarUrl}
-                      alt={user.displayName || user.username}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span>{user.avatar || '🦸‍♂️'}</span>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                {/* Alliance & Squad Trigger */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playClick();
+                    setIsFriendsModalOpen(true);
+                  }}
+                  className="relative flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-gradient-to-r from-purple-950 via-[#16102A] to-indigo-950 border border-purple-500/50 hover:border-purple-400 text-purple-200 hover:text-white transition-all shadow-sm transform hover:scale-105 cursor-pointer"
+                  title="Open Alliance & Squad Friends List"
+                >
+                  <Users className="w-3.5 h-3.5 text-purple-400" />
+                  <span className="text-xs font-heading font-black hidden md:inline">
+                    ALLIANCE
+                  </span>
+                  <span className="text-[9px] bg-purple-600 text-white font-mono font-bold px-1.5 py-0.2 rounded-full">
+                    {user.friendsCount || (user.friends || []).length}
+                  </span>
+                  {partyState && partyState.members.length > 0 && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 absolute -top-0.5 -right-0.5 animate-ping" />
                   )}
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-[9px] sm:text-[10px] font-black bg-amber-500 text-black px-1.5 py-0.2 rounded-full font-mono">
-                    LVL {user.level}
-                  </span>
-                  <span className="text-xs font-heading font-black text-white max-w-[80px] sm:max-w-[110px] truncate hidden xxs:inline">
-                    {user.displayName || user.username}
-                  </span>
-                </div>
-              </button>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playClick();
+                    setIsProfileModalOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-gradient-to-r from-cyan-950 via-[#101932] to-purple-950 border border-cyan-500/50 hover:border-cyan-400 text-white transition-all shadow-glow-cyan transform hover:scale-105 cursor-pointer"
+                  title="View Commander Dossier & Stats"
+                >
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-cyan-600/40 border border-cyan-400 overflow-hidden flex items-center justify-center text-xs sm:text-sm shrink-0 bg-black">
+                    {user.customAvatarUrl ? (
+                      <img
+                        src={user.customAvatarUrl}
+                        alt={user.displayName || user.username}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span>{user.avatar || '🦸‍♂️'}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] sm:text-[10px] font-black bg-amber-500 text-black px-1.5 py-0.2 rounded-full font-mono">
+                      LVL {user.level}
+                    </span>
+                    <span className="text-xs font-heading font-black text-white max-w-[80px] sm:max-w-[110px] truncate hidden xxs:inline">
+                      {user.displayName || user.username}
+                    </span>
+                  </div>
+                </button>
+              </div>
             ) : (
               <button
                 type="button"
@@ -431,6 +497,21 @@ export function Navbar({
           onClose={() => setIsProfileModalOpen(false)}
         />
       )}
+
+      {/* Alliance & Squad Friends Modal */}
+      <FriendsModal
+        isOpen={isFriendsModalOpen}
+        onClose={() => setIsFriendsModalOpen(false)}
+        partyState={partyState}
+        onUpdateParty={setPartyState}
+      />
+
+      {/* Floating Real-time Party Invite Banner */}
+      <PartyInviteBanner
+        invite={pendingPartyInvite}
+        onAccept={handleAcceptPartyInvite}
+        onDecline={handleDeclinePartyInvite}
+      />
 
       {/* Game Settings Modal */}
       <SettingsModal />

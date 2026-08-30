@@ -45,7 +45,7 @@ export const RedeemCodeModal: React.FC<RedeemCodeModalProps> = ({ isOpen, onClos
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fade-in">
-      <div className="relative w-full max-w-md bg-gradient-to-b from-slate-900 via-indigo-950/95 to-slate-950 border border-purple-500/30 rounded-2xl p-6 shadow-2xl shadow-purple-950/50 backdrop-blur-xl">
+      <div className="relative w-full max-w-md bg-gradient-to-b from-slate-900 via-indigo-950/95 to-slate-950 border border-purple-500/30 rounded-2xl p-6 shadow-2xl shadow-purple-950/50">
         {/* Close Button */}
         <button
           onClick={onClose}

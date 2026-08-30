@@ -20,7 +20,7 @@ export function MatchLeaveConfirmModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn select-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 animate-fadeIn select-none">
       <div className="relative w-full max-w-md bg-[#0D0B14] border-2 border-red-500/70 rounded-3xl shadow-[0_0_50px_rgba(239,68,68,0.4)] overflow-hidden p-5 sm:p-6 text-center space-y-4">
         
         {/* Warning Icon */}

@@ -109,7 +109,7 @@ export function CrateOpening({ crates, onClose, onClaimed }: Props) {
   const cfg = selectedCrate ? CRATE_CONFIG[selectedCrate.type] : null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4">
       <div className="w-full max-w-2xl bg-[#07091A] border border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-fadeIn">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-gradient-to-r from-[#0D0F24] to-[#0A0C20]">
