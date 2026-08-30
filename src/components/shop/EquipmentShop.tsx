@@ -199,7 +199,13 @@ export function EquipmentShop({
                   : 'bg-black/40 text-slate-400 border-white/10 hover:text-white'
               }`}
             >
-              <span>{p.avatar}</span>
+              <div className="w-5 h-5 rounded-full bg-slate-900 border border-white/10 overflow-hidden flex items-center justify-center text-xs shrink-0 bg-black">
+                {p.customAvatarUrl || p.profile?.customAvatarUrl ? (
+                  <img src={p.customAvatarUrl || p.profile?.customAvatarUrl} alt={p.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span>{p.avatar}</span>
+                )}
+              </div>
               <span>{p.name} (${p.money})</span>
             </button>
           ))}

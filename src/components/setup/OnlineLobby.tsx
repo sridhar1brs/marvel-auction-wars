@@ -222,9 +222,13 @@ export function OnlineLobby({
                 title="Click to view player dossier & stats"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="text-lg p-1.5 bg-slate-900 rounded-lg border border-white/5 shrink-0">
-                    {p.avatar}
-                  </span>
+                  <div className="w-8 h-8 rounded-lg bg-slate-900 border border-white/10 overflow-hidden flex items-center justify-center text-base shrink-0 bg-black">
+                    {p.customAvatarUrl || p.profile?.customAvatarUrl ? (
+                      <img src={p.customAvatarUrl || p.profile?.customAvatarUrl} alt={p.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span>{p.avatar}</span>
+                    )}
+                  </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-[9px] bg-amber-500 text-black font-black px-1.5 py-0.2 rounded font-mono shadow-sm">

@@ -174,8 +174,16 @@ export function Navbar({
                 className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-gradient-to-r from-cyan-950 via-[#101932] to-purple-950 border border-cyan-500/50 hover:border-cyan-400 text-white transition-all shadow-glow-cyan transform hover:scale-105 cursor-pointer"
                 title="View Commander Dossier & Stats"
               >
-                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-cyan-600/40 border border-cyan-400 flex items-center justify-center text-xs sm:text-sm">
-                  {user.avatar || '🦸‍♂️'}
+                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-cyan-600/40 border border-cyan-400 overflow-hidden flex items-center justify-center text-xs sm:text-sm shrink-0 bg-black">
+                  {user.customAvatarUrl ? (
+                    <img
+                      src={user.customAvatarUrl}
+                      alt={user.displayName || user.username}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span>{user.avatar || '🦸‍♂️'}</span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-[9px] sm:text-[10px] font-black bg-amber-500 text-black px-1.5 py-0.2 rounded-full font-mono">
@@ -236,7 +244,17 @@ export function Navbar({
             <div className="p-2.5 rounded-xl bg-black/60 border border-cyan-500/30 flex items-center justify-between">
               {isAuthenticated && user ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">{user.avatar || '🦸‍♂️'}</span>
+                  <div className="w-8 h-8 rounded-full bg-cyan-600/40 border border-cyan-400 overflow-hidden flex items-center justify-center text-base shrink-0 bg-black">
+                    {user.customAvatarUrl ? (
+                      <img
+                        src={user.customAvatarUrl}
+                        alt={user.displayName || user.username}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span>{user.avatar || '🦸‍♂️'}</span>
+                    )}
+                  </div>
                   <div>
                     <div className="flex items-center gap-1.5">
                       <span className="font-heading font-black text-xs text-white truncate">{user.displayName || user.username}</span>

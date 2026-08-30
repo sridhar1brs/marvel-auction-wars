@@ -248,6 +248,7 @@ export interface Player {
   id: string;
   name: string;
   avatar: string;
+  customAvatarUrl?: string;
   money: number;
   collection: Character[];
   relics?: string[]; // Owned artifact/relic IDs (e.g. 'art-025' for Healing Potion, 'art-026' for Flashbang)

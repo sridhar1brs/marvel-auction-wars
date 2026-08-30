@@ -397,9 +397,13 @@ export function SettingsModal() {
                   {/* Public Stats Overview Card */}
                   <div className="p-4 rounded-2xl bg-black/60 border border-amber-500/30 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <span className="text-3xl p-2 bg-amber-950/80 border border-amber-500/40 rounded-2xl">
-                        {user.avatar}
-                      </span>
+                      <div className="w-14 h-14 bg-amber-950/80 border border-amber-500/40 rounded-2xl overflow-hidden flex items-center justify-center text-3xl shrink-0 bg-black">
+                        {user.customAvatarUrl ? (
+                          <img src={user.customAvatarUrl} alt={user.displayName || user.username} className="w-full h-full object-cover" />
+                        ) : (
+                          <span>{user.avatar || '🦸‍♂️'}</span>
+                        )}
+                      </div>
                       <div>
                         <span className="text-[10px] text-amber-400 font-mono uppercase font-bold">
                           Level {user.level} Commander

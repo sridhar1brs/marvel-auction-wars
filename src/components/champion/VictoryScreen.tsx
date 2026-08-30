@@ -311,7 +311,13 @@ export function VictoryScreen({ champion, state, onPlayAgain, onVoteRematch }: P
                         }`}>
                           {rank + 1}
                         </span>
-                        <span className="text-base shrink-0">{p.avatar}</span>
+                        <div className="w-6 h-6 rounded-full bg-slate-900 border border-white/10 overflow-hidden flex items-center justify-center text-xs shrink-0 bg-black">
+                          {p.customAvatarUrl || p.profile?.customAvatarUrl ? (
+                            <img src={p.customAvatarUrl || p.profile?.customAvatarUrl} alt={p.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span>{p.avatar}</span>
+                          )}
+                        </div>
                         <span className="font-extrabold text-xs text-white truncate max-w-[120px] sm:max-w-none">
                           {p.name} {isChamp && '👑'}
                         </span>
