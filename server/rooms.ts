@@ -380,9 +380,11 @@ export class GameRoom {
   private gradeVoteTimeout: NodeJS.Timeout | null = null;
   private gradeVotes: Record<string, GradeVoteOption> = {};
   private onStateChange: (state: GameState) => void;
+  private readonly getCharacterCatalog: () => Character[];
 
-  constructor(roomId: string, hostPlayer: Player, onStateChange: (state: GameState) => void) {
+  constructor(roomId: string, hostPlayer: Player, onStateChange: (state: GameState) => void, getCharacterCatalog: () => Character[] = () => ALL_CHARACTERS.map(character => ({ ...character }))) {
     this.onStateChange = onStateChange;
+    this.getCharacterCatalog = getCharacterCatalog;
     hostPlayer.isHost = true;
     this.state = {
       roomId,
@@ -397,7 +399,7 @@ export class GameRoom {
       },
       players: [hostPlayer],
       activePlayerIndex: 0,
-      availableCharacters: [...ALL_CHARACTERS].sort(() => Math.random() - 0.5),
+      availableCharacters: [...this.getCharacterCatalog()].sort(() => Math.random() - 0.5),
       purchasedCharacters: [],
       skippedCharacters: [],
       lastVotedCheckpoint: 0,
@@ -1078,7 +1080,8 @@ export class GameRoom {
     // Guarantee every player has at least 1 hero to enter battle!
     this.state.players.forEach((p, idx) => {
       if (p.collection.length === 0) {
-        const emergencyHero = ALL_CHARACTERS[idx % ALL_CHARACTERS.length] || ALL_CHARACTERS[0];
+        const catalog = this.getCharacterCatalog();
+        const emergencyHero = catalog[idx % catalog.length] || catalog[0];
         p.collection = [{ ...emergencyHero, currentHp: 100, maxHp: 100, isFainted: false }];
       }
     });
@@ -1523,7 +1526,7 @@ export class GameRoom {
     this.stopTimer();
     this.stopGradeVoteTimer();
     this.state.phase = 'ONLINE_LOBBY';
-    this.state.availableCharacters = [...ALL_CHARACTERS].sort(() => Math.random() - 0.5);
+    this.state.availableCharacters = [...this.getCharacterCatalog()].sort(() => Math.random() - 0.5);
     this.state.purchasedCharacters = [];
     this.state.skippedCharacters = [];
     this.state.tournamentMatches = [];

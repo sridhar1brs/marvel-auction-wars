@@ -150,7 +150,9 @@ interface AuthContextType {
   fetchAdminStats: () => Promise<{ success: boolean; stats?: any; actionLogs?: AdminActionLog[]; error?: string }>;
   fetchAdminPlayers: (params?: { page?: number; pageSize?: number; search?: string }) => Promise<{ success: boolean; players?: any[]; total?: number; page?: number; pageSize?: number; totalPages?: number; error?: string }>;
   fetchAdminPlayerDetail: (playerId: string) => Promise<{ success: boolean; player?: UserProfile; characters?: any[]; error?: string }>;
-  adminApplyPlayerAction: (playerId: string, action: string, amount?: number, characterId?: string) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
+  adminApplyPlayerAction: (playerId: string, action: string, amount?: number, characterId?: string, expiresAt?: string) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
+  fetchAdminCharacters: () => Promise<{ success: boolean; characters?: any[]; error?: string }>;
+  updateAdminCharacterPrice: (characterId: string, price: number) => Promise<{ success: boolean; character?: any; error?: string }>;
   fetchAdminActivity: (limit?: number) => Promise<{ success: boolean; logs?: AdminActionLog[]; error?: string }>;
   fetchAdminCodes: () => Promise<{ success: boolean; codes?: RedeemCode[]; error?: string }>;
   createAdminCode: (payload: { code?: string; astraReward: number; rewardType?: 'ASTRA' | 'CHARACTER' | 'SHARD' | 'CRATE'; rewardAmount?: number; characterId?: string; crateType?: string; maxUses: number; expiresAt: string; isActive?: boolean }) => Promise<{ success: boolean; code?: RedeemCode; error?: string }>;
@@ -1135,13 +1137,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const adminApplyPlayerAction = async (playerId: string, action: string, amount = 0, characterId?: string) => {
+  const adminApplyPlayerAction = async (playerId: string, action: string, amount = 0, characterId?: string, expiresAt?: string) => {
     if (!token) return { success: false, error: 'ACCESS DENIED: Not authenticated.' };
     try {
       const res = await fetch(`${API_BASE}/api/admin/players/${encodeURIComponent(playerId)}/actions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ action, amount, characterId, confirmed: true })
+        body: JSON.stringify({ action, amount, characterId, expiresAt, confirmed: true })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Network error.' };
+    }
+  };
+
+  const fetchAdminCharacters = async () => {
+    if (!token) return { success: false, error: 'ACCESS DENIED: Not authenticated.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/characters`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Network error.' };
+    }
+  };
+
+  const updateAdminCharacterPrice = async (characterId: string, price: number) => {
+    if (!token) return { success: false, error: 'ACCESS DENIED: Not authenticated.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/characters/${encodeURIComponent(characterId)}/price`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ price, confirmed: true })
       });
       return await res.json();
     } catch (err: any) {
@@ -1581,6 +1609,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fetchAdminPlayers,
         fetchAdminPlayerDetail,
         adminApplyPlayerAction,
+        fetchAdminCharacters,
+        updateAdminCharacterPrice,
         fetchAdminActivity,
         fetchAdminCodes,
         createAdminCode,

@@ -216,6 +216,8 @@ export interface UserAccount {
   favoriteGameMode?: string;
   role: 'admin' | 'player';
   isAdmin: boolean;
+  isBanned?: boolean;
+  suspendedUntil?: number;
   level: number;
   xp: number;
   wins: number;
@@ -312,6 +314,8 @@ export interface SanitizedUserProfile {
   favoriteGameMode?: string;
   role: 'admin' | 'player';
   isAdmin: boolean;
+  isBanned?: boolean;
+  suspendedUntil?: number;
   level: number;
   xp: number;
   currentLevelXp: number;
@@ -415,6 +419,7 @@ const DATA_DIR = path.join(process.cwd(), 'server', 'data');
 const DB_FILE = path.join(DATA_DIR, 'accounts.json');
 const CODES_FILE = path.join(DATA_DIR, 'redeem_codes.json');
 const LOGS_FILE = path.join(DATA_DIR, 'admin_logs.json');
+const CHARACTER_PRICES_FILE = path.join(DATA_DIR, 'character_price_overrides.json');
 // Administration is bound to an authenticated account on the server, never to a
 // client-supplied role. Configure ADMIN_USERNAME in production if it differs.
 const ADMIN_USERNAME = (process.env.ADMIN_USERNAME || 'darksenseify').trim().toLowerCase();
@@ -428,6 +433,7 @@ class DatabaseManager {
   private users: Map<string, UserAccount> = new Map(); // username -> UserAccount
   private redeemCodes: Map<string, RedeemCode> = new Map(); // code -> RedeemCode
   private adminLogs: AdminActionLog[] = [];
+  private characterPriceOverrides: Record<string, number> = {};
   private processedMatchTokens: Set<string> = new Set(); // Prevent duplicate match stats
   private activeDungeonRuns: Map<string, any> = new Map(); // userId -> DungeonRunState
 
@@ -480,6 +486,19 @@ class DatabaseManager {
         if (Array.isArray(logsData.logs)) {
           this.adminLogs = logsData.logs;
         }
+
+        // Character prices are intentionally persisted separately from accounts,
+        // source character constants, redeem codes, and the audit log.
+        if (fs.existsSync(CHARACTER_PRICES_FILE)) {
+          const rawPrices = JSON.parse(fs.readFileSync(CHARACTER_PRICES_FILE, 'utf8'));
+          if (rawPrices && typeof rawPrices === 'object') {
+            for (const [id, price] of Object.entries(rawPrices)) {
+              if (ALL_CHARACTERS.some(character => character.id === id) && Number.isFinite(Number(price)) && Number(price) >= 0) {
+                this.characterPriceOverrides[id] = Number(price);
+              }
+            }
+          }
+        }
       }
 
       console.log(`[Database] Loaded ${this.users.size} accounts, ${this.redeemCodes.size} redeem codes from ${DATA_DIR}`);
@@ -500,6 +519,8 @@ class DatabaseManager {
       // account may hold administrative privileges.
       role: isOwner ? 'admin' : 'player',
       isAdmin: isOwner,
+      isBanned: !!u.isBanned,
+      suspendedUntil: typeof u.suspendedUntil === 'number' ? u.suspendedUntil : undefined,
       level: userLevel,
       xp: userXp,
       dungeonPeak: u.dungeonPeak || u.dungeonMaxWave || 0,
@@ -592,6 +613,21 @@ class DatabaseManager {
     }
   }
 
+  private saveCharacterPriceOverrides() {
+    try {
+      fs.writeFileSync(CHARACTER_PRICES_FILE, JSON.stringify(this.characterPriceOverrides, null, 2), 'utf8');
+    } catch (err) {
+      console.error('[Database] Error saving character price overrides:', err);
+    }
+  }
+
+  public getCharacterCatalog(): Character[] {
+    return ALL_CHARACTERS.map(character => {
+      const override = this.characterPriceOverrides[character.id];
+      return override === undefined ? { ...character } : { ...character, startingPrice: override };
+    });
+  }
+
   private isAuthorizedAdmin(user: unknown): user is UserAccount {
     const candidate = user as UserAccount | null;
     return !!candidate && candidate.username.toLowerCase() === ADMIN_USERNAME && candidate.role === 'admin' && candidate.isAdmin;
@@ -639,6 +675,8 @@ class DatabaseManager {
       favoriteGameMode: u.favoriteGameMode,
       role: u.role || 'player',
       isAdmin: u.isAdmin || u.role === 'admin' || false,
+      isBanned: !!u.isBanned,
+      suspendedUntil: u.suspendedUntil,
       level: Math.max(u.level || 1, levelInfo.level),
       xp: u.xp,
       currentLevelXp: levelInfo.currentLevelXp,
@@ -975,6 +1013,44 @@ class DatabaseManager {
     };
   }
 
+  public getAdminCharacterCatalog(adminUserId: string): { success: boolean; characters?: Array<Record<string, unknown>>; error?: string } {
+    const admin = this.getRawUser(adminUserId);
+    if (!this.isAuthorizedAdmin(admin)) return { success: false, error: 'ACCESS DENIED.' };
+    return {
+      success: true,
+      characters: this.getCharacterCatalog().map(character => ({
+        ...character,
+        baseStartingPrice: ALL_CHARACTERS.find(candidate => candidate.id === character.id)?.startingPrice ?? character.startingPrice,
+        priceOverride: this.characterPriceOverrides[character.id] ?? null,
+      })),
+    };
+  }
+
+  public updateAdminCharacterPrice(adminUserId: string, characterId: string, price: number): { success: boolean; character?: Record<string, unknown>; error?: string } {
+    const admin = this.getRawUser(adminUserId);
+    if (!this.isAuthorizedAdmin(admin)) return { success: false, error: 'ACCESS DENIED.' };
+    const source = ALL_CHARACTERS.find(character => character.id === characterId);
+    if (!source) return { success: false, error: 'Character not found.' };
+    if (!Number.isFinite(price) || !Number.isInteger(price) || price < 0 || price > 1000000) {
+      return { success: false, error: 'Price must be a whole number between 0 and 1,000,000.' };
+    }
+    const oldPrice = this.characterPriceOverrides[characterId] ?? source.startingPrice;
+    this.characterPriceOverrides[characterId] = price;
+    this.saveCharacterPriceOverrides();
+    this.logAdminAction(admin.username, 'ADMIN CHARACTER PRICE UPDATED', JSON.stringify({
+      characterId, characterName: source.name, oldPrice, newPrice: price,
+    }));
+    return {
+      success: true,
+      character: {
+        ...source,
+        startingPrice: price,
+        baseStartingPrice: source.startingPrice,
+        priceOverride: price,
+      },
+    };
+  }
+
   /**
    * Returns a deliberately small, searchable player projection for the admin
    * console. Never return the raw account object from an admin endpoint.
@@ -1060,7 +1136,7 @@ class DatabaseManager {
     return { success: true, logs: this.adminLogs.slice(0, Math.min(500, Math.max(1, Number(limit) || 100))) };
   }
 
-  public adminApplyPlayerAction(adminUserId: string, targetId: string, action: string, amount: number, characterId?: string): {
+  public adminApplyPlayerAction(adminUserId: string, targetId: string, action: string, amount: number, characterId?: string, expiresAt?: string): {
     success: boolean;
     user?: SanitizedUserProfile;
     error?: string;
@@ -1075,6 +1151,7 @@ class DatabaseManager {
       return { success: false, error: 'Amount must be a whole number.' };
     }
 
+    const oldDetails: Record<string, unknown> = {};
     switch (normalizedAction) {
       case 'grant_astra':
         if (numericAmount < 1 || numericAmount > 1000000) return { success: false, error: 'Astra amount must be between 1 and 1,000,000.' };
@@ -1106,6 +1183,83 @@ class DatabaseManager {
         target.ownedCharacters.push(characterId);
         break;
       }
+      case 'ban':
+      case 'ban_player':
+        oldDetails.isBanned = !!target.isBanned;
+        target.isBanned = true;
+        break;
+      case 'suspend':
+      case 'suspend_player':
+      case 'temporary_suspend': {
+        if (!expiresAt || Number.isNaN(new Date(expiresAt).getTime()) || new Date(expiresAt).getTime() <= Date.now()) {
+          return { success: false, error: 'Suspension expiry must be a valid future date.' };
+        }
+        oldDetails.suspendedUntil = target.suspendedUntil || null;
+        target.suspendedUntil = new Date(expiresAt).getTime();
+        break;
+      }
+      case 'remove_inventory':
+      case 'remove_all_inventory':
+        oldDetails.inventory = {
+          ownedCharacters: [...(target.ownedCharacters || [])],
+          characterShards: { ...(target.characterShards || {}) },
+          ownedRelics: [...(target.ownedRelics || [])],
+          ownedSkills: [...(target.ownedSkills || [])],
+          crateInventory: { ...(target.crateInventory || {}) },
+          categoryShards: { ...(target.categoryShards || {}) },
+          characterTokens: { ...(target.characterTokens || {}) },
+          draftShards: { ...(target.draftShards || {}) },
+          tokenShards: { ...(target.tokenShards || {}) },
+          cardShards: target.cardShards || 0,
+        };
+        target.ownedCharacters = [];
+        target.characterShards = {};
+        target.characterLevels = {};
+        target.characterStatsBoosts = {};
+        target.equippedRelics = {};
+        target.equippedSkills = {};
+        target.ownedRelics = [];
+        target.ownedSkills = [];
+        target.crateInventory = { shard: 0, character: 0 };
+        target.categoryShards = {};
+        target.characterTokens = {};
+        target.draftShards = {};
+        target.tokenShards = {};
+        target.tokenShardCrates = 0;
+        target.cardShards = 0;
+        break;
+      case 'remove_character': {
+        if (!characterId || !ALL_CHARACTERS.some(character => character.id === characterId)) {
+          return { success: false, error: 'Select a valid character.' };
+        }
+        oldDetails.characterId = characterId;
+        oldDetails.owned = (target.ownedCharacters || []).includes(characterId);
+        target.ownedCharacters = (target.ownedCharacters || []).filter(id => id !== characterId);
+        if (target.characterLevels) delete target.characterLevels[characterId];
+        if (target.characterStatsBoosts) delete target.characterStatsBoosts[characterId];
+        if (target.characterMastery) delete target.characterMastery[characterId];
+        if (target.equippedRelics) delete target.equippedRelics[characterId];
+        if (target.equippedSkills) delete target.equippedSkills[characterId];
+        break;
+      }
+      case 'progression_reset':
+      case 'reset_progression':
+        oldDetails.progression = {
+          level: target.level, xp: target.xp, characterLevels: { ...(target.characterLevels || {}) },
+          characterMastery: { ...(target.characterMastery || {}) }, battlePassLevel: target.battlePassLevel,
+          battlePassXp: target.battlePassXp,
+        };
+        target.level = 1;
+        target.xp = 0;
+        target.characterLevels = {};
+        target.characterStatsBoosts = {};
+        target.characterMastery = {};
+        target.battlePassLevel = 1;
+        target.battlePassXp = 0;
+        target.dailyMissions = [];
+        target.weeklyMissions = [];
+        target.achievements = {};
+        break;
       default:
         return { success: false, error: 'Unsupported admin action.' };
     }
@@ -1113,7 +1267,17 @@ class DatabaseManager {
     target.adminRewardHistory = Array.isArray(target.adminRewardHistory) ? target.adminRewardHistory : [];
     target.adminRewardHistory.push(`admin-${normalizedAction}-${target.id}-${Date.now()}`);
     target.lastActiveAt = Date.now();
-    this.logAdminAction(admin.username, `ADMIN ${normalizedAction.toUpperCase()}`, `Applied ${normalizedAction} to ${target.username}${characterId ? ` (${characterId})` : ` (+${numericAmount})`}`);
+    const newDetails: Record<string, unknown> = {
+      ...(normalizedAction === 'ban_player' ? { isBanned: !!target.isBanned } : {}),
+      ...(normalizedAction === 'suspend_player' ? { suspendedUntil: target.suspendedUntil || null } : {}),
+      ...(normalizedAction === 'remove_character' ? { owned: (target.ownedCharacters || []).includes(characterId || '') } : {}),
+      ...(normalizedAction === 'remove_all_inventory' ? { inventory: { ownedCharacters: [...(target.ownedCharacters || [])], ownedRelics: [...(target.ownedRelics || [])], ownedSkills: [...(target.ownedSkills || [])], cardShards: target.cardShards || 0 } } : {}),
+      ...(normalizedAction === 'reset_progression' ? { progression: { level: target.level, xp: target.xp, characterLevels: { ...(target.characterLevels || {}) }, characterMastery: { ...(target.characterMastery || {}) }, battlePassLevel: target.battlePassLevel, battlePassXp: target.battlePassXp } } : {}),
+    };
+    this.logAdminAction(admin.username, `ADMIN ${normalizedAction.toUpperCase()}`, JSON.stringify({
+      targetId: target.id, targetUsername: target.username, amount: numericAmount, characterId: characterId || null,
+      expiresAt: expiresAt || null, old: oldDetails, new: newDetails,
+    }));
     this.save();
     return { success: true, user: this.sanitizeUser(target) };
   }
@@ -1258,6 +1422,10 @@ class DatabaseManager {
     if (testHash !== user.passwordHash) {
       return { success: false, error: 'Invalid username or commander credentials.' };
     }
+    if (user.isBanned) return { success: false, error: 'This account has been banned.' };
+    if (user.suspendedUntil && user.suspendedUntil > Date.now()) {
+      return { success: false, error: `This account is suspended until ${new Date(user.suspendedUntil).toISOString()}.` };
+    }
 
     user.lastActiveAt = Date.now();
     this.save();
@@ -1302,14 +1470,17 @@ class DatabaseManager {
 
   public getUserById(id: string): SanitizedUserProfile | null {
     for (const u of this.users.values()) {
-      if (u.id === id) return this.sanitizeUser(u);
+      if (u.id === id) {
+        if (u.isBanned || (u.suspendedUntil && u.suspendedUntil > Date.now())) return null;
+        return this.sanitizeUser(u);
+      }
     }
     return null;
   }
 
   public getUserByUsername(username: string): SanitizedUserProfile | null {
     const user = this.users.get((username || '').toLowerCase());
-    return user ? this.sanitizeUser(user) : null;
+    return user && !user.isBanned && !(user.suspendedUntil && user.suspendedUntil > Date.now()) ? this.sanitizeUser(user) : null;
   }
 
   public getRawUser(idOrUsername?: string): UserAccount | null {
@@ -3310,7 +3481,7 @@ class DatabaseManager {
     if (user.ownedCharacters.length <= 1) {
       return { success: false, error: 'You cannot discard your only remaining character.' };
     }
-    const char = ALL_CHARACTERS.find(c => c.id === characterId);
+    const char = this.getCharacterCatalog().find(c => c.id === characterId);
     if (!char) return { success: false, error: 'Character data not found.' };
 
     // Calculate value: 60% of character starting price / monetary value

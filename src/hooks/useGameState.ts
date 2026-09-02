@@ -18,6 +18,7 @@ import { generateTournamentBracket, advanceTournamentMatches } from '../../serve
 import { simulateRoundDuel, getTierMatchedPairings } from '../../server/battleEngine';
 import { getRandomChaosEvent } from '../data/chaosEvents';
 import { useSocket } from './useSocket';
+import { getApiUrl } from '../config/api';
 
 const DEFAULT_SETTINGS: GameSettings = {
   playerCount: 4,
@@ -31,6 +32,16 @@ export function useGameState() {
   const socketHook = useSocket();
   const [isOnlineMode, setIsOnlineMode] = useState<boolean>(false);
   const [activePlayerTurnIndex, setActivePlayerTurnIndex] = useState<number>(0);
+  const [runtimeCharacters, setRuntimeCharacters] = useState<Character[]>(ALL_CHARACTERS);
+
+  useEffect(() => {
+    fetch(getApiUrl('/api/characters'))
+      .then(response => response.ok ? response.json() : null)
+      .then(catalog => {
+        if (Array.isArray(catalog) && catalog.length) setRuntimeCharacters(catalog);
+      })
+      .catch(() => { /* Local development can continue with bundled constants. */ });
+  }, []);
 
   // Local Game State
   const [localState, setLocalState] = useState<GameState>({
@@ -87,7 +98,7 @@ export function useGameState() {
       },
     ],
     activePlayerIndex: 0,
-    availableCharacters: [...ALL_CHARACTERS].sort(() => Math.random() - 0.5),
+    availableCharacters: [...runtimeCharacters].sort(() => Math.random() - 0.5),
     purchasedCharacters: [],
     skippedCharacters: [],
     auction: {
@@ -153,7 +164,7 @@ export function useGameState() {
       // Guarantee every player has at least 1 hero to enter battle!
       const guaranteedPlayers = prev.players.map((p, idx) => {
         if (p.collection.length === 0) {
-          const emergencyHero = ALL_CHARACTERS[idx % ALL_CHARACTERS.length] || ALL_CHARACTERS[0];
+          const emergencyHero = runtimeCharacters[idx % runtimeCharacters.length] || runtimeCharacters[0];
           return {
             ...p,
             collection: [{ ...emergencyHero, currentHp: 100, maxHp: 100, isFainted: false }],
@@ -630,7 +641,7 @@ export function useGameState() {
         ...prev,
         players: resetPlayers,
         phase: 'AUCTION_INTRO',
-        availableCharacters: [...ALL_CHARACTERS].sort(() => Math.random() - 0.5),
+        availableCharacters: [...runtimeCharacters].sort(() => Math.random() - 0.5),
         purchasedCharacters: [],
         skippedCharacters: [],
         lastVotedCheckpoint: 0,
@@ -1018,7 +1029,7 @@ export function useGameState() {
     setLocalState(prev => ({
       ...prev,
       phase: 'LOCAL_SETUP',
-      availableCharacters: [...ALL_CHARACTERS].sort(() => Math.random() - 0.5),
+      availableCharacters: [...runtimeCharacters].sort(() => Math.random() - 0.5),
       purchasedCharacters: [],
       skippedCharacters: [],
       tournamentMatches: [],

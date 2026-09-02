@@ -188,14 +188,14 @@ function resolveSocketUser(socket: Socket, data?: { authToken?: string; token?: 
       socketUserMap.set(socket.id, payload.id);
       socket.data.userId = payload.id;
       const user = database.getRawUser(payload.id);
-      if (user) return user;
+      if (user && !user.isBanned && !(user.suspendedUntil && user.suspendedUntil > Date.now())) return user;
     }
   }
 
   const userId = socket.data?.userId || socketUserMap.get(socket.id);
   if (userId) {
     const user = database.getRawUser(userId);
-    if (user) return user;
+    if (user && !user.isBanned && !(user.suspendedUntil && user.suspendedUntil > Date.now())) return user;
   }
 
   return null;
@@ -329,7 +329,9 @@ function getAuthUser(req: express.Request) {
   const token = authHeader.slice(7).trim();
   const tokenPayload = database.verifyToken(token);
   if (!tokenPayload) return null;
-  return database.getRawUser(tokenPayload.id);
+  const user = database.getRawUser(tokenPayload.id);
+  if (!user || user.isBanned || (user.suspendedUntil && user.suspendedUntil > Date.now())) return null;
+  return user;
 }
 
 // Apply authorization at the router boundary so newly added admin endpoints
@@ -351,7 +353,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.get('/api/characters', (_req, res) => {
-  res.json(ALL_CHARACTERS);
+  res.json(database.getCharacterCatalog());
 });
 
 // ==========================================
@@ -764,10 +766,33 @@ app.post('/api/admin/players/:id/actions', (req, res) => {
   const action = typeof req.body?.action === 'string' ? req.body.action : '';
   const amount = req.body?.amount === undefined ? 0 : Number(req.body.amount);
   const characterId = typeof req.body?.characterId === 'string' ? req.body.characterId : undefined;
+  const expiresAt = typeof req.body?.expiresAt === 'string' ? req.body.expiresAt : undefined;
   if (req.body?.confirmed !== true || !targetId || targetId.length > 120 || !/^[a-zA-Z0-9_-]+$/.test(action) || !Number.isFinite(amount)) {
     return res.status(400).json({ success: false, error: 'Invalid action payload.' });
   }
-  const result = database.adminApplyPlayerAction(user.id, targetId, action, amount, characterId);
+  const result = database.adminApplyPlayerAction(user.id, targetId, action, amount, characterId, expiresAt);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+// A2f. Admin character catalog and persisted starting-price overrides.
+app.get('/api/admin/characters', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'ACCESS DENIED: Sign in required.' });
+  const result = database.getAdminCharacterCatalog(user.id);
+  if (!result.success) return res.status(403).json(result);
+  res.json(result);
+});
+
+app.put('/api/admin/characters/:id/price', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'ACCESS DENIED: Sign in required.' });
+  const characterId = String(req.params.id || '').trim();
+  const price = Number(req.body?.price);
+  if (req.body?.confirmed !== true || !characterId || characterId.length > 120 || !Number.isFinite(price) || !Number.isInteger(price)) {
+    return res.status(400).json({ success: false, error: 'A confirmed whole-number price is required.' });
+  }
+  const result = database.updateAdminCharacterPrice(user.id, characterId, price);
   if (!result.success) return res.status(400).json(result);
   res.json(result);
 });
@@ -1802,6 +1827,7 @@ io.on('connection', (socket: Socket) => {
           verifiedLevel = user.level;
           verifiedProfile = user;
         }
+        else return callback({ success: false, error: 'This account is banned or temporarily suspended.' });
       }
     }
 
@@ -1821,7 +1847,7 @@ io.on('connection', (socket: Socket) => {
 
     const room = new GameRoom(roomId, hostPlayer, (updatedState) => {
       io.to(roomId).emit('game_state_update', updatedState);
-    });
+    }, () => database.getCharacterCatalog());
 
     rooms.set(roomId, room);
     socketToRoom.set(socket.id, { roomId, playerId: socket.id });
@@ -1858,6 +1884,7 @@ io.on('connection', (socket: Socket) => {
           verifiedLevel = user.level;
           verifiedProfile = user;
         }
+        else return callback({ success: false, error: 'This account is banned or temporarily suspended.' });
       }
     }
 
