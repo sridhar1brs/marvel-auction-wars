@@ -139,7 +139,7 @@ export const AscensionAdminPanel: React.FC = () => {
   // If unauthorized
   if (!isAdmin) {
     return (
-      <div className="max-w-2xl mx-auto my-12 p-8 bg-rose-950/40 border border-rose-500/50 rounded-2xl text-center backdrop-blur-xl">
+      <div className="max-w-2xl mx-auto my-12 p-8 bg-rose-950/40 border border-rose-500/50 rounded-2xl text-center">
         <div className="text-5xl mb-4">⛔</div>
         <h2 className="text-2xl font-black text-rose-400 uppercase tracking-widest">
           ACCESS DENIED

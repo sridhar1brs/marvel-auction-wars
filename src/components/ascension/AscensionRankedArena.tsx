@@ -5,6 +5,7 @@ import { ALL_CHARACTERS } from '../../data/characters/index';
 import { Character } from '../../types/game';
 import { soundManager } from '../../audio/soundManager';
 import { CharacterPortrait } from '../common/CharacterPortrait';
+import { getApiUrl } from '../../config/api';
 import { 
   Trophy, Lock, Swords, Shield, Zap, Sparkles, Award, 
   Flame, CheckCircle2, ChevronRight, Crown, AlertTriangle, Play,
@@ -111,11 +112,15 @@ export function AscensionRankedArena() {
     }
   }, [socket.ascensionState]);
 
-  const handleStartQueue = () => {
+  const handleStartQueue = async () => {
     if (playerTeam.length !== teamSize) return;
     soundManager.playClick();
     setBattleState('MATCHMAKING');
-    socket.queueAscension('ranked', matchFormat, playerTeam.map(c => c.id));
+    const result = await socket.queueAscension('ranked', matchFormat, playerTeam.map(c => c.id));
+    if (!result?.success) {
+      setBattleState('IDLE');
+      setClaimMessage({ type: 'error', text: result?.error || 'Unable to enter ranked matchmaking.' });
+    }
   };
 
   const handleExecuteTurn = () => {
@@ -123,7 +128,11 @@ export function AscensionRankedArena() {
     soundManager.playAttackHit();
     setTimeout(() => {
       setIsResolving(false);
-      socket.submitAscensionAction('ATTACK', 0);
+      // The server automatically advances to the next living fighter after a
+      // knockout; submit that index instead of retrying the defeated slot.
+      const currentPlayer = socket.ascensionState?.players.find(player => player.id === socket.socket?.id);
+      const fighterIndex = currentPlayer?.team.findIndex(hero => (hero.currentHp ?? hero.maxHp ?? 100) > 0) ?? 0;
+      socket.submitAscensionAction('ATTACK', fighterIndex >= 0 ? fighterIndex : 0);
     }, 800);
   };
 
@@ -139,7 +148,7 @@ export function AscensionRankedArena() {
     setClaimingRankId(rankId);
     setClaimMessage(null);
     try {
-      const res = await fetch('/api/ranked/claim-reward', {
+      const res = await fetch(getApiUrl('/api/ranked/claim-reward'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ rankId }),

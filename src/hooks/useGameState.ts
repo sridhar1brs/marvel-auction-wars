@@ -13,7 +13,7 @@ import {
 import { ALL_CHARACTERS } from '../data/characters/index';
 import { soundManager } from '../audio/soundManager';
 import { voiceManager } from '../audio/voiceManager';
-import { validateBid, validateSkipVote, calculateBotBid } from '../../server/auctionEngine';
+import { validateBid, validateSkipVote, calculateBotBid, shouldBotSkip } from '../../server/auctionEngine';
 import { generateTournamentBracket, advanceTournamentMatches } from '../../server/tournamentEngine';
 import { simulateRoundDuel, getTierMatchedPairings } from '../../server/battleEngine';
 import { getRandomChaosEvent } from '../data/chaosEvents';
@@ -251,12 +251,25 @@ export function useGameState() {
 
       let nextCharIndex = -1;
       if (targetGrade) {
-        nextCharIndex = available.findIndex(c => c.grade === targetGrade);
+        nextCharIndex = available.findIndex(c => c.grade === targetGrade && c.startingPrice <= maxPlayerFunds);
       }
 
-      // If no target grade or not found, find a character that active drafting players can afford!
+      // If no target grade or not affordable in requested grade, find an affordable character from available roster!
       if (nextCharIndex === -1) {
         nextCharIndex = available.findIndex(c => c.startingPrice <= maxPlayerFunds);
+      }
+
+      // If still none affordable (e.g. extreme low budget), find the lowest startingPrice character
+      if (nextCharIndex === -1 && available.length > 0) {
+        let lowestIdx = 0;
+        let lowestPrice = available[0].startingPrice;
+        for (let i = 1; i < available.length; i++) {
+          if (available[i].startingPrice < lowestPrice) {
+            lowestPrice = available[i].startingPrice;
+            lowestIdx = i;
+          }
+        }
+        nextCharIndex = lowestIdx;
       }
 
       let nextChar: Character | null = null;
@@ -271,21 +284,11 @@ export function useGameState() {
         return prev;
       }
 
-      // In Blind Bidding mode, every card has the exact uniform $5 starting price!
+      // In Blind Bidding mode, every card has the uniform $5 starting price as defined by that mode
       if (isBlindMode) {
         nextChar = {
           ...nextChar,
           startingPrice: 5,
-        };
-      } else if (nextChar.name.includes('The One-Above-All')) {
-        nextChar = {
-          ...nextChar,
-          startingPrice: prev.settings.startingMoney,
-        };
-      } else if (nextChar.startingPrice > maxPlayerFunds) {
-        nextChar = {
-          ...nextChar,
-          startingPrice: Math.max(1, maxPlayerFunds),
         };
       }
 
@@ -481,6 +484,14 @@ export function useGameState() {
             p => p.isBot && p.collection.length < prev.settings.characterLimit
           );
           for (const bot of bots) {
+            if (
+              prev.auction.currentBid === 0 &&
+              !prev.auction.skipVotes.includes(bot.id) &&
+              shouldBotSkip(bot, prev.auction, prev.settings)
+            ) {
+              prev.auction.skipVotes = [...prev.auction.skipVotes, bot.id];
+              continue;
+            }
             const botBid = calculateBotBid(bot, prev.auction, prev.settings);
             if (botBid !== null) {
               const val = validateBid(bot, botBid, prev.auction, prev.settings);
@@ -488,6 +499,9 @@ export function useGameState() {
                 soundManager.playBidPlaced();
                 return {
                   ...prev,
+                  players: prev.players.map(p => p.id === bot.id
+                    ? { ...p, stats: { ...p.stats, highestBid: Math.max(p.stats.highestBid, val.newBid!) } }
+                    : p),
                   auction: {
                     ...prev.auction,
                     currentBid: val.newBid!,

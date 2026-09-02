@@ -12,10 +12,12 @@ import {
   PlayerStatus,
   ChaosEvent,
   AscensionBattleState,
-  AscensionBattlePlayer
+  AscensionBattlePlayer,
+  AscensionCustomSettings,
+  BotPersonality
 } from '../src/types/game';
 import { ALL_CHARACTERS } from '../src/data/characters/index';
-import { validateBid, validateSkipVote, calculateBotBid } from './auctionEngine';
+import { validateBid, validateSkipVote, calculateBotBid, shouldBotSkip } from './auctionEngine';
 import { generateTournamentBracket, advanceTournamentMatches } from './tournamentEngine';
 import { simulateRoundDuel, getTierMatchedPairings } from './battleEngine';
 import { getRandomChaosEvent } from '../src/data/chaosEvents';
@@ -27,6 +29,7 @@ export interface AscensionBattleResult {
   format: AscensionBattleState['format'];
   winnerId: string;
   playerIds: string[];
+  participatingPlayerIds: string[];
   matchToken: string;
 }
 
@@ -41,26 +44,119 @@ export class OnlineBattleRoom {
   private readonly onResult: (result: AscensionBattleResult) => void;
   private disconnectTimers = new Map<string, NodeJS.Timeout>();
   private pendingSkillIds = new Map<string, string>();
+  private actionsSubmitted = new Map<string, number>();
 
   constructor(
     roomId: string,
     mode: 'casual' | 'ranked',
     format: AscensionBattleState['format'],
     onStateChange: (state: AscensionBattleState) => void,
-    onResult: (result: AscensionBattleResult) => void
+    onResult: (result: AscensionBattleResult) => void,
+    customSettings?: Partial<AscensionCustomSettings>
   ) {
     this.onStateChange = onStateChange;
     this.onResult = onResult;
-    this.state = {
-      roomId, mode, format, phase: 'LOBBY', maxPlayers: 10, hostId: '',
-      players: [], currentRound: 0, activePlayerIds: [],
-      selectedHeroIndexes: {}, pendingActions: {}, rounds: [], combatLogs: []
+    const defaultSettings: AscensionCustomSettings = {
+      playerCount: 2,
+      maxPlayers: 2,
+      teamSize: 3,
+      actionTimerSeconds: 20,
+      format: format || '3v3',
+      chaosModifiersEnabled: false,
+      ...customSettings
     };
+    this.state = {
+      roomId,
+      mode,
+      format: defaultSettings.format || '3v3',
+      phase: 'LOBBY',
+      maxPlayers: defaultSettings.playerCount || 10,
+      hostId: '',
+      players: [],
+      currentRound: 0,
+      activePlayerIds: [],
+      selectedHeroIndexes: {},
+      pendingActions: {},
+      rounds: [],
+      combatLogs: [],
+      settings: defaultSettings,
+      chat: [],
+      spectatorChat: []
+    };
+  }
+
+  updateSettings(playerId: string, newSettings: Partial<AscensionCustomSettings>): { success: boolean; error?: string } {
+    if (this.state.phase !== 'LOBBY') return { success: false, error: 'Cannot change settings after battle started.' };
+    if (this.state.hostId && this.state.hostId !== playerId) return { success: false, error: 'Only the host can update room settings.' };
+    this.state.settings = { ...this.state.settings!, ...newSettings };
+    if (newSettings.playerCount) this.state.maxPlayers = newSettings.playerCount;
+    if (newSettings.format) this.state.format = newSettings.format;
+    if (newSettings.teamSize) {
+      this.state.players.forEach(p => {
+        if (p.team.length > newSettings.teamSize!) {
+          p.team = p.team.slice(0, newSettings.teamSize!);
+          p.isReady = false;
+        }
+      });
+    }
+    this.notify();
+    return { success: true };
+  }
+
+  addBot(hostId: string, personality: BotPersonality = 'BALANCED'): { success: boolean; error?: string } {
+    if (this.state.phase !== 'LOBBY') return { success: false, error: 'Battle is already in progress.' };
+    if (this.state.hostId && this.state.hostId !== hostId) return { success: false, error: 'Only the host can add bots.' };
+    if (this.state.players.length >= this.state.maxPlayers) return { success: false, error: 'Room is full.' };
+
+    const botNames = ['Ultron AI', 'Vision Matrix', 'Sentinel Core', 'Zola Simulation', 'Cerebro Node', 'Kree AI', 'Skrull Infiltrator'];
+    const botCount = this.state.players.filter(p => p.isBot).length;
+    const botName = botNames[botCount % botNames.length] + ` [BOT]`;
+    const botId = `bot_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+
+    const teamSize = this.state.settings?.teamSize || 3;
+    const pool = ALL_CHARACTERS.filter(c => c.grade !== 'MYTHIC' || personality === 'COSMIC');
+    const shuffled = [...pool].sort(() => 0.5 - Math.random());
+    const botTeam = shuffled.slice(0, teamSize);
+
+    const botPlayer: AscensionBattlePlayer = {
+      id: botId,
+      profileId: botId,
+      name: botName,
+      avatar: '🤖',
+      rating: 1200,
+      team: botTeam,
+      isHost: false,
+      isReady: true,
+      isConnected: true,
+      isBot: true,
+      botPersonality: personality,
+      level: 5
+    };
+
+    this.state.players.push(botPlayer);
+    this.notify();
+    return { success: true };
+  }
+
+  kickPlayer(hostId: string, targetId: string): { success: boolean; error?: string } {
+    if (this.state.phase !== 'LOBBY') return { success: false, error: 'Battle in progress.' };
+    if (this.state.hostId !== hostId) return { success: false, error: 'Only the host can kick players.' };
+    if (hostId === targetId) return { success: false, error: 'Host cannot kick self.' };
+    this.state.players = this.state.players.filter(p => p.id !== targetId);
+    this.notify();
+    return { success: true };
+  }
+
+  sendChat(message: ChatMessage): void {
+    if (!this.state.chat) this.state.chat = [];
+    this.state.chat.push(message);
+    if (this.state.chat.length > 100) this.state.chat.shift();
+    this.notify();
   }
 
   addPlayer(player: AscensionBattlePlayer): { success: boolean; error?: string } {
     if (this.state.phase !== 'LOBBY') return { success: false, error: 'Battle has already started.' };
-    if (this.state.players.length >= this.state.maxPlayers) return { success: false, error: 'Room is full (10 players maximum).' };
+    if (this.state.players.length >= this.state.maxPlayers) return { success: false, error: `Room is full (${this.state.maxPlayers} players maximum).` };
     if (this.state.players.some(p => p.profileId && p.profileId === player.profileId)) {
       return { success: false, error: 'You are already in this room.' };
     }
@@ -81,6 +177,11 @@ export class OnlineBattleRoom {
     player.name = name;
     player.avatar = avatar;
     player.isConnected = true;
+    const submitted = this.actionsSubmitted.get(oldSocketId);
+    if (submitted !== undefined) {
+      this.actionsSubmitted.set(socketId, submitted);
+      this.actionsSubmitted.delete(oldSocketId);
+    }
     if (this.state.hostId === oldSocketId) this.state.hostId = socketId;
     this.state.activePlayerIds = this.state.activePlayerIds.map(id => id === oldSocketId ? socketId : id);
     if (this.state.selectedHeroIndexes[oldSocketId] !== undefined) {
@@ -122,7 +223,8 @@ export class OnlineBattleRoom {
     if (this.state.phase !== 'LOBBY') return { success: false, error: 'Team selection is locked.' };
     const player = this.state.players.find(p => p.id === playerId);
     if (!player) return { success: false, error: 'Player not found.' };
-    if (!team.length || team.length > 5) return { success: false, error: 'Choose between 1 and 5 heroes.' };
+    const maxTeam = this.state.settings?.teamSize || 3;
+    if (!team.length || team.length > maxTeam) return { success: false, error: `Choose up to ${maxTeam} heroes.` };
     player.team = team;
     player.isReady = false;
     this.notify();
@@ -133,7 +235,8 @@ export class OnlineBattleRoom {
     if (this.state.phase !== 'LOBBY') return { success: false, error: 'Lobby is closed.' };
     const player = this.state.players.find(p => p.id === playerId);
     if (!player) return { success: false, error: 'Player not found.' };
-    if (ready && player.team.length === 0) return { success: false, error: 'Select a team before readying up.' };
+    const reqSize = this.state.settings?.teamSize || 3;
+    if (ready && player.team.length < reqSize && player.team.length === 0) return { success: false, error: `Select ${reqSize} heroes before readying up.` };
     player.isReady = ready;
     this.notify();
     return { success: true };
@@ -142,8 +245,8 @@ export class OnlineBattleRoom {
   start(playerId: string, bypassReady = false): { success: boolean; error?: string } {
     if (this.state.phase !== 'LOBBY') return { success: false, error: 'Battle is not in the lobby.' };
     if (!bypassReady && this.state.hostId !== playerId) return { success: false, error: 'Only the host can start this battle.' };
-    const active = this.state.players.filter(p => p.isConnected);
-    if (active.length < 2) return { success: false, error: 'At least two connected players are required.' };
+    const active = this.state.players.filter(p => p.isConnected || p.isBot);
+    if (active.length < 2) return { success: false, error: 'At least two players (or bots) are required.' };
     if (!bypassReady && active.some(p => !p.isReady || p.team.length === 0)) {
       return { success: false, error: 'Every player must select a team and ready up.' };
     }
@@ -159,15 +262,37 @@ export class OnlineBattleRoom {
       hero.usedSkillIds = [];
     }));
     this.state.combatLogs = [`⚔️ ${active[0].name} VS ${active[1].name}`, `Format: ${this.state.format.toUpperCase()} • ${this.state.mode.toUpperCase()}`];
+    this.triggerBotActionsIfNeeded();
     this.notify();
     return { success: true };
+  }
+
+  private triggerBotActionsIfNeeded() {
+    if (this.state.phase !== 'BATTLE') return;
+    const [firstId, secondId] = this.state.activePlayerIds;
+    for (const pid of [firstId, secondId]) {
+      if (!pid) continue;
+      const p = this.state.players.find(pl => pl.id === pid);
+      if (p && p.isBot && !this.state.pendingActions[pid]) {
+        const livingIdx = p.team.findIndex(h => (h.currentHp ?? 100) > 0);
+        if (livingIdx >= 0) {
+          const actions: BattleActionType[] = ['ATTACK', 'ATTACK', 'SPECIAL', 'DEFEND'];
+          const chosen = actions[Math.floor(Math.random() * actions.length)];
+          this.state.selectedHeroIndexes[pid] = livingIdx;
+          this.state.pendingActions[pid] = chosen;
+        }
+      }
+    }
+    if (this.state.pendingActions[firstId] && this.state.pendingActions[secondId]) {
+      this.resolveRound();
+    }
   }
 
   submitAction(playerId: string, action: BattleActionType, fighterIndex = 0, skillId?: string): { success: boolean; error?: string } {
     if (this.state.phase !== 'BATTLE') return { success: false, error: 'No active battle.' };
     if (!this.state.activePlayerIds.includes(playerId)) return { success: false, error: 'Spectators cannot control this battle.' };
     const player = this.state.players.find(p => p.id === playerId);
-    if (!player || !player.isConnected) return { success: false, error: 'Player is disconnected.' };
+    if (!player || (!player.isConnected && !player.isBot)) return { success: false, error: 'Player is disconnected.' };
     const validActions: BattleActionType[] = ['ATTACK', 'SPECIAL', 'DEFEND', 'ARTIFACT', 'SKILL_1', 'SKILL_2', 'SKILL_3', 'SKILL_4', 'SKILL_5', 'DUAL_STRIKE'];
     if (!validActions.includes(action)) return { success: false, error: 'Invalid battle action.' };
     if (this.state.pendingActions[playerId]) return { success: false, error: 'Action already locked for this round.' };
@@ -183,6 +308,11 @@ export class OnlineBattleRoom {
     }
     this.state.selectedHeroIndexes[playerId] = fighterIndex;
     this.state.pendingActions[playerId] = action;
+    this.actionsSubmitted.set(playerId, (this.actionsSubmitted.get(playerId) || 0) + 1);
+    player.actionsSubmitted = this.actionsSubmitted.get(playerId);
+    
+    this.triggerBotActionsIfNeeded();
+    
     const [firstId, secondId] = this.state.activePlayerIds;
     if (this.state.pendingActions[firstId] && this.state.pendingActions[secondId]) this.resolveRound();
     else this.notify();
@@ -192,7 +322,7 @@ export class OnlineBattleRoom {
   private toPlayer(player: AscensionBattlePlayer): Player {
     return {
       id: player.id, name: player.name, avatar: player.avatar, money: 0, collection: player.team,
-      isHost: player.isHost, isReady: player.isReady, isBot: false,
+      isHost: player.isHost, isReady: player.isReady, isBot: !!player.isBot,
       stats: { battlesWon: 0, moneySpent: 0, highestBid: 0 }
     };
   }
@@ -232,6 +362,9 @@ export class OnlineBattleRoom {
     this.onResult({
       roomId: this.state.roomId, mode: this.state.mode, format: this.state.format,
       winnerId, playerIds: this.state.players.map(p => p.profileId || p.id),
+      participatingPlayerIds: this.state.players
+        .filter(p => !!p.isBot || (this.actionsSubmitted.get(p.id) || 0) > 0)
+        .map(p => p.profileId || p.id),
       matchToken: `ascension-${this.state.roomId}-${Date.now()}`
     });
   }
@@ -431,14 +564,24 @@ export class GameRoom {
       nextCharIndex = this.state.availableCharacters.findIndex(
         c => c.grade === this.state.queuedGrade && c.startingPrice <= maxNeedingFunds
       );
-      if (nextCharIndex === -1) {
-        nextCharIndex = this.state.availableCharacters.findIndex(c => c.grade === this.state.queuedGrade);
-      }
     }
 
-    // If no queued grade or not found, find a character that active drafting players can afford!
+    // If no queued grade or not affordable in requested grade, find an affordable character from available roster!
     if (nextCharIndex === -1) {
       nextCharIndex = this.state.availableCharacters.findIndex(c => c.startingPrice <= maxNeedingFunds);
+    }
+
+    // If still none affordable (e.g. extreme low budget), find the lowest startingPrice character
+    if (nextCharIndex === -1 && this.state.availableCharacters.length > 0) {
+      let lowestIdx = 0;
+      let lowestPrice = this.state.availableCharacters[0].startingPrice;
+      for (let i = 1; i < this.state.availableCharacters.length; i++) {
+        if (this.state.availableCharacters[i].startingPrice < lowestPrice) {
+          lowestPrice = this.state.availableCharacters[i].startingPrice;
+          lowestIdx = i;
+        }
+      }
+      nextCharIndex = lowestIdx;
     }
 
     let nextChar: Character | null = null;
@@ -453,15 +596,7 @@ export class GameRoom {
       return;
     }
 
-    // Dynamic Affordability Guarantee:
-    // Cap starting price so remaining players can ALWAYS afford to bid and purchase!
-    if (nextChar.startingPrice > maxNeedingFunds) {
-      nextChar = {
-        ...nextChar,
-        startingPrice: Math.max(1, maxNeedingFunds),
-      };
-    }
-
+    // Never modify or reduce genuine character predefined prices!
     const isMythic = nextChar.grade === 'MYTHIC';
     const isBlindMode = this.state.settings.gameMode === 'blind_bidding' || this.state.queuedGrade === 'MYSTERY';
     const isMystery = isBlindMode || (!isMythic && Math.random() < 0.20);
@@ -838,6 +973,14 @@ export class GameRoom {
   private simulateBots() {
     const bots = this.state.players.filter(p => p.isBot && p.collection.length < this.state.settings.characterLimit);
     for (const bot of bots) {
+      if (
+        this.state.auction.currentBid === 0 &&
+        !this.state.auction.skipVotes.includes(bot.id) &&
+        shouldBotSkip(bot, this.state.auction, this.state.settings)
+      ) {
+        this.state.auction.skipVotes.push(bot.id);
+        continue;
+      }
       const bidAmount = calculateBotBid(bot, this.state.auction, this.state.settings);
       if (bidAmount !== null) {
         this.placeBid(bot.id, bidAmount);

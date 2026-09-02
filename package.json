@@ -4,10 +4,12 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"npm:server\" \"vite\"",
+    "dev:client": "vite",
+    "dev:server": "tsx server/server.ts",
     "server": "tsx server/server.ts",
     "serve": "tsx server/server.ts",
-    "start": "concurrently \"npm:server\" \"npm:dev\"",
+    "start": "tsx server/server.ts",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },

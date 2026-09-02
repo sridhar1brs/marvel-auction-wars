@@ -47,6 +47,9 @@ export interface PartyMember {
   level: number;
   isLeader: boolean;
   isReady: boolean;
+  rankedTier?: string;
+  rankedDivision?: number;
+  rankedRating?: number;
 }
 
 export interface PartyState {
@@ -841,7 +844,8 @@ export function FriendsModal({ isOpen, onClose, partyState, onUpdateParty }: Pro
                       {partyState.members.map((member, index) => (
                         <div
                           key={member.userId}
-                          className="p-3 rounded-2xl bg-black/50 border border-white/10 flex items-center justify-between gap-3"
+                          onClick={() => member.userId !== user?.id && handleInspectProfile(member.userId)}
+                          className="p-3 rounded-2xl bg-black/50 border border-white/10 flex items-center justify-between gap-3 cursor-pointer hover:border-cyan-500/50 transition-colors"
                         >
                           <div className="flex items-center gap-3">
                             <div className="relative">
@@ -861,7 +865,10 @@ export function FriendsModal({ isOpen, onClose, partyState, onUpdateParty }: Pro
                                 <span className="font-heading font-black text-xs text-white">{member.displayName || member.username}</span>
                                 {member.userId === user?.id && <span className="text-[9px] text-cyan-400">(You)</span>}
                               </div>
-                              <span className="text-[10px] text-amber-400 font-mono">Level {member.level}</span>
+                              <span className="text-[10px] text-amber-400 font-mono block">Level {member.level}</span>
+                              <span className="text-[9px] text-cyan-300 font-mono">
+                                {member.rankedTier === 'UNRANKED' ? 'UNRANKED' : `${member.rankedTier} ${member.rankedDivision || ''} • ${member.rankedRating || 0} RR`}
+                              </span>
                             </div>
                           </div>
 

@@ -129,10 +129,10 @@ export function AscensionBattlePass() {
             <span>SEASON 1: COSMIC ASCENSION PASS</span>
           </div>
           <h1 className="text-2xl sm:text-4xl font-heading font-black text-white uppercase tracking-wider">
-            LEVEL 1 → LEVEL 100 REWARD JOURNEY
+            LEVEL 1 → LEVEL 150 REWARD JOURNEY
           </h1>
           <p className="text-xs sm:text-sm text-slate-300 max-w-xl">
-            Gain Battle Pass XP through battles, auctions, and dungeons. Every fifth level grants a Random Shard Crate and every 25th level grants a Character Card Crate.
+            Gain Battle Pass XP through battles, auctions, and dungeons. Complete all 150 levels to conquer the Grandmaster Mythic Apex reward!
           </p>
         </div>
 
@@ -157,8 +157,9 @@ export function AscensionBattlePass() {
             <span className="text-[10px] text-slate-400">JUMP:</span>
             <button onClick={() => jumpToLevel(1)} className="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 cursor-pointer">1</button>
             <button onClick={() => jumpToLevel(currentLevel)} className="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-400/60 cursor-pointer">NOW</button>
+            <button onClick={() => jumpToLevel(50)} className="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 cursor-pointer">50</button>
             <button onClick={() => jumpToLevel(100)} className="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 cursor-pointer">100</button>
-            <button onClick={() => jumpToLevel(100)} className="px-2 py-0.5 rounded bg-gradient-to-r from-amber-500 to-purple-600 text-black border border-amber-300 cursor-pointer font-black">100</button>
+            <button onClick={() => jumpToLevel(150)} className="px-2 py-0.5 rounded bg-gradient-to-r from-amber-500 to-purple-600 text-black border border-amber-300 cursor-pointer font-black">150</button>
           </div>
         </div>
       </div>

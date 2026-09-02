@@ -29,7 +29,27 @@ export function MysteryWheel() {
   const startTimeRef = useRef<number>(0);
   const targetRotRef = useRef<number>(0);
 
-  const spins = user?.wheelSpins ?? 0;
+  const [timeUntilReset, setTimeUntilReset] = useState<string>('');
+
+  useEffect(() => {
+    const updateCountdown = () => {
+      const now = new Date();
+      const tomorrow = new Date();
+      tomorrow.setUTCHours(24, 0, 0, 0);
+      const diffMs = Math.max(0, tomorrow.getTime() - now.getTime());
+      const hours = Math.floor(diffMs / (1000 * 60 * 60));
+      const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      const secs = Math.floor((diffMs % (1000 * 60)) / 1000);
+      setTimeUntilReset(`${hours}h ${mins}m ${secs}s`);
+    };
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const hasDailySpin = !!user && user.lastWheelSpinDate !== todayStr;
+  const spins = (user?.wheelSpins ?? 0) + (hasDailySpin ? 1 : 0);
   const totalSpins = user?.totalWheelSpins ?? 0;
 
   // Draw wheel on canvas
@@ -232,8 +252,13 @@ export function MysteryWheel() {
 
           {/* Daily free spin notice */}
           {spins === 0 && (
-            <div className="px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-sm text-slate-400 text-center">
-              🌅 Your free daily spin resets at midnight
+            <div className="px-4 py-3 rounded-2xl bg-gradient-to-r from-purple-950/70 to-slate-900 border border-purple-500/40 text-sm text-slate-300 text-center space-y-1">
+              <div className="text-xs font-mono uppercase font-bold text-amber-400">
+                🔒 Today's Daily Spin Used
+              </div>
+              <div className="text-xs text-slate-400">
+                Next free spin resets in: <strong className="text-white font-mono">{timeUntilReset || 'Midnight UTC'}</strong>
+              </div>
             </div>
           )}
 

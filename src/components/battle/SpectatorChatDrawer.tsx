@@ -84,7 +84,7 @@ export function SpectatorChatDrawer({
 
       {/* Slide-out Spectator Drawer Overlay */}
       {isOpen && (
-        <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-[#080B14]/95 border-l border-purple-500/30 shadow-[0_0_50px_rgba(0,0,0,0.9)] backdrop-blur-2xl flex flex-col animate-slideLeft">
+        <div         className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-[#080B14]/95 border-l border-purple-500/30 shadow-[0_0_50px_rgba(0,0,0,0.9)] flex flex-col animate-slideLeft">
           
           {/* Header */}
           <div className="p-4 border-b border-white/10 flex items-center justify-between bg-black/50">

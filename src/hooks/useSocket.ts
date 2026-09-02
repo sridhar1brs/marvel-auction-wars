@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { GameState, GameSettings, BotPersonality, AscensionBattleState, BattleActionType } from '../types/game';
+import { API_BASE_URL } from '../config/api';
 
 export function useSocket() {
   const socketRef = useRef<Socket | null>(null);
@@ -11,16 +12,16 @@ export function useSocket() {
   const [lastError, setLastError] = useState<string | null>(null);
 
   useEffect(() => {
-    const metaEnv = (import.meta as unknown as { env?: Record<string, string> }).env;
-    // Connect to '/' which Netlify proxies to backend with full HTTPS SSL support
-    const backendUrl = metaEnv?.VITE_BACKEND_URL || '/';
+    const backendUrl = API_BASE_URL || (typeof window !== 'undefined' && window.location.origin ? window.location.origin : '/');
 
     const socket = io(backendUrl, {
-      transports: ['polling', 'websocket'],
+      transports: ['websocket', 'polling'],
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 10,
+      reconnectionAttempts: 20,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
     });
     socketRef.current = socket;
 
@@ -56,6 +57,11 @@ export function useSocket() {
     });
     socket.on('ascension_match_result', (result: any) => {
       setAscensionResult(result);
+    });
+
+    socket.on('ascension_kicked', (payload: { message?: string }) => {
+      setAscensionState(null);
+      setLastError(payload?.message || 'You have been kicked from the room.');
     });
 
     return () => {
@@ -113,8 +119,8 @@ export function useSocket() {
 
   const cancelAscensionQueue = (): Promise<any> => ascensionRequest('ascension_cancel_queue');
 
-  const createAscensionRoom = (mode: 'casual' | 'ranked', format: string, teamIds: string[]): Promise<any> =>
-    ascensionRequest('ascension_create_room', { mode, format, teamIds, authToken: localStorage.getItem('mcu_auth_token') || undefined }).then(res => {
+  const createAscensionRoom = (mode: 'casual' | 'ranked', format: string, teamIds: string[], settings?: any): Promise<any> =>
+    ascensionRequest('ascension_create_room', { mode, format, teamIds, settings, authToken: localStorage.getItem('mcu_auth_token') || undefined }).then(res => {
       if ((res as any).state) setAscensionState((res as any).state);
       return res;
     });
@@ -129,12 +135,24 @@ export function useSocket() {
 
   const setAscensionReady = (isReady: boolean): Promise<any> => ascensionRequest('ascension_set_ready', { isReady });
 
+  const updateAscensionSettings = (settings: any): Promise<any> => ascensionRequest('ascension_update_settings', { settings });
+
+  const addAscensionBot = (personality: BotPersonality = 'BALANCED'): Promise<any> => ascensionRequest('ascension_add_bot', { personality });
+
+  const kickAscensionPlayer = (playerId: string): Promise<any> => ascensionRequest('ascension_kick_player', { playerId });
+
+  const sendAscensionChat = (text: string): Promise<any> => ascensionRequest('ascension_send_chat', { text });
+
   const startAscensionBattle = (): Promise<any> => ascensionRequest('ascension_start_battle');
 
   const submitAscensionAction = (action: BattleActionType, fighterIndex = 0, skillId?: string): Promise<any> =>
     ascensionRequest('ascension_action', { action, fighterIndex, skillId });
 
-  const leaveAscensionRoom = (): Promise<any> => ascensionRequest('ascension_leave_room');
+  const leaveAscensionRoom = (): Promise<any> =>
+    ascensionRequest('ascension_leave_room').then(res => {
+      setAscensionState(null);
+      return res;
+    });
 
   const reconnectAscensionRoom = (roomId: string): Promise<any> =>
     ascensionRequest('ascension_reconnect', { roomId, authToken: localStorage.getItem('mcu_auth_token') || undefined });
@@ -274,6 +292,9 @@ export function useSocket() {
     socketRef.current?.emit('restart_game');
   };
 
+  const changeTournamentPairing = (firstUserId: string, secondUserId: string): Promise<any> =>
+    ascensionRequest('tournament_change_pairing', { firstUserId, secondUserId });
+
   return {
     socket: socketRef.current,
     isConnected,
@@ -291,6 +312,10 @@ export function useSocket() {
     joinAscensionRoom,
     setAscensionTeam,
     setAscensionReady,
+    updateAscensionSettings,
+    addAscensionBot,
+    kickAscensionPlayer,
+    sendAscensionChat,
     startAscensionBattle,
     submitAscensionAction,
     leaveAscensionRoom,
@@ -317,5 +342,6 @@ export function useSocket() {
     sendSpectatorChat,
     voteRematch,
     updateHostSettings,
+    changeTournamentPairing,
   };
 }

@@ -17,13 +17,12 @@ import { SkillVaultPage } from './components/shop/SkillVaultPage';
 import { GradeVotingModal } from './components/auction/GradeVotingModal';
 import { MarvelCinematicIntro } from './components/common/MarvelCinematicIntro';
 import { BossRaidManager } from './components/raid/BossRaidManager';
-import { DungeonSetupModal } from './components/dungeon/DungeonSetupModal';
-import { DungeonArena } from './components/dungeon/DungeonArena';
-import { DungeonSettings } from './types/dungeon';
+import { DungeonExpeditionHub } from './components/dungeon/DungeonExpeditionHub';
 import { GeminiChatbot } from './components/common/GeminiChatbot';
 import { LevelUpModal } from './components/common/LevelUpModal';
 import { useAuth } from './context/AuthContext';
 import { SpectatorChatDrawer } from './components/battle/SpectatorChatDrawer';
+import { BattlePresentation3D } from './components/battle/BattlePresentation3D';
 import { AscensionHub } from './components/ascension/AscensionHub';
 import { MatchLeaveConfirmModal } from './components/common/MatchLeaveConfirmModal';
 import { GamePhase } from './types/game';
@@ -66,7 +65,6 @@ export function App() {
   const [showHowToPlay, setShowHowToPlay] = useState(false);
   const [previousPhaseBeforeBrowse, setPreviousPhaseBeforeBrowse] = useState<GamePhase>('HOME');
   const [deviceView, setDeviceView] = useState<'pc' | 'phone'>('pc');
-  const [dungeonSettings, setDungeonSettings] = useState<DungeonSettings | null>(null);
   const [showLeaveConfirmModal, setShowLeaveConfirmModal] = useState(false);
   const [pendingTargetPhase, setPendingTargetPhase] = useState<GamePhase | null>(null);
 
@@ -193,7 +191,6 @@ export function App() {
             }}
             onPlayDungeon={() => {
               setPreviousPhaseBeforeBrowse('HOME');
-              setDungeonSettings(null);
               setPhase('DUNGEON');
             }}
             onPlayMultiplayer={() => {
@@ -348,11 +345,22 @@ export function App() {
 
         {/* 9. BATTLE TRANSITION MARVEL INTRO */}
         {state.phase === 'BATTLE_TRANSITION' && (
-          <MarvelCinematicIntro
-            title="MARVEL"
-            subtitle="THE TOURNAMENT BATTLES COMMENCE"
-            onComplete={() => setPhase('TOURNAMENT_TREE')}
-          />
+          <>
+            <MarvelCinematicIntro
+              title="MARVEL"
+              subtitle="THE TOURNAMENT BATTLES COMMENCE"
+              onComplete={() => setPhase('TOURNAMENT_TREE')}
+            />
+            {state.players[0]?.collection?.[0] && state.players[1]?.collection?.[0] && (
+              <BattlePresentation3D
+                player={state.players[0].collection[0]}
+                opponent={state.players[1].collection[0]}
+                effectType="cosmic"
+                title="AUCTION COMPLETE • BATTLE DEPLOYMENT"
+                className="mx-auto max-w-5xl -mt-24 relative z-30"
+              />
+            )}
+          </>
         )}
 
         {/* 10. TOURNAMENT BRACKET */}
@@ -412,22 +420,11 @@ export function App() {
           />
         )}
 
-        {/* 16. ANCIENT RUINS DUNGEONS (1-300 WAVES & CONFIGURABLE MILESTONES) */}
+        {/* 16. ROGUELITE DUNGEON EXPEDITIONS */}
         {state.phase === 'DUNGEON' && (
-          !dungeonSettings ? (
-            <DungeonSetupModal
-              onStartDungeon={(settings) => setDungeonSettings(settings)}
-              onBack={() => setPhase(previousPhaseBeforeBrowse || 'HOME')}
-            />
-          ) : (
-            <DungeonArena
-              settings={dungeonSettings}
-              onExit={() => {
-                setDungeonSettings(null);
-                setPhase('HOME');
-              }}
-            />
-          )
+          <DungeonExpeditionHub
+            onExit={() => setPhase('HOME')}
+          />
         )}
       </main>
 

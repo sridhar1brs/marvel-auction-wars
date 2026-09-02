@@ -5,6 +5,7 @@ import { CharacterPortrait } from './CharacterPortrait';
 import { soundManager } from '../../audio/soundManager';
 import { playSound } from '../../audio/soundEffects';
 import { resolveGeneralKnowledge, ResolvedAIResponse } from '../../data/aiKnowledgeEngine';
+import { getApiUrl } from '../../config/api';
 import { 
   Sparkles, X, Send, ChevronDown, ChevronUp, Zap, Shield, Swords, 
   Trash2, Volume2, VolumeX, Key, ExternalLink, RefreshCw, Bot, Globe,
@@ -263,7 +264,7 @@ ${liveGameState}`;
 
     // 1. Primary: Call Secure Server Proxy (/api/gemini/chat) which has process.env.GEMINI_API_KEY
     try {
-      const serverRes = await fetch('/api/gemini/chat', {
+      const serverRes = await fetch(getApiUrl('/api/gemini/chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

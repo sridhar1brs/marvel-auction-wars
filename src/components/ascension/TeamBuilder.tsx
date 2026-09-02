@@ -1,9 +1,10 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { ALL_CHARACTERS } from '../../data/characters/index';
 import { soundManager } from '../../audio/soundManager';
 import { CharacterPortrait } from '../common/CharacterPortrait';
 import { socket } from '../../socket/socket';
+import { getApiUrl } from '../../config/api';
 import {
   Users, Plus, Trash2, Edit3, Check, X, Swords,
   Crown, Play, UserPlus, Copy, Hash, LogIn, Search, Loader2, Wifi, Send, ChevronRight,
@@ -18,8 +19,9 @@ interface RoomPlayer {
   characterIds: string[]; teamPower: number; isHost: boolean; isReady: boolean;
 }
 interface TournamentRoom {
-  id: string; code: string; hostId: string; teamSize: number;
-  maxPlayers: number; players: RoomPlayer[]; status: 'WAITING' | 'STARTED';
+  id: string; code: string; hostId: string; hostUserId?: string; teamSize: number;
+  maxPlayers: number; players: RoomPlayer[]; status?: 'WAITING' | 'STARTED'; phase?: string;
+  bracketMatches?: BracketMatch[]; currentRound?: number;
 }
 interface BracketMatch {
   id: string; round: number; matchNumber: number;
@@ -83,7 +85,7 @@ export function TeamBuilder() {
 
   const ownedIds = user?.ownedCharacters || [];
   const ownedCharacters = ALL_CHARACTERS.filter(c => ownedIds.includes(c.id));
-  const isHost = room?.hostId === user?.id;
+  const isHost = (room?.hostId === user?.id) || (room?.hostUserId === user?.id);
   const myPlayer = room?.players.find(p => p.userId === user?.id);
 
   useEffect(() => { if (user?.savedTeams) setTeams(user.savedTeams); }, [user?.savedTeams]);
@@ -94,19 +96,48 @@ export function TeamBuilder() {
 
   useEffect(() => {
     if (!socket) return;
-    const onRoomUpdated = (r: TournamentRoom) => setRoom(r);
+    const onRoomUpdated = (r: TournamentRoom) => {
+      setRoom(r);
+      if (r.bracketMatches && r.bracketMatches.length > 0) {
+        setBracketMatches(r.bracketMatches);
+      }
+      if (r.currentRound) {
+        setCurrentRound(r.currentRound);
+      }
+    };
     const onMatchFound = (data: { room: TournamentRoom }) => {
-      setRoom(data.room); setIsQueuing(false); setLobbyMode('IN_ROOM');
+      const targetRoom = data?.room || data;
+      setRoom(targetRoom);
+      setIsQueuing(false);
+      setLobbyMode('IN_ROOM');
       showToast('Match found! You have been placed in a tournament room.', 'success');
       soundManager.playVictory();
     };
-    const onBracketStarted = (data: { room: TournamentRoom; matches: BracketMatch[] }) => {
-      setRoom(data.room); setBracketMatches(data.matches); setCurrentRound(1); setLobbyMode('BRACKET'); soundManager.playVictory();
+    const onBracketStarted = (data: any) => {
+      const targetRoom = data?.room || data;
+      const targetMatches = data?.matches || targetRoom?.bracketMatches || [];
+      if (targetRoom) setRoom(targetRoom);
+      setBracketMatches(targetMatches);
+      setCurrentRound(1);
+      setLobbyMode('BRACKET');
+      soundManager.playVictory();
     };
-    const onMatchResolved = (data: { matches: BracketMatch[] }) => { setBracketMatches(data.matches); soundManager.playAttackHit(); };
-    const onChampionCrowned = (data: { champion: RoomPlayer }) => { setChampion(data.champion); setLobbyMode('CHAMPION'); soundManager.playVictory(); };
-    const onRoundAdvanced = (data: { matches: BracketMatch[]; round: number }) => {
-      setBracketMatches(prev => [...prev, ...data.matches]); setCurrentRound(data.round);
+    const onMatchResolved = (data: any) => {
+      const targetMatches = data?.matches || data?.room?.bracketMatches || [];
+      if (targetMatches.length > 0) setBracketMatches(targetMatches);
+      if (data?.room) setRoom(data.room);
+      soundManager.playAttackHit();
+    };
+    const onChampionCrowned = (data: { champion: RoomPlayer; room?: TournamentRoom }) => {
+      setChampion(data.champion);
+      if (data.room) setRoom(data.room);
+      setLobbyMode('CHAMPION');
+      soundManager.playVictory();
+    };
+    const onRoundAdvanced = (data: { matches?: BracketMatch[]; round?: number; room?: TournamentRoom }) => {
+      if (data.room) setRoom(data.room);
+      if (data.matches) setBracketMatches(prev => [...prev, ...(data.matches || [])]);
+      if (data.round) setCurrentRound(data.round);
     };
     socket.on('tournament_room_updated', onRoomUpdated);
     socket.on('tournament_match_found', onMatchFound);
@@ -242,7 +273,7 @@ export function TeamBuilder() {
   const fetchOnlineFriends = async () => {
     if (!token) return; setFriendsLoading(true);
     try {
-      const res = await fetch('/api/social/friends', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(getApiUrl('/api/social/friends'), { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) setOnlineFriends((data.friends || []).filter((f: OnlineFriend) => f.isOnline));
     } catch {} setFriendsLoading(false);

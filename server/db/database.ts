@@ -13,6 +13,8 @@ import {
   RankedTierReward,
 } from '../../src/data/ascensionProgression';
 import { ALL_CHARACTERS } from '../../src/data/characters/index';
+import { Character } from '../../src/types/game';
+import { PLAYER_LEVEL_REWARDS } from '../../src/data/playerLevelRewards';
 
 // ============================================================
 // NEW SYSTEM INTERFACES (v4.0 — Complete Overhaul)
@@ -278,6 +280,7 @@ export interface UserAccount {
   // v4.0 — New Systems
   cardShards: number;                       // Card Forge crafting currency
   claimedLevelCrates: number[];             // Level milestone crates claimed
+  claimedLevelRewards?: number[];           // Player Level rewards claimed
   cratesOpened: number;                     // Total crates opened
   characterMastery: Record<string, CharacterMasteryState>; // Per-character mastery
   savedTeams: SavedTeam[];                  // Team Builder presets
@@ -373,7 +376,9 @@ export interface SanitizedUserProfile {
 
   // v4.0 — New Systems
   cardShards: number;
+  draftShards: Record<string, number>;
   claimedLevelCrates: number[];
+  claimedLevelRewards?: number[];
   cratesOpened: number;
   characterMastery: Record<string, CharacterMasteryState>;
   savedTeams: SavedTeam[];
@@ -402,11 +407,9 @@ export interface MatchRecordResult {
   newLevel: number;
 }
 
-const JWT_SECRET = process.env.AUTH_SECRET || (process.env.NODE_ENV !== 'production'
-  ? 'mcu_auction_wars_super_secret_jwt_key_2026_infinity'
-  : '');
-if (!JWT_SECRET) {
-  throw new Error('AUTH_SECRET must be configured before starting MARVEL ASCENSION in production.');
+const JWT_SECRET = process.env.AUTH_SECRET || process.env.JWT_SECRET || 'mcu_auction_wars_super_secret_jwt_key_2026_infinity';
+if (!process.env.AUTH_SECRET && !process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+  console.warn('[Security Warning] AUTH_SECRET/JWT_SECRET is not set. Using default secret. Set AUTH_SECRET environment variable for enhanced production security.');
 }
 const DATA_DIR = path.join(process.cwd(), 'server', 'data');
 const DB_FILE = path.join(DATA_DIR, 'accounts.json');
@@ -417,10 +420,16 @@ const LOGS_FILE = path.join(DATA_DIR, 'admin_logs.json');
 const ADMIN_USERNAME = (process.env.ADMIN_USERNAME || 'darksenseify').trim().toLowerCase();
 
 class DatabaseManager {
+  private awardCategoryShards(user: UserAccount, amount: number, category: CharacterShardCategory = 'B'): void {
+    if (amount <= 0) return;
+    if (!user.categoryShards) user.categoryShards = {};
+    user.categoryShards[category] = (user.categoryShards[category] || 0) + amount;
+  }
   private users: Map<string, UserAccount> = new Map(); // username -> UserAccount
   private redeemCodes: Map<string, RedeemCode> = new Map(); // code -> RedeemCode
   private adminLogs: AdminActionLog[] = [];
   private processedMatchTokens: Set<string> = new Set(); // Prevent duplicate match stats
+  private activeDungeonRuns: Map<string, any> = new Map(); // userId -> DungeonRunState
 
   constructor() {
     this.init();
@@ -482,6 +491,8 @@ class DatabaseManager {
   private migrateUserFields(u: any): UserAccount {
     const isOwner = (u.username || '').toLowerCase() === ADMIN_USERNAME;
     const realAstra = typeof u.astra === 'number' ? u.astra : (typeof u.ascensionCoins === 'number' ? u.ascensionCoins : 0);
+    const userLevel = isOwner ? Math.max(9, u.level || 1) : (u.level || 1);
+    const userXp = isOwner ? Math.max(6800, u.xp || 0) : (u.xp || 0);
 
     return {
       ...u,
@@ -489,6 +500,8 @@ class DatabaseManager {
       // account may hold administrative privileges.
       role: isOwner ? 'admin' : 'player',
       isAdmin: isOwner,
+      level: userLevel,
+      xp: userXp,
       dungeonPeak: u.dungeonPeak || u.dungeonMaxWave || 0,
       astra: realAstra,
       ascensionCoins: realAstra,
@@ -553,7 +566,7 @@ class DatabaseManager {
     };
   }
 
-  private save() {
+  public save() {
     try {
       const data = {
         version: '3.0.0',
@@ -626,7 +639,7 @@ class DatabaseManager {
       favoriteGameMode: u.favoriteGameMode,
       role: u.role || 'player',
       isAdmin: u.isAdmin || u.role === 'admin' || false,
-      level: levelInfo.level,
+      level: Math.max(u.level || 1, levelInfo.level),
       xp: u.xp,
       currentLevelXp: levelInfo.currentLevelXp,
       xpForNextLevel: levelInfo.xpForNextLevel,
@@ -674,6 +687,7 @@ class DatabaseManager {
       battlePassClaimed: u.battlePassClaimed || [],
       crateInventory: u.crateInventory || { shard: 0, character: 0 },
       categoryShards: u.categoryShards || {},
+      draftShards: u.draftShards || {},
       characterTokens: u.characterTokens || {},
       onboardingCompleted: u.onboardingCompleted !== false,
       onboardingChoices: u.onboardingChoices || [],
@@ -690,6 +704,7 @@ class DatabaseManager {
       // v4.0
       cardShards: u.cardShards || 0,
       claimedLevelCrates: u.claimedLevelCrates || [],
+      claimedLevelRewards: u.claimedLevelRewards || [],
       cratesOpened: u.cratesOpened || 0,
       characterMastery: u.characterMastery || {},
       savedTeams: u.savedTeams || [],
@@ -1260,7 +1275,7 @@ class DatabaseManager {
     }
   }
 
-  // Upgrade Character (Levels 1 - 50) -- Strict Mythic Lock
+  // Upgrade Character (normal levels 1-50, Mythic levels 1-25)
   public upgradeAscensionCharacter(
     userId: string,
     characterId: string,
@@ -1271,18 +1286,14 @@ class DatabaseManager {
 
     const character = ALL_CHARACTERS.find(candidate => candidate.id === characterId);
     if (!character) return { success: false, error: 'Character not found.' };
-    const serverIsMythic = character.grade === 'MYTHIC' || character.alignment === 'Cosmic';
-    if (serverIsMythic) {
-      return { success: false, error: 'MYTHIC CHARACTERS CANNOT BE UPGRADED. Mythics possess permanent cosmic supremacy.' };
-    }
-
     if (!(user.ownedCharacters || []).includes(characterId)) {
       return { success: false, error: 'You do not own this character yet.' };
     }
 
     const currentLevel = user.characterLevels[characterId] || 1;
-    if (currentLevel >= 50) {
-      return { success: false, error: 'This character is already at MAX LEVEL 50!' };
+    const maxLevel = character.grade === 'MYTHIC' ? 25 : 50;
+    if (currentLevel >= maxLevel) {
+      return { success: false, error: `This character is already at MAX LEVEL ${maxLevel}!` };
     }
 
     const requiredAstra = currentLevel * 150;
@@ -1997,10 +2008,8 @@ class DatabaseManager {
     grades: string[],
     alignment?: string
   ): { id: string; name: string; grade: string; alignment: string } | null {
-    // Dynamically import ALL_CHARACTERS from source
-    // We cache it once to avoid re-requiring every call
     try {
-      const chars = require('../../src/data/characters/index').ALL_CHARACTERS as any[];
+      const chars = ALL_CHARACTERS as any[];
       let pool = chars.filter(c => grades.includes(c.grade));
       if (alignment) pool = pool.filter(c => c.alignment === alignment);
       if (pool.length === 0) pool = chars.filter(c => grades.includes(c.grade));
@@ -2158,6 +2167,18 @@ class DatabaseManager {
     if (!user.draftShards) user.draftShards = { rare: 0, epic: 0, mythic: 0, hero: 0, villain: 0, cosmic: 0 };
 
     const crateType = (crateTypeInput || 'SHARD_CRATE').toUpperCase();
+    
+    // Validate and deduct from inventory if opened from inventory
+    if (crateType === 'TOKEN_SHARD_CRATE' || crateType === 'SHARD_CRATE') {
+      if (user.crateInventory.shard > 0) {
+        user.crateInventory.shard--;
+      }
+    } else {
+      if (user.crateInventory.character > 0) {
+        user.crateInventory.character--;
+      }
+    }
+
     user.cratesOpened = (user.cratesOpened || 0) + 1;
 
     let reward: any = {};
@@ -2198,6 +2219,104 @@ class DatabaseManager {
 
     this.save();
     return { success: true, crateType, reward, user: this.sanitizeUser(user) };
+  }
+
+  public openAllCrates(userId: string, crateTypeInput: string): {
+    success: boolean;
+    countOpened?: number;
+    crateType?: string;
+    rewards?: any[];
+    summary?: {
+      categoryShards: Record<string, number>;
+      newCharacters: Character[];
+      duplicateCharacters: { character: Character; shardsAwarded: number }[];
+      totalAstra: number;
+    };
+    error?: string;
+    user?: SanitizedUserProfile;
+  } {
+    const user = this.getRawUser(userId);
+    if (!user) return { success: false, error: 'User not found.' };
+    if (!user.crateInventory) user.crateInventory = { shard: 0, character: 0 };
+    if (!user.categoryShards) user.categoryShards = { C: 0, B: 0, A: 0, MYTHIC: 0, HERO: 0, VILLAIN: 0 };
+    if (!user.tokenShards) user.tokenShards = { C: 0, B: 0, A: 0, MYTHIC: 0, HERO: 0, VILLAIN: 0 };
+    if (!user.draftShards) user.draftShards = { rare: 0, epic: 0, mythic: 0, hero: 0, villain: 0, cosmic: 0 };
+    if (!user.ownedCharacters) user.ownedCharacters = [];
+    if (!user.characterLevels) user.characterLevels = {};
+
+    const crateType = (crateTypeInput || 'SHARD_CRATE').toUpperCase();
+    const isShardCrate = crateType === 'TOKEN_SHARD_CRATE' || crateType === 'SHARD_CRATE';
+    const availableCount = isShardCrate ? user.crateInventory.shard : user.crateInventory.character;
+
+    if (!availableCount || availableCount < 1) {
+      return { success: false, error: 'You do not have any crates of this type to open.' };
+    }
+
+    const countToOpen = availableCount;
+    if (isShardCrate) {
+      user.crateInventory.shard = 0;
+    } else {
+      user.crateInventory.character = 0;
+    }
+
+    user.cratesOpened = (user.cratesOpened || 0) + countToOpen;
+
+    const rewards: any[] = [];
+    const summary = {
+      categoryShards: { C: 0, B: 0, A: 0, MYTHIC: 0, HERO: 0, VILLAIN: 0 } as Record<string, number>,
+      newCharacters: [] as Character[],
+      duplicateCharacters: [] as { character: Character; shardsAwarded: number }[],
+      totalAstra: 0,
+    };
+
+    const categories = ['C', 'B', 'A', 'MYTHIC', 'HERO', 'VILLAIN'] as const;
+
+    let pool = ALL_CHARACTERS;
+    if (crateType === 'MYTHIC_CRATE' || crateType === 'MYTHIC') {
+      pool = ALL_CHARACTERS.filter(c => c.grade === 'MYTHIC');
+    } else if (crateType === 'LEGENDARY' || crateType === 'LEGENDARY_CRATE') {
+      pool = ALL_CHARACTERS.filter(c => c.grade === 'MYTHIC' || c.grade === 'A');
+    } else if (crateType === 'EPIC' || crateType === 'EPIC_CRATE') {
+      pool = ALL_CHARACTERS.filter(c => c.grade === 'A');
+    } else if (crateType === 'RARE' || crateType === 'RARE_CRATE') {
+      pool = ALL_CHARACTERS.filter(c => c.grade === 'B');
+    }
+    if (pool.length === 0) pool = ALL_CHARACTERS;
+
+    for (let i = 0; i < countToOpen; i++) {
+      if (isShardCrate) {
+        const category = categories[Math.floor(Math.random() * categories.length)];
+        const amount = category === 'MYTHIC' ? 3 : category === 'A' ? 5 : category === 'B' ? 8 : 10;
+        user.categoryShards[category] = (user.categoryShards[category] || 0) + amount;
+        user.tokenShards[category] = (user.tokenShards[category] || 0) + amount;
+        summary.categoryShards[category] = (summary.categoryShards[category] || 0) + amount;
+        rewards.push({ type: 'SHARD', category, amount, label: `+${amount} ${category} Token Shards` });
+      } else {
+        const character = pool[Math.floor(Math.random() * pool.length)];
+        if (user.ownedCharacters.includes(character.id)) {
+          const cat = getCharacterShardCategory(character);
+          user.categoryShards[cat] = (user.categoryShards[cat] || 0) + 10;
+          summary.categoryShards[cat] = (summary.categoryShards[cat] || 0) + 10;
+          summary.duplicateCharacters.push({ character, shardsAwarded: 10 });
+          rewards.push({ type: 'CHARACTER', character, duplicate: true, category: cat, amount: 10, label: `Duplicate ${character.name} (+10 Shards)` });
+        } else {
+          user.ownedCharacters.push(character.id);
+          user.characterLevels[character.id] = 1;
+          summary.newCharacters.push(character);
+          rewards.push({ type: 'CHARACTER', character, duplicate: false, label: `UNLOCKED ${character.name}!` });
+        }
+      }
+    }
+
+    this.save();
+    return {
+      success: true,
+      countOpened: countToOpen,
+      crateType,
+      rewards,
+      summary,
+      user: this.sanitizeUser(user)
+    };
   }
 
   // ============================================================
@@ -2242,7 +2361,7 @@ class DatabaseManager {
         if ((user.ownedCharacters || []).includes(char.id)) {
           isDuplicate = true;
           cardShardsAwarded = GRADE_SHARD_VALUES[char.grade] || 250;
-          user.cardShards = (user.cardShards || 0) + cardShardsAwarded;
+          this.awardCategoryShards(user, cardShardsAwarded, getCharacterShardCategory(char));
         } else {
           user.ownedCharacters = user.ownedCharacters || [];
           user.ownedCharacters.push(char.id);
@@ -2260,7 +2379,7 @@ class DatabaseManager {
         if ((user.ownedCharacters || []).includes(char.id)) {
           isDuplicate = true;
           cardShardsAwarded = GRADE_SHARD_VALUES[char.grade] || 25;
-          user.cardShards = (user.cardShards || 0) + cardShardsAwarded;
+          this.awardCategoryShards(user, cardShardsAwarded, getCharacterShardCategory(char));
         } else {
           user.ownedCharacters = user.ownedCharacters || [];
           user.ownedCharacters.push(char.id);
@@ -2268,7 +2387,7 @@ class DatabaseManager {
         reward = { character: char };
       } else {
         const fallbackShards = 50;
-        user.cardShards = (user.cardShards || 0) + fallbackShards;
+        this.awardCategoryShards(user, fallbackShards);
         cardShardsAwarded = fallbackShards;
         reward = { cardShards: fallbackShards };
       }
@@ -2280,7 +2399,7 @@ class DatabaseManager {
       const xpAmount = level * 20;
       user.astra = (user.astra || 0) + astraAmount;
       user.ascensionCoins = user.astra;
-      user.cardShards = (user.cardShards || 0) + shardsAmount;
+      this.awardCategoryShards(user, shardsAmount);
       user.xp = (user.xp || 0) + xpAmount;
       reward = { astra: astraAmount, cardShards: shardsAmount, xp: xpAmount };
     }
@@ -2339,6 +2458,7 @@ class DatabaseManager {
     const forgeCat = FORGE_CATEGORIES[category];
     const cost = forgeCat ? forgeCat.cost : 10;
     if (!user.draftShards) user.draftShards = { rare: 0, epic: 0, mythic: 0, hero: 0, villain: 0, cosmic: 0 };
+    if (!user.categoryShards) user.categoryShards = { C: 0, B: 0, A: 0, MYTHIC: 0, HERO: 0, VILLAIN: 0 };
 
     const catKey = category.toLowerCase();
     let shardType = 'rare';
@@ -2348,17 +2468,25 @@ class DatabaseManager {
     else if (catKey.includes('villain')) shardType = 'villain';
     else if (catKey.includes('cosmic')) shardType = 'cosmic';
 
-    const availableShards = (user.draftShards[shardType] || 0) + (user.cardShards || 0);
+    const categoryByDraftType: Record<string, string> = {
+      rare: 'B',
+      epic: 'A',
+      mythic: 'MYTHIC',
+      hero: 'HERO',
+      villain: 'VILLAIN',
+    };
+    const categoryShardType = categoryByDraftType[shardType];
+    const draftAvailable = user.draftShards[shardType] || 0;
+    const categoryAvailable = categoryShardType ? (user.categoryShards?.[categoryShardType] || 0) : 0;
+    const availableShards = draftAvailable + categoryAvailable;
     if (availableShards < cost) {
       return { success: false, error: `Not enough ${shardType.toUpperCase()} Draft Shards. Need ${cost}, you have ${availableShards}.` };
     }
 
-    if ((user.draftShards[shardType] || 0) >= cost) {
-      user.draftShards[shardType] -= cost;
-    } else {
-      const remainder = cost - (user.draftShards[shardType] || 0);
-      user.draftShards[shardType] = 0;
-      user.cardShards = Math.max(0, (user.cardShards || 0) - remainder);
+    const fromDraft = Math.min(draftAvailable, cost);
+    user.draftShards[shardType] -= fromDraft;
+    if (fromDraft < cost && categoryShardType) {
+      user.categoryShards[categoryShardType] = categoryAvailable - (cost - fromDraft);
     }
 
     let pool: typeof ALL_CHARACTERS = [];
@@ -2379,7 +2507,7 @@ class DatabaseManager {
 
     const char = pool[Math.floor(Math.random() * pool.length)];
     if (!char) {
-      user.cardShards = (user.cardShards || 0) + cost;
+      user.draftShards[shardType] = (user.draftShards[shardType] || 0) + cost;
       this.save();
       return { success: false, error: 'No characters available in this category.' };
     }
@@ -2390,7 +2518,8 @@ class DatabaseManager {
     if ((user.ownedCharacters || []).includes(char.id)) {
       isDuplicate = true;
       cardShardsAwarded = Math.floor((GRADE_SHARD_VALUES[char.grade] || 25) * 0.6) || 15;
-      user.cardShards = (user.cardShards || 0) + cardShardsAwarded;
+      const duplicateCategory = shardType;
+      user.draftShards[duplicateCategory] = (user.draftShards[duplicateCategory] || 0) + cardShardsAwarded;
     } else {
       user.ownedCharacters = user.ownedCharacters || [];
       user.ownedCharacters.push(char.id);
@@ -2491,7 +2620,7 @@ class DatabaseManager {
       user.astra = (user.astra || 0) + mission.rewardAmount;
       user.ascensionCoins = user.astra;
     } else if (mission.rewardType === 'cardShards') {
-      user.cardShards = (user.cardShards || 0) + mission.rewardAmount;
+      this.awardCategoryShards(user, mission.rewardAmount);
     } else if (mission.rewardType === 'xp') {
       user.xp = (user.xp || 0) + mission.rewardAmount;
     }
@@ -2542,7 +2671,7 @@ class DatabaseManager {
       user.astra = (user.astra || 0) + mission.rewardAmount;
       user.ascensionCoins = user.astra;
     } else if (mission.rewardType === 'cardShards') {
-      user.cardShards = (user.cardShards || 0) + mission.rewardAmount;
+      this.awardCategoryShards(user, mission.rewardAmount);
     } else if (mission.rewardType === 'xp') {
       user.xp = (user.xp || 0) + mission.rewardAmount;
     }
@@ -2585,7 +2714,7 @@ class DatabaseManager {
       user.astra = (user.astra || 0) + def.rewardAmount;
       user.ascensionCoins = user.astra;
     } else if (def.rewardType === 'cardShards') {
-      user.cardShards = (user.cardShards || 0) + def.rewardAmount;
+      this.awardCategoryShards(user, def.rewardAmount);
     }
 
     user.lastActiveAt = Date.now();
@@ -2608,14 +2737,13 @@ class DatabaseManager {
     const user = this.getRawUser(userId);
     if (!user) return { success: false, error: 'User not found.' };
 
-    // Check daily free spin
+    // Grant one free spin at the first spin attempt of each UTC day.
     const todayStr = new Date().toISOString().slice(0, 10);
+    if (user.lastWheelSpinDate !== todayStr) {
+      user.wheelSpins = (user.wheelSpins || 0) + 1;
+    }
     if ((user.wheelSpins || 0) <= 0) {
-      if (user.lastWheelSpinDate === todayStr) {
-        return { success: false, error: 'No spins available. Come back tomorrow for a free spin!' };
-      }
-      // Grant daily free spin
-      user.wheelSpins = 1;
+      return { success: false, error: 'No spins available. Come back tomorrow for a free spin!' };
     }
 
     // Pick weighted random prize
@@ -2633,7 +2761,7 @@ class DatabaseManager {
       user.astra = (user.astra || 0) + prize.amount;
       user.ascensionCoins = user.astra;
     } else if (prize.type === 'cardShards') {
-      user.cardShards = (user.cardShards || 0) + prize.amount;
+      this.awardCategoryShards(user, prize.amount);
     } else if (prize.type === 'xp') {
       user.xp = (user.xp || 0) + prize.amount;
     } else if (prize.type === 'wheelSpin') {
@@ -2652,6 +2780,70 @@ class DatabaseManager {
     this.save();
     const reward: WheelReward = { type: prize.type, amount: prize.amount, label: prize.label, color: prize.color };
     return { success: true, reward, prizeIndex, remainingSpins: user.wheelSpins, user: this.sanitizeUser(user) };
+  }
+
+  // ============================================================
+  // v4.0 — PLAYER LEVEL REWARDS
+  // ============================================================
+
+  public claimPlayerLevelReward(userId: string, targetLevel: number): {
+    success: boolean;
+    reward?: any;
+    user?: SanitizedUserProfile;
+    error?: string;
+  } {
+    const user = this.getRawUser(userId);
+    if (!user) return { success: false, error: 'User not found.' };
+
+    const playerLvl = user.level || 1;
+    if (playerLvl < targetLevel) {
+      return { success: false, error: `Required Player Level ${targetLevel}. Current Level: ${playerLvl}.` };
+    }
+
+    if (!user.claimedLevelRewards) user.claimedLevelRewards = [];
+    if (user.claimedLevelRewards.includes(targetLevel)) {
+      return { success: false, error: `Level ${targetLevel} reward has already been claimed.` };
+    }
+
+    const reward = PLAYER_LEVEL_REWARDS.find(r => r.level === targetLevel);
+    if (!reward) {
+      return { success: false, error: `No reward defined for Level ${targetLevel}.` };
+    }
+
+    // Award Astra
+    if (reward.astra > 0) {
+      user.astra = (user.astra || 0) + reward.astra;
+      user.ascensionCoins = user.astra;
+    }
+
+    // Award Card Shards
+    if (reward.draftShards > 0) {
+      if (!user.draftShards) user.draftShards = { rare: 0, epic: 0, mythic: 0, hero: 0, villain: 0, cosmic: 0 };
+      const shardCategory = reward.shardCategory || 'rare';
+      user.draftShards[shardCategory] = (user.draftShards[shardCategory] || 0) + reward.draftShards;
+    }
+
+
+    // Award Crates
+    if (reward.crates > 0) {
+      if (!user.crateInventory) user.crateInventory = { shard: 0, character: 0 };
+      if (reward.crateType === 'CHARACTER_CRATE' || reward.crateType === 'EPIC_CRATE' || reward.crateType === 'LEGENDARY_CRATE' || reward.crateType === 'MYTHIC_CRATE') {
+        user.crateInventory.character = (user.crateInventory.character || 0) + reward.crates;
+      } else {
+        user.crateInventory.shard = (user.crateInventory.shard || 0) + reward.crates;
+      }
+    }
+
+    if (!user.claimedLevelRewards) user.claimedLevelRewards = [];
+    user.claimedLevelRewards.push(targetLevel);
+    user.lastActiveAt = Date.now();
+
+    this.save();
+    return {
+      success: true,
+      reward,
+      user: this.sanitizeUser(user),
+    };
   }
 
   // ============================================================
@@ -2750,7 +2942,7 @@ class DatabaseManager {
       target.astra = (target.astra || 0) + amount;
       target.ascensionCoins = target.astra;
     } else if (rewardType === 'cardShards') {
-      target.cardShards = (target.cardShards || 0) + amount;
+      this.awardCategoryShards(target, amount);
     } else if (rewardType === 'xp') {
       target.xp = (target.xp || 0) + amount;
     } else if (rewardType === 'character' && characterId) {
@@ -3174,7 +3366,7 @@ class DatabaseManager {
       user.ascensionCoins = user.astra;
     }
     if (reward.cardShards) {
-      user.cardShards = (user.cardShards || 0) + reward.cardShards;
+      this.awardCategoryShards(user, reward.cardShards, reward.tokenCategory || 'B');
     }
     if (reward.cratesCount && reward.crateType) {
       if (!user.crateInventory) user.crateInventory = { shard: 0, character: 0 };
@@ -3192,6 +3384,189 @@ class DatabaseManager {
     user.claimedRankRewards.push(rankId);
     this.save();
     return { success: true, reward, user: this.sanitizeUser(user) };
+  }
+
+  // ============================================================
+  // 🗡️ ROGUELITE DUNGEON EXPEDITION BACKEND SYSTEM
+  // ============================================================
+
+  public startDungeonExpedition(userId: string, characterIds: string[], difficultyMode: string = 'EXPEDITION'): {
+    success: boolean;
+    error?: string;
+    teamData?: any[];
+    user?: SanitizedUserProfile;
+  } {
+    const user = this.getRawUser(userId);
+    if (!user) return { success: false, error: 'User not found.' };
+
+    if (!Array.isArray(characterIds) || characterIds.length === 0 || characterIds.length > 7) {
+      return { success: false, error: 'Team size must be between 1 and 7 characters.' };
+    }
+
+    if (!Array.isArray(user.ownedCharacters) || user.ownedCharacters.length === 0) {
+      // Initialize starter characters for new player
+      user.ownedCharacters = ALL_CHARACTERS.slice(0, 8).map(c => c.id);
+      this.save();
+    }
+
+    const ownedSet = new Set(user.ownedCharacters || []);
+    for (const charId of characterIds) {
+      if (!ownedSet.has(charId)) {
+        return { success: false, error: `Unauthorized character selection: ${charId} is not owned in Ascension.` };
+      }
+    }
+
+    // Build verified hero stats from persistent Ascension account
+    const teamData = characterIds.map(charId => {
+      const char = ALL_CHARACTERS.find(c => c.id === charId);
+      const lvl = user.characterLevels?.[charId] || 1;
+      const boosts = user.characterStatsBoosts?.[charId] || { power: 0, hp: 0, defense: 0, speed: 0 };
+      const eqRelics = user.equippedRelics?.[charId] || [];
+      const eqSkills = user.equippedSkills?.[charId] || [];
+      return {
+        characterId: charId,
+        character: char,
+        ascensionLevel: lvl,
+        boosts,
+        equippedRelics: eqRelics,
+        equippedSkills: eqSkills,
+      };
+    });
+
+    return {
+      success: true,
+      teamData,
+      user: this.sanitizeUser(user),
+    };
+  }
+
+  public saveDungeonRunState(userId: string, runState: any): { success: boolean } {
+    if (!userId || !runState) return { success: false };
+    this.activeDungeonRuns.set(userId, { ...runState, updatedAt: Date.now() });
+    return { success: true };
+  }
+
+  public getActiveDungeonRun(userId: string): { success: boolean; runState?: any } {
+    const run = this.activeDungeonRuns.get(userId);
+    if (!run || run.isGameOver || run.isComplete) {
+      return { success: false };
+    }
+    return { success: true, runState: run };
+  }
+
+  public finalizeDungeonExpedition(
+    userId: string,
+    runState: any,
+    isVictory: boolean,
+    matchToken?: string
+  ): (MatchRecordResult & { astraAwarded?: number; shardsAwarded?: number; cratesAwarded?: number; draftShardsAwarded?: Record<string, number> }) | null {
+    if (matchToken && this.processedMatchTokens.has(matchToken)) {
+      const u = this.getRawUser(userId);
+      if (!u) return null;
+      return {
+        success: true,
+        user: this.sanitizeUser(u),
+        xpAwarded: { total: 0, reasons: [] },
+        coinsAwarded: 0,
+        leveledUp: false,
+        oldLevel: getLevelFromXp(u.xp).level,
+        newLevel: getLevelFromXp(u.xp).level,
+      };
+    }
+
+    const user = this.getRawUser(userId);
+    if (!user) return null;
+
+    const oldLevel = getLevelFromXp(user.xp).level;
+    const floorReached = Number(runState?.currentFloor || runState?.maxFloorReached || 1);
+    const battlesWon = Number(runState?.runStats?.battlesWon || 0);
+    const elitesDefeated = Number(runState?.runStats?.elitesDefeated || 0);
+    const bossesConquered = Number(runState?.runStats?.bossesConquered || 0);
+
+    // Calculate progression rewards
+    const xpBreakdown = calculateMatchXp({
+      isWin: isVictory,
+      matchType: 'dungeon',
+      dungeonWavesCleared: floorReached,
+    });
+    user.xp += xpBreakdown.total;
+    user.battlePassXp = Math.max(0, (user.battlePassXp || 0) + Math.max(25, Math.floor(xpBreakdown.total / 2)));
+    user.battlePassLevel = getBattlePassLevelForXp(user.battlePassXp);
+
+    if (floorReached > (user.dungeonMaxWave || 0)) {
+      user.dungeonMaxWave = floorReached;
+      user.dungeonPeak = floorReached;
+    }
+
+    if (isVictory) {
+      user.dungeonsCompleted = (user.dungeonsCompleted || 0) + 1;
+      user.wins += 1;
+    } else {
+      user.losses += 1;
+    }
+
+    // Award authentic economy rewards
+    const baseAstra = floorReached * 120 + elitesDefeated * 250 + bossesConquered * 1000 + (isVictory ? 2500 : 0);
+    const astraAwarded = Math.max(100, Math.min(100000, baseAstra));
+    user.astra = (user.astra || 0) + astraAwarded;
+    user.ascensionCoins = user.astra;
+
+    // Award card shards
+    const shardsAwarded = Math.max(10, Math.floor(floorReached * 5 + elitesDefeated * 15 + bossesConquered * 50));
+    this.awardCategoryShards(user, shardsAwarded, floorReached >= 30 ? 'MYTHIC' : floorReached >= 15 ? 'A' : 'B');
+
+    // Crates on boss milestones
+    let cratesAwarded = 0;
+    if (bossesConquered > 0 || floorReached >= 10) {
+      cratesAwarded = Math.max(1, bossesConquered);
+      if (!user.crateInventory) user.crateInventory = { shard: 0, character: 0 };
+      if (bossesConquered >= 2) {
+        user.crateInventory.character += 1;
+      } else {
+        user.crateInventory.shard += cratesAwarded;
+      }
+    }
+
+    // Draft Shards based on depth
+    const draftShardsAwarded: Record<string, number> = {};
+    if (floorReached >= 5) {
+      if (!user.draftShards) user.draftShards = {};
+      const cat = floorReached >= 30 ? 'MYTHIC' : floorReached >= 15 ? 'A' : 'B';
+      const amount = Math.floor(floorReached / 2);
+      user.draftShards[cat] = (user.draftShards[cat] || 0) + amount;
+      draftShardsAwarded[cat] = amount;
+    }
+
+    const newLevel = getLevelFromXp(user.xp).level;
+    const leveledUp = newLevel > oldLevel;
+
+    // Missions & Achievements
+    this.updateMissionProgressForUser(user, 'dungeon_wave', floorReached);
+    if (isVictory) {
+      this.updateMissionProgressForUser(user, 'dungeon_complete', 1);
+    }
+    this.updateAchievementProgressForUser(user, 'dungeon_1', user.dungeonsCompleted || 0);
+    this.updateAchievementProgressForUser(user, 'dungeon_10', user.dungeonsCompleted || 0);
+    this.updateAchievementProgressForUser(user, 'dungeon_master', user.dungeonsCompleted || 0);
+
+    if (matchToken) this.processedMatchTokens.add(matchToken);
+    this.activeDungeonRuns.delete(userId);
+    user.lastActiveAt = Date.now();
+    this.save();
+
+    return {
+      success: true,
+      user: this.sanitizeUser(user),
+      xpAwarded: xpBreakdown,
+      coinsAwarded: astraAwarded,
+      astraAwarded,
+      shardsAwarded,
+      cratesAwarded,
+      draftShardsAwarded,
+      leveledUp,
+      oldLevel,
+      newLevel,
+    };
   }
 
   // ============================================================

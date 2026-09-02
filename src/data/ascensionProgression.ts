@@ -23,7 +23,7 @@ export interface BattlePassReward {
   crateImage?: string;
 }
 
-export const BATTLE_PASS_LEVELS = 1000;
+export const BATTLE_PASS_LEVELS = 150;
 export const BATTLE_PASS_XP_PER_LEVEL = 1000;
 
 export function getBattlePassLevelForXp(xp: number): number {
@@ -37,9 +37,21 @@ export function getBattlePassXpInLevel(xp: number): number {
 export function getBattlePassReward(level: number): BattlePassReward {
   const safeLevel = Math.min(BATTLE_PASS_LEVELS, Math.max(1, Math.floor(level)));
 
+  // Level 150 Grand Finale Ultimate Milestone
+  if (safeLevel === 150) {
+    return {
+      level: 150,
+      rewardType: 'MYTHIC_CRATE',
+      amount: 1,
+      label: '⚡ Grandmaster Mythic Apex Crate',
+      icon: '🌌',
+      crateImage: '/images/crates/mythic_crate.png',
+    };
+  }
+
   // Every 25th level is a Major Milestone
   if (safeLevel % 25 === 0) {
-    if (safeLevel % 100 === 0) {
+    if (safeLevel === 100) {
       return {
         level: safeLevel,
         rewardType: 'MYTHIC_CRATE',

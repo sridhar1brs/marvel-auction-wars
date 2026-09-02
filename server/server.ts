@@ -3,27 +3,43 @@ import express from 'express';
 import http from 'http';
 import { Server, Socket } from 'socket.io';
 import cors from 'cors';
-import { GameRoom, OnlineBattleRoom, AscensionBattleResult } from './rooms';
-import { ALL_CHARACTERS } from '../src/data/characters/index';
-import { Player, GameSettings, Character, AscensionBattleState, BattleActionType } from '../src/types/game';
-import { database } from './db/database';
-
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { GameRoom, OnlineBattleRoom, AscensionBattleResult } from './rooms';
+import { ALL_CHARACTERS } from '../src/data/characters/index';
+import { Player, GameSettings, Character, AscensionBattleState, BattleActionType, AscensionCustomSettings, BotPersonality, ChatMessage } from '../src/types/game';
+import { database, UserAccount } from './db/database';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
+
 const io = new Server(server, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST'],
+    origin: (origin, callback) => {
+      // Allow any origin in development/production for multi-device multiplayer
+      callback(null, true);
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
   },
+  transports: ['websocket', 'polling'],
+  pingTimeout: 30000,
+  pingInterval: 10000,
 });
 
-app.use(cors());
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow any origin for REST API requests across domains
+    callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json());
 
 // Serve production static frontend
@@ -52,6 +68,9 @@ export interface PartyMember {
   level: number;
   isLeader: boolean;
   isReady: boolean;
+  rankedTier?: string;
+  rankedDivision?: number;
+  rankedRating?: number;
 }
 
 export interface PartyState {
@@ -131,6 +150,7 @@ export interface TournamentRoomState {
   id: string;
   code: string;
   hostUserId: string;
+  hostId: string;
   teamSize: number; // 1, 2, 3, 4, 5
   maxPlayers: number; // 2, 4, 6, 8, 10
   phase: 'LOBBY' | 'BRACKET' | 'CHAMPION';
@@ -158,6 +178,28 @@ export interface TournamentQueueEntry {
 const tournamentRooms = new Map<string, TournamentRoomState>();
 const socketTournamentRoom = new Map<string, string>(); // socketId -> roomId
 const tournamentQueue: TournamentQueueEntry[] = [];
+
+function resolveSocketUser(socket: Socket, data?: { authToken?: string; token?: string }): UserAccount | null {
+  const token = data?.authToken || data?.token;
+  if (token) {
+    const payload = database.verifyToken(token);
+    if (payload?.id) {
+      userSocketMap.set(payload.id, socket.id);
+      socketUserMap.set(socket.id, payload.id);
+      socket.data.userId = payload.id;
+      const user = database.getRawUser(payload.id);
+      if (user) return user;
+    }
+  }
+
+  const userId = socket.data?.userId || socketUserMap.get(socket.id);
+  if (userId) {
+    const user = database.getRawUser(userId);
+    if (user) return user;
+  }
+
+  return null;
+}
 
 function calculateTeamPower(characterIds: string[], userId?: string): number {
   return (characterIds || []).reduce((acc, charId) => {
@@ -414,6 +456,57 @@ app.post('/api/auth/dungeon-result', (req, res) => {
 });
 
 // ==========================================
+// 🗡️ ROGUELITE DUNGEON EXPEDITION APIs
+// ==========================================
+
+// 1. Start Dungeon Expedition (1-7 character verification & initialization)
+app.post('/api/dungeon/start', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+
+  const { characterIds, difficultyMode } = req.body;
+  if (!Array.isArray(characterIds) || characterIds.length === 0) {
+    return res.status(400).json({ success: false, error: 'Please select 1 to 7 owned characters.' });
+  }
+
+  const result = database.startDungeonExpedition(user.id, characterIds, difficultyMode || 'EXPEDITION');
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+// 2. Save Active Dungeon Run State (for seamless resume across page reloads)
+app.post('/api/dungeon/save', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+
+  const { runState } = req.body;
+  const result = database.saveDungeonRunState(user.id, runState);
+  res.json(result);
+});
+
+// 3. Resume / Get Active Dungeon Run
+app.get('/api/dungeon/active', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+
+  const result = database.getActiveDungeonRun(user.id);
+  res.json(result);
+});
+
+// 4. Finalize Dungeon Expedition (Authentic Reward Claims & Leaderboards)
+app.post('/api/dungeon/complete', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+
+  const { runState, isVictory, matchToken } = req.body;
+  const result = database.finalizeDungeonExpedition(user.id, runState, !!isVictory, matchToken);
+  if (!result) {
+    return res.status(400).json({ success: false, error: 'Failed to record dungeon expedition result.' });
+  }
+  res.json(result);
+});
+
+// ==========================================
 // 🌌 MARVEL ASCENSION PLATFORM & ECONOMY APIs
 // ==========================================
 
@@ -437,7 +530,7 @@ app.post('/api/ascension/buy-character', (req, res) => {
   res.json(result);
 });
 
-// 3. Upgrade Character (Lvl 1 - 50) -- Strict Mythic Lock
+// 3. Upgrade Character (Lvl 1 - 50)
 app.post('/api/ascension/upgrade-character', (req, res) => {
   const user = getAuthUser(req);
   if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
@@ -504,6 +597,14 @@ app.post('/api/ascension/crates/open', (req, res) => {
   const user = getAuthUser(req);
   if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
   const result = database.openCrate(user.id, req.body?.crateType);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+app.post('/api/ascension/crates/open-all', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const result = database.openAllCrates(user.id, req.body?.crateType);
   if (!result.success) return res.status(400).json(result);
   res.json(result);
 });
@@ -673,32 +774,6 @@ app.post(['/api/forge/craft', '/api/progression/craft-card'], (req, res) => {
   res.json(result);
 });
 
-// Ascension Crates Opening
-app.post('/api/ascension/crates/open', (req, res) => {
-  const user = getAuthUser(req);
-  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
-  const result = database.openCrate(user.id, req.body?.crateType);
-  if (!result.success) return res.status(400).json(result);
-  res.json(result);
-});
-
-// Character Token Forge & Redeem
-app.post('/api/ascension/tokens/craft', (req, res) => {
-  const user = getAuthUser(req);
-  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
-  const result = database.craftCharacterToken(user.id, req.body?.category);
-  if (!result.success) return res.status(400).json(result);
-  res.json(result);
-});
-
-app.post('/api/ascension/tokens/redeem', (req, res) => {
-  const user = getAuthUser(req);
-  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
-  const result = database.redeemCharacterToken(user.id, req.body?.category, req.body?.characterId);
-  if (!result.success) return res.status(400).json(result);
-  res.json(result);
-});
-
 // Character Mastery
 app.post('/api/mastery/award', (req, res) => {
   const user = getAuthUser(req);
@@ -759,6 +834,16 @@ app.post('/api/wheel/spin', (req, res) => {
   const user = getAuthUser(req);
   if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
   const result = database.spinMysteryWheel(user.id);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+// Player Level Rewards
+app.post('/api/player-level/claim', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  const { level } = req.body;
+  const result = database.claimPlayerLevelReward(user.id, Number(level));
   if (!result.success) return res.status(400).json(result);
   res.json(result);
 });
@@ -1266,6 +1351,11 @@ function settleAscensionResult(result: AscensionBattleResult) {
   const rewards: NonNullable<AscensionBattleState['rewards']> = {};
   room.state.players.forEach(player => {
     if (!player.profileId) return; // Guest custom rooms still receive the battle result.
+    // Ranked rewards are earned by players who actually submitted an action.
+    // A disconnect/idle forfeiture must not grant free XP or alter MMR.
+    if (result.mode === 'ranked' && !result.participatingPlayerIds.includes(player.profileId)) {
+      return;
+    }
     const isWin = player.id === result.winnerId;
     const outcome = database.recordAscensionMatch(player.profileId, {
       isWin,
@@ -1297,14 +1387,16 @@ function settleAscensionResult(result: AscensionBattleResult) {
 function createAscensionRoom(
   roomId: string,
   mode: 'casual' | 'ranked',
-  format: AscensionBattleState['format']
+  format: AscensionBattleState['format'],
+  customSettings?: Partial<AscensionCustomSettings>
 ) {
   const room = new OnlineBattleRoom(
     roomId,
     mode,
     format,
     state => emitAscensionState(roomId, state),
-    settleAscensionResult
+    settleAscensionResult,
+    customSettings
   );
   ascensionRooms.set(roomId, room);
   return room;
@@ -1451,7 +1543,7 @@ io.on('connection', (socket: Socket) => {
   });
 
   socket.on('ascension_create_room', (data: {
-    mode?: 'casual' | 'ranked'; format?: string; teamIds?: unknown[]; authToken?: string
+    mode?: 'casual' | 'ranked'; format?: string; teamIds?: unknown[]; settings?: Partial<AscensionCustomSettings>; authToken?: string
   }, callback) => {
     const mode = data?.mode === 'ranked' ? 'ranked' : 'casual';
     const format = formatFromInput(data?.format);
@@ -1461,12 +1553,64 @@ io.on('connection', (socket: Socket) => {
     const selected = canonicalTeam(data?.teamIds, profile);
     if (!selected.team) return callback?.({ success: false, error: selected.error });
     const roomId = `ASC-ROOM-${Math.floor(100000 + Math.random() * 900000)}`;
-    const room = createAscensionRoom(roomId, mode, format);
+    const room = createAscensionRoom(roomId, mode, format, data?.settings);
     const player = makeAscensionPlayer(profileId, profile, selected.team, true);
     room.addPlayer(player);
     ascensionSocketSession.set(socket.id, { roomId, playerId: socket.id, profileId });
     socket.join(roomId);
     callback?.({ success: true, roomId, state: room.state });
+  });
+
+  socket.on('ascension_update_settings', (data: { settings?: Partial<AscensionCustomSettings> }, callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
+    const session = ascensionSocketSession.get(socket.id);
+    const room = session && ascensionRooms.get(session.roomId);
+    if (!room) return cb?.({ success: false, error: 'Ascension room not found.' });
+    cb?.(room.updateSettings(socket.id, data?.settings || {}));
+  });
+
+  socket.on('ascension_add_bot', (data: { personality?: BotPersonality }, callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
+    const session = ascensionSocketSession.get(socket.id);
+    const room = session && ascensionRooms.get(session.roomId);
+    if (!room) return cb?.({ success: false, error: 'Ascension room not found.' });
+    cb?.(room.addBot(socket.id, data?.personality || 'BALANCED'));
+  });
+
+  socket.on('ascension_kick_player', (data: { playerId: string }, callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
+    const session = ascensionSocketSession.get(socket.id);
+    const room = session && ascensionRooms.get(session.roomId);
+    if (!room) return cb?.({ success: false, error: 'Ascension room not found.' });
+    const targetSocket = io.sockets.sockets.get(data.playerId);
+    if (targetSocket) {
+      targetSocket.leave(session.roomId);
+      targetSocket.emit('ascension_kicked', { message: 'You have been removed from the room by the host.' });
+      ascensionSocketSession.delete(data.playerId);
+    }
+    cb?.(room.kickPlayer(socket.id, data.playerId));
+  });
+
+  socket.on('ascension_send_chat', (data: { text: string }, callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
+    const session = ascensionSocketSession.get(socket.id);
+    const room = session && ascensionRooms.get(session.roomId);
+    if (!room) return cb?.({ success: false, error: 'Ascension room not found.' });
+    const player = room.state.players.find(p => p.id === socket.id);
+    if (!player) return cb?.({ success: false, error: 'Player not found in room.' });
+    const text = String(data?.text || '').trim();
+    if (!text) return cb?.({ success: false, error: 'Message cannot be empty.' });
+    const chatMsg: ChatMessage = {
+      id: `asc_chat_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      senderId: socket.id,
+      senderName: player.name,
+      senderAvatar: player.avatar,
+      text: text.slice(0, 300),
+      timestamp: Date.now(),
+      type: 'CHAT'
+    };
+    room.sendChat(chatMsg);
+    cb?.({ success: true, message: chatMsg });
   });
 
   socket.on('ascension_join_room', (data: {
@@ -1934,10 +2078,9 @@ io.on('connection', (socket: Socket) => {
 
   // Party Creation
   socket.on('party_create', (_data, callback) => {
-    const userId = socketUserMap.get(socket.id);
-    if (!userId) return callback?.({ success: false, error: 'Not authenticated.' });
-    const user = database.getRawUser(userId);
-    if (!user) return callback?.({ success: false, error: 'User not found.' });
+    const user = resolveSocketUser(socket, _data);
+    if (!user) return callback?.({ success: false, error: 'Not authenticated.' });
+    const userId = user.id;
 
     // Leave any existing party
     const existingPartyId = userPartyMap.get(userId);
@@ -1949,7 +2092,6 @@ io.on('connection', (socket: Socket) => {
     const party: PartyState = {
       id: partyId,
       leaderId: userId,
-      createdAt: Date.now(),
       members: [{
         userId,
         socketId: socket.id,
@@ -1958,106 +2100,73 @@ io.on('connection', (socket: Socket) => {
         avatar: user.avatar || '🦸‍♂️',
         customAvatarUrl: user.customAvatarUrl,
         level: user.level || 1,
+        rankedTier: user.rankedTier || 'UNRANKED',
+        rankedDivision: user.rankedDivision || 0,
+        rankedRating: user.rankedRating || 0,
         isLeader: true,
         isReady: true,
       }],
+      createdAt: Date.now(),
     };
 
     parties.set(partyId, party);
     userPartyMap.set(userId, partyId);
     socket.join(`party_${partyId}`);
+
+    io.to(`party_${partyId}`).emit('party_state_updated', party);
     callback?.({ success: true, party });
   });
 
-  // Party Invite
+  // Party Invitation
   socket.on('party_invite', (data: { targetUserId: string }, callback) => {
-    const userId = socketUserMap.get(socket.id);
-    if (!userId) return callback?.({ success: false, error: 'Not authenticated.' });
-    const user = database.getRawUser(userId);
-    if (!user) return callback?.({ success: false, error: 'User not found.' });
+    const user = resolveSocketUser(socket, data as any);
+    if (!user) return callback?.({ success: false, error: 'Not authenticated.' });
+    const userId = user.id;
 
-    let partyId = userPartyMap.get(userId);
-    let party = partyId ? parties.get(partyId) : undefined;
-    if (!party) {
-      partyId = `PARTY-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-      party = {
-        id: partyId,
-        leaderId: userId,
-        createdAt: Date.now(),
-        members: [{
-          userId,
-          socketId: socket.id,
-          username: user.username,
-          displayName: user.displayName || user.username,
-          avatar: user.avatar || '🦸‍♂️',
-          customAvatarUrl: user.customAvatarUrl,
-          level: user.level || 1,
-          isLeader: true,
-          isReady: true,
-        }],
-      };
-      parties.set(partyId, party);
-      userPartyMap.set(userId, partyId);
-      socket.join(`party_${partyId}`);
-    }
-
-    if (party.leaderId !== userId) {
-      return callback?.({ success: false, error: 'Only the party leader can invite players.' });
-    }
-
-    if (party.members.length >= 5) {
-      return callback?.({ success: false, error: 'Party is already full (max 5 players).' });
-    }
+    const partyId = userPartyMap.get(userId);
+    const party = partyId ? parties.get(partyId) : undefined;
+    if (!party) return callback?.({ success: false, error: 'You are not in a party.' });
+    if (party.leaderId !== userId) return callback?.({ success: false, error: 'Only the party leader can invite players.' });
+    if (party.members.length >= 5) return callback?.({ success: false, error: 'Party is already full (max 5).' });
 
     const targetSocketId = userSocketMap.get(data.targetUserId);
-    if (!targetSocketId) {
-      return callback?.({ success: false, error: 'Player is currently offline.' });
-    }
+    if (!targetSocketId) return callback?.({ success: false, error: 'Player is currently offline.' });
 
     io.to(targetSocketId).emit('party_invite_received', {
       partyId: party.id,
-      inviterId: userId,
       inviterName: user.displayName || user.username,
       inviterAvatar: user.avatar || '🦸‍♂️',
-      inviterCustomAvatar: user.customAvatarUrl,
-      inviterLevel: user.level || 1,
+      memberCount: party.members.length,
     });
 
-    callback?.({ success: true, message: 'Party invitation sent.' });
+    callback?.({ success: true, message: 'Invitation dispatched.' });
   });
 
   // Party Invite Response
   socket.on('party_invite_response', (data: { partyId: string; accept: boolean }, callback) => {
-    const userId = socketUserMap.get(socket.id);
-    if (!userId) return callback?.({ success: false, error: 'Not authenticated.' });
-    const user = database.getRawUser(userId);
-    if (!user) return callback?.({ success: false, error: 'User not found.' });
+    const user = resolveSocketUser(socket, data as any);
+    if (!user) return callback?.({ success: false, error: 'Not authenticated.' });
+    const userId = user.id;
 
     const party = parties.get(data.partyId);
-    if (!party) {
-      return callback?.({ success: false, error: 'Party no longer exists.' });
-    }
+    if (!party) return callback?.({ success: false, error: 'Party no longer exists.' });
 
     if (!data.accept) {
       const leaderSocketId = userSocketMap.get(party.leaderId);
       if (leaderSocketId) {
         io.to(leaderSocketId).emit('party_invite_declined', {
-          userId,
-          name: user.displayName || user.username,
+          username: user.displayName || user.username,
         });
       }
-      return callback?.({ success: true, message: 'Invitation declined.' });
+      return callback?.({ success: true });
     }
 
     if (party.members.length >= 5) {
       return callback?.({ success: false, error: 'Party is full.' });
     }
 
-    // Leave any previous party
-    const oldPartyId = userPartyMap.get(userId);
-    if (oldPartyId) {
-      leaveParty(userId, socket.id);
-    }
+    // Leave any current party
+    leaveParty(userId, socket.id);
 
     const newMember: PartyMember = {
       userId,
@@ -2067,6 +2176,9 @@ io.on('connection', (socket: Socket) => {
       avatar: user.avatar || '🦸‍♂️',
       customAvatarUrl: user.customAvatarUrl,
       level: user.level || 1,
+      rankedTier: user.rankedTier || 'UNRANKED',
+      rankedDivision: user.rankedDivision || 0,
+      rankedRating: user.rankedRating || 0,
       isLeader: false,
       isReady: false,
     };
@@ -2081,8 +2193,9 @@ io.on('connection', (socket: Socket) => {
 
   // Party Toggle Ready
   socket.on('party_toggle_ready', (callback) => {
-    const userId = socketUserMap.get(socket.id);
-    if (!userId) return;
+    const user = resolveSocketUser(socket);
+    if (!user) return;
+    const userId = user.id;
     const partyId = userPartyMap.get(userId);
     const party = partyId ? parties.get(partyId) : undefined;
     if (!party) return;
@@ -2097,9 +2210,9 @@ io.on('connection', (socket: Socket) => {
 
   // Party Leave
   socket.on('party_leave', (callback) => {
-    const userId = socketUserMap.get(socket.id);
-    if (userId) {
-      leaveParty(userId, socket.id);
+    const user = resolveSocketUser(socket);
+    if (user) {
+      leaveParty(user.id, socket.id);
     }
     callback?.({ success: true });
   });
@@ -2109,12 +2222,11 @@ io.on('connection', (socket: Socket) => {
   // ==========================================
 
   // 1. Create Tournament Room
-  socket.on('tournament_create_room', (data: { teamSize: number; maxPlayers: number; characterIds: string[] }, callback) => {
+  socket.on('tournament_create_room', (data: { teamSize: number; maxPlayers: number; characterIds: string[]; authToken?: string; token?: string }, callback) => {
     const cb = typeof callback === 'function' ? callback : undefined;
-    const userId = socketUserMap.get(socket.id);
-    if (!userId) return cb?.({ success: false, error: 'Not authenticated.' });
-    const user = database.getRawUser(userId);
-    if (!user) return cb?.({ success: false, error: 'User not found.' });
+    const user = resolveSocketUser(socket, data);
+    if (!user) return cb?.({ success: false, error: 'Not authenticated. Please sign in.' });
+    const userId = user.id;
 
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const roomId = `TOURN-${code}`;
@@ -2140,6 +2252,7 @@ io.on('connection', (socket: Socket) => {
       id: roomId,
       code,
       hostUserId: userId,
+      hostId: userId,
       teamSize,
       maxPlayers,
       phase: 'LOBBY',
@@ -2157,14 +2270,13 @@ io.on('connection', (socket: Socket) => {
   });
 
   // 2. Join Tournament Room
-  socket.on('tournament_join_room', (data: { roomIdOrCode: string; characterIds?: string[] }, callback) => {
+  socket.on('tournament_join_room', (data: { roomIdOrCode?: string; code?: string; roomId?: string; characterIds?: string[]; authToken?: string; token?: string }, callback) => {
     const cb = typeof callback === 'function' ? callback : undefined;
-    const userId = socketUserMap.get(socket.id);
-    if (!userId) return cb?.({ success: false, error: 'Not authenticated.' });
-    const user = database.getRawUser(userId);
-    if (!user) return cb?.({ success: false, error: 'User not found.' });
+    const user = resolveSocketUser(socket, data);
+    if (!user) return cb?.({ success: false, error: 'Not authenticated. Please sign in.' });
+    const userId = user.id;
 
-    const query = String(data?.roomIdOrCode || '').trim().toUpperCase();
+    const query = String(data?.code || data?.roomId || data?.roomIdOrCode || '').trim().toUpperCase();
     let room: TournamentRoomState | undefined = tournamentRooms.get(query);
     if (!room) {
       for (const r of tournamentRooms.values()) {
@@ -2216,14 +2328,15 @@ io.on('connection', (socket: Socket) => {
   });
 
   // 3. Update Tournament Team in Room
-  socket.on('tournament_update_team', (data: { characterIds: string[] }, callback) => {
+  socket.on('tournament_update_team', (data: { characterIds: string[]; roomId?: string; authToken?: string; token?: string }, callback) => {
     const cb = typeof callback === 'function' ? callback : undefined;
-    const roomId = socketTournamentRoom.get(socket.id);
+    resolveSocketUser(socket, data);
+    const roomId = data?.roomId || socketTournamentRoom.get(socket.id);
     if (!roomId) return cb?.({ success: false, error: 'Not in a tournament room.' });
     const room = tournamentRooms.get(roomId);
     if (!room) return cb?.({ success: false, error: 'Room not found.' });
 
-    const player = room.players.find(p => p.socketId === socket.id);
+    const player = room.players.find(p => p.socketId === socket.id || (socket.data?.userId && p.userId === socket.data.userId));
     if (player) {
       player.characterIds = (data?.characterIds || []).slice(0, room.teamSize);
       player.teamPower = calculateTeamPower(player.characterIds, player.userId);
@@ -2233,37 +2346,42 @@ io.on('connection', (socket: Socket) => {
   });
 
   // 4. Toggle Ready in Tournament Room
-  socket.on('tournament_toggle_ready', (callback) => {
-    const cb = typeof callback === 'function' ? callback : undefined;
-    const roomId = socketTournamentRoom.get(socket.id);
+  socket.on('tournament_toggle_ready', (arg1?: any, arg2?: any) => {
+    const data = typeof arg1 === 'object' && arg1 !== null ? arg1 : {};
+    const cb = typeof arg1 === 'function' ? arg1 : (typeof arg2 === 'function' ? arg2 : undefined);
+    const roomId = data?.roomId || socketTournamentRoom.get(socket.id);
     if (!roomId) return cb?.({ success: false, error: 'Not in a tournament room.' });
     const room = tournamentRooms.get(roomId);
     if (!room) return cb?.({ success: false, error: 'Room not found.' });
 
-    const player = room.players.find(p => p.socketId === socket.id);
+    const userId = socket.data?.userId || socketUserMap.get(socket.id);
+    const player = room.players.find(p => p.socketId === socket.id || (userId && p.userId === userId));
     if (player) {
-      player.isReady = !player.isReady;
+      player.isReady = typeof data?.isReady === 'boolean' ? data.isReady : !player.isReady;
       io.to(room.id).emit('tournament_room_updated', room);
     }
     cb?.({ success: true, room });
   });
 
   // 5. Leave Tournament Room
-  socket.on('tournament_leave_room', (callback) => {
-    const cb = typeof callback === 'function' ? callback : undefined;
-    const roomId = socketTournamentRoom.get(socket.id);
+  socket.on('tournament_leave_room', (arg1?: any, arg2?: any) => {
+    const data = typeof arg1 === 'object' && arg1 !== null ? arg1 : {};
+    const cb = typeof arg1 === 'function' ? arg1 : (typeof arg2 === 'function' ? arg2 : undefined);
+    const roomId = data?.roomId || socketTournamentRoom.get(socket.id);
     if (roomId) {
       const room = tournamentRooms.get(roomId);
       if (room) {
-        room.players = room.players.filter(p => p.socketId !== socket.id);
+        const userId = socket.data?.userId || socketUserMap.get(socket.id);
+        room.players = room.players.filter(p => p.socketId !== socket.id && (!userId || p.userId !== userId));
         socket.leave(roomId);
         socketTournamentRoom.delete(socket.id);
 
         if (room.players.length === 0) {
           tournamentRooms.delete(roomId);
         } else {
-          if (room.hostUserId === socketUserMap.get(socket.id)) {
+          if (room.hostUserId === userId || room.hostId === userId) {
             room.hostUserId = room.players[0].userId;
+            room.hostId = room.players[0].userId;
             room.players[0].isHost = true;
           }
           io.to(room.id).emit('tournament_room_updated', room);
@@ -2274,12 +2392,11 @@ io.on('connection', (socket: Socket) => {
   });
 
   // 6. Tournament Matchmaking Queue (Quick Match)
-  socket.on('tournament_queue', (data: { teamSize: number; maxPlayers: number; characterIds: string[] }, callback) => {
+  socket.on('tournament_queue', (data: { teamSize: number; maxPlayers: number; characterIds: string[]; authToken?: string; token?: string }, callback) => {
     const cb = typeof callback === 'function' ? callback : undefined;
-    const userId = socketUserMap.get(socket.id);
-    if (!userId) return cb?.({ success: false, error: 'Not authenticated.' });
-    const user = database.getRawUser(userId);
-    if (!user) return cb?.({ success: false, error: 'User not found.' });
+    const user = resolveSocketUser(socket, data);
+    if (!user) return cb?.({ success: false, error: 'Not authenticated. Please sign in.' });
+    const userId = user.id;
 
     const teamSize = Math.min(5, Math.max(1, Number(data?.teamSize) || 1));
     const maxPlayers = [2, 4, 6, 8, 10].includes(Number(data?.maxPlayers)) ? Number(data.maxPlayers) : 2;
@@ -2335,6 +2452,7 @@ io.on('connection', (socket: Socket) => {
         id: roomId,
         code,
         hostUserId: players[0].userId,
+        hostId: players[0].userId,
         teamSize,
         maxPlayers,
         phase: maxPlayers === 2 ? 'BRACKET' : 'LOBBY',
@@ -2365,18 +2483,18 @@ io.on('connection', (socket: Socket) => {
   // 7. Cancel Tournament Queue
   socket.on('tournament_cancel_queue', (callback) => {
     const cb = typeof callback === 'function' ? callback : undefined;
-    const idx = tournamentQueue.findIndex(q => q.socketId === socket.id);
+    const userId = socket.data?.userId || socketUserMap.get(socket.id);
+    const idx = tournamentQueue.findIndex(q => q.socketId === socket.id || (userId && q.userId === userId));
     if (idx >= 0) tournamentQueue.splice(idx, 1);
     cb?.({ success: true });
   });
 
   // 8. Invite Friend to Tournament
-  socket.on('tournament_invite_friend', (data: { targetUserId: string; roomId: string }, callback) => {
+  socket.on('tournament_invite_friend', (data: { targetUserId: string; roomId: string; authToken?: string; token?: string }, callback) => {
     const cb = typeof callback === 'function' ? callback : undefined;
-    const userId = socketUserMap.get(socket.id);
-    if (!userId) return cb?.({ success: false, error: 'Not authenticated.' });
-    const user = database.getRawUser(userId);
-    if (!user) return cb?.({ success: false, error: 'User not found.' });
+    const user = resolveSocketUser(socket, data);
+    if (!user) return cb?.({ success: false, error: 'Not authenticated.' });
+    const userId = user.id;
 
     const room = tournamentRooms.get(data?.roomId);
     if (!room) return cb?.({ success: false, error: 'Tournament room not found.' });
@@ -2413,12 +2531,46 @@ io.on('connection', (socket: Socket) => {
     room.currentRound = 1;
     room.bracketMatches = generateTournamentBracket(room.players, room.maxPlayers);
 
-    io.to(room.id).emit('tournament_bracket_started', room);
+    io.to(room.id).emit('tournament_bracket_started', { room, matches: room.bracketMatches });
     io.to(room.id).emit('tournament_room_updated', room);
     cb?.({ success: true, room });
   });
 
-  // 10. Simulate / Resolve Tournament Bracket Match
+  // 10. Host pairing controls. Pairings may only be changed before a match
+  // starts, and only within the active round.
+  socket.on('tournament_change_pairing', (data: { firstUserId: string; secondUserId: string }, callback) => {
+    const cb = typeof callback === 'function' ? callback : undefined;
+    const roomId = socketTournamentRoom.get(socket.id);
+    const room = roomId && tournamentRooms.get(roomId);
+    const userId = socket.data?.userId || socketUserMap.get(socket.id);
+    if (!room) return cb?.({ success: false, error: 'Not in a tournament room.' });
+    if (room.hostUserId !== userId) return cb?.({ success: false, error: 'Only the tournament host can change pairings.' });
+    if (room.phase !== 'BRACKET') return cb?.({ success: false, error: 'Pairings can only be changed on the bracket.' });
+    if (!data?.firstUserId || !data?.secondUserId || data.firstUserId === data.secondUserId) {
+      return cb?.({ success: false, error: 'Choose two different players.' });
+    }
+    const current = room.bracketMatches.filter(m => m.round === room.currentRound);
+    if (current.some(m => m.status !== 'PENDING')) {
+      return cb?.({ success: false, error: 'Pairings are locked once a match starts or completes.' });
+    }
+    const first = current.find(m => m.player1?.userId === data.firstUserId || m.player2?.userId === data.firstUserId);
+    const second = current.find(m => m.player1?.userId === data.secondUserId || m.player2?.userId === data.secondUserId);
+    if (!first || !second) return cb?.({ success: false, error: 'Both players must be in the active round.' });
+    const replace = (match: TournamentBracketMatch, id: string, value: TournamentPlayerState) => {
+      if (match.player1?.userId === id) match.player1 = value;
+      else if (match.player2?.userId === id) match.player2 = value;
+    };
+    const firstPlayer = first.player1?.userId === data.firstUserId ? first.player1 : first.player2;
+    const secondPlayer = second.player1?.userId === data.secondUserId ? second.player1 : second.player2;
+    if (!firstPlayer || !secondPlayer) return cb?.({ success: false, error: 'Players are not available.' });
+    replace(first, data.firstUserId, secondPlayer);
+    replace(second, data.secondUserId, firstPlayer);
+    io.to(room.id).emit('tournament_pairing_changed', { room, matches: room.bracketMatches });
+    io.to(room.id).emit('tournament_room_updated', room);
+    cb?.({ success: true, room, matches: room.bracketMatches });
+  });
+
+  // 11. Simulate / Resolve Tournament Bracket Match
   socket.on('tournament_simulate_match', (data: { matchId: string }, callback) => {
     const cb = typeof callback === 'function' ? callback : undefined;
     const roomId = socketTournamentRoom.get(socket.id);
@@ -2439,7 +2591,7 @@ io.on('connection', (socket: Socket) => {
     match.winner = winner;
     match.status = 'COMPLETED';
 
-    io.to(room.id).emit('tournament_match_resolved', { matchId: match.id, winner, room });
+    io.to(room.id).emit('tournament_match_resolved', { matchId: match.id, winner, room, matches: room.bracketMatches });
     io.to(room.id).emit('tournament_room_updated', room);
     cb?.({ success: true, winner, room });
   });
@@ -2471,7 +2623,8 @@ io.on('connection', (socket: Socket) => {
         const u = database.getRawUser(champ.userId);
         if (u) {
           u.astra = (u.astra || 0) + 5000;
-          u.cardShards = (u.cardShards || 0) + 50;
+          u.categoryShards = u.categoryShards || {};
+          u.categoryShards.B = (u.categoryShards.B || 0) + 50;
           u.tournamentWins = (u.tournamentWins || 0) + 1;
           database.save();
         }
@@ -2511,17 +2664,17 @@ io.on('connection', (socket: Socket) => {
     room.currentRound = nextRound;
     room.bracketMatches.push(...nextMatches);
 
+    io.to(room.id).emit('tournament_round_advanced', { matches: nextMatches, round: nextRound, room });
     io.to(room.id).emit('tournament_room_updated', room);
     cb?.({ success: true, room });
   });
 
   // Team Battle Tournament Invite (Legacy Event compatibility)
-  socket.on('team_battle_invite', (data: { targetUserId: string; teamSize: number; maxPlayers: number; roomId?: string; roomCode?: string }, callback) => {
+  socket.on('team_battle_invite', (data: { targetUserId: string; teamSize: number; maxPlayers: number; roomId?: string; roomCode?: string; authToken?: string; token?: string }, callback) => {
     const cb = typeof callback === 'function' ? callback : undefined;
-    const userId = socketUserMap.get(socket.id);
-    if (!userId) return cb?.({ success: false, error: 'Not authenticated.' });
-    const user = database.getRawUser(userId);
-    if (!user) return cb?.({ success: false, error: 'User not found.' });
+    const user = resolveSocketUser(socket, data);
+    if (!user) return cb?.({ success: false, error: 'Not authenticated.' });
+    const userId = user.id;
 
     const targetSocketId = userSocketMap.get(data?.targetUserId);
     if (!targetSocketId) {
@@ -2776,8 +2929,24 @@ app.post('/api/progression/track-mode', (req, res) => {
   res.json({ success: true });
 });
 
+// ==========================================
+// SPA ROUTE FALLBACK (PRODUCTION)
+// ==========================================
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+    return next();
+  }
+  const indexPath = path.join(distPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    next();
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-  console.log(`⚡ MARVEL: AUCTION WARS Server running on port ${PORT}`);
-  console.log(`⚔️ Loaded ${ALL_CHARACTERS.length} Marvel Characters`);
+  console.log(`⚡ MARVEL ASCENSION Server running on port ${PORT}`);
+  console.log(`⚔️ Loaded ${ALL_CHARACTERS.length} Marvel Characters across multiverse`);
+  console.log(`🌐 Production Static Frontend: ${fs.existsSync(distPath) ? 'Active' : 'Awaiting build in dist/'}`);
 });

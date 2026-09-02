@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 interface Props {
-  onNavigateTab: (tab: 'HOME' | 'CHARACTERS' | 'SHOP' | 'RELICS' | 'SKILLS' | 'BATTLE' | 'INVENTORY' | 'BATTLE_PASS' | 'RANKED' | 'LEADERBOARDS') => void;
+  onNavigateTab: (tab: any) => void;
 }
 
 export function AscensionHome({ onNavigateTab }: Props) {
@@ -115,12 +115,37 @@ export function AscensionHome({ onNavigateTab }: Props) {
               type="button"
               onClick={() => {
                 soundManager.playClick();
+                onNavigateTab('CUSTOM');
+              }}
+              className="py-3 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-heading font-black text-xs uppercase tracking-wider shadow-glow-blue flex items-center gap-2 cursor-pointer transform hover:scale-105 active:scale-95 transition-all"
+            >
+              <Shield className="w-4 h-4" />
+              <span>CUSTOM ROOMS</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                soundManager.playClick();
                 onNavigateTab('RANKED');
               }}
               className="py-3 px-6 rounded-2xl bg-black/60 hover:bg-black/90 border border-purple-500/50 text-purple-200 font-heading font-black text-xs uppercase tracking-wider shadow-glow-purple flex items-center gap-2 cursor-pointer transition-all"
             >
               <Trophy className="w-4 h-4 text-amber-400" />
               <span>COMPETITIVE RANKED</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                soundManager.playClick();
+                onNavigateTab('DUNGEON');
+              }}
+              className="py-3 px-6 rounded-2xl bg-gradient-to-r from-orange-500 via-red-600 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-heading font-black text-xs uppercase tracking-wider shadow-glow-red flex items-center gap-2 cursor-pointer transform hover:scale-105 active:scale-95 transition-all"
+            >
+              <Swords className="w-4 h-4" />
+              <span>DUNGEON SURVIVAL</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
 
             <button

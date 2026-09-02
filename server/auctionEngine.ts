@@ -37,7 +37,8 @@ export function validateBid(
 
   const scaledStartingPrice = getScaledStartingPrice(
     auction.currentCharacter.startingPrice, 
-    settings.startingMoney
+    settings.startingMoney,
+    auction.currentCharacter.name
   );
 
   // If no bids placed yet, bid must be >= scaled starting price
@@ -97,6 +98,31 @@ export function validateSkipVote(
   };
 }
 
+const GRADE_VALUE: Record<Character['grade'], number> = {
+  C: 35,
+  B: 52,
+  A: 72,
+  MYTHIC: 100,
+};
+
+/**
+ * Gives bots a player-like estimate of a card.  Price, power, and roster
+ * synergy all matter; a rare card is not automatically a good purchase.
+ */
+export function evaluateBotCharacter(bot: Player, char: Character, settings: GameSettings): number {
+  const power = Math.max(0, Math.min(100, char.overallPower || 0));
+  const matchingAlignment = bot.collection.some(c => c.alignment === char.alignment) ? 5 : 0;
+  const matchingFaction = bot.collection.some(c =>
+    (c.factions || []).some(f => (char.factions || []).includes(f))
+  ) ? 7 : 0;
+  const synergy = Math.min(14, matchingAlignment + matchingFaction);
+  const scaledPrice = getScaledStartingPrice(char.startingPrice, settings.startingMoney, char.name);
+  const value = GRADE_VALUE[char.grade] * 0.55 + power * 0.45 + synergy;
+  // Grade floor prevents expensive Mythics from looking worse than cheap C
+  // cards while still rewarding genuinely good bargains.
+  return value / Math.max(1, scaledPrice) + GRADE_VALUE[char.grade] / 6;
+}
+
 // AI Bot Decision Engine during auction ticks
 export function calculateBotBid(
   bot: Player,
@@ -106,9 +132,10 @@ export function calculateBotBid(
   if (!auction.isActive || !auction.currentCharacter) return null;
   if (bot.collection.length >= settings.characterLimit) return null;
   if (auction.highestBidderId === bot.id) return null; // Already highest bidder
+  if (auction.skipVotes.includes(bot.id)) return null; // The bot has passed on this lot
 
   const char = auction.currentCharacter;
-  const scaledStart = getScaledStartingPrice(char.startingPrice, settings.startingMoney);
+  const scaledStart = getScaledStartingPrice(char.startingPrice, settings.startingMoney, char.name);
   const currentBid = auction.currentBid > 0 ? auction.currentBid : scaledStart;
   const nextMinBid = auction.currentBid > 0 ? auction.currentBid + 1 : scaledStart;
 
@@ -116,85 +143,42 @@ export function calculateBotBid(
 
   const personality: BotPersonality = bot.botPersonality || 'Balanced';
   const remainingSlots = settings.characterLimit - bot.collection.length;
-  const avgMoneyPerRemainingSlot = (bot.money - nextMinBid) / Math.max(1, remainingSlots - 1);
-
-  // Synergy detection with existing bot roster
-  let synergyBonus = 0;
-  if (bot.collection.length > 0) {
-    const matchingAlignments = bot.collection.filter(c => c.alignment === char.alignment).length;
-    const matchingFactions = bot.collection.flatMap(c => (c.factions || []) as string[]).filter(f => (char.factions || []).includes(f as any)).length;
-    if (matchingAlignments >= 2 || matchingFactions >= 1) {
-      synergyBonus = 2;
-    }
-  }
-
-  // Decision logic based on personality & character grade
-  let willingness = 0.5; // Base probability to bid
-  let maxWillingBid = nextMinBid;
-
-  switch (personality) {
-    case 'Easy':
-      // Easy bots bid casually, avoid high bidding wars, and never snipe
-      willingness = 0.30;
-      maxWillingBid = scaledStart + (char.grade === 'C' ? 1 : 0);
-      break;
-
-    case 'Medium':
-      // Medium bots value decent cards and moderate power
-      willingness = 0.60;
-      maxWillingBid = Math.min(bot.money, scaledStart + (char.grade === 'MYTHIC' ? 4 : char.grade === 'A' ? 3 : 1) + synergyBonus);
-      break;
-
-    case 'Hard':
-      // Hard bots actively target high tiers and build strong synergies
-      willingness = auction.timeRemaining <= 5 ? 0.90 : 0.75;
-      maxWillingBid = Math.min(bot.money, scaledStart + (char.grade === 'MYTHIC' ? 7 : char.grade === 'A' ? 5 : 2) + synergyBonus * 1.5);
-      break;
-
-    case 'Extreme':
-      // Extreme bots snipe decisively in the final 3 seconds and aggressively contest MYTHIC/A grades
-      willingness = auction.timeRemaining <= 3 ? 0.98 : 0.80;
-      maxWillingBid = Math.min(bot.money, scaledStart + (char.grade === 'MYTHIC' ? 10 : char.grade === 'A' ? 6 : 3) + synergyBonus * 2);
-      break;
-
-    case 'Aggressive':
-      willingness = 0.85;
-      maxWillingBid = Math.min(bot.money, scaledStart + (char.grade === 'MYTHIC' ? 6 : char.grade === 'A' ? 4 : 2) + synergyBonus);
-      break;
-
-    case 'Cosmic':
-      if (char.grade === 'MYTHIC' || char.grade === 'A') {
-        willingness = 0.92;
-        maxWillingBid = Math.min(bot.money, scaledStart + 6 + synergyBonus);
-      } else {
-        willingness = 0.25; // Save money for cosmic entities
-        maxWillingBid = scaledStart;
-      }
-      break;
-
-    case 'Value':
-      if (char.grade === 'C' || char.grade === 'B') {
-        willingness = 0.75;
-        maxWillingBid = scaledStart + 1;
-      } else {
-        willingness = 0.20;
-        maxWillingBid = scaledStart;
-      }
-      break;
-
-    case 'Balanced':
-    default:
-      willingness = 0.65;
-      maxWillingBid = Math.min(bot.money, scaledStart + (char.grade === 'MYTHIC' ? 5 : 2) + synergyBonus);
-      break;
-  }
-
-  // Ensure bot does not bankrupt themselves prematurely if multiple slots remain
-  if (remainingSlots > 1 && avgMoneyPerRemainingSlot < 2 && char.grade !== 'MYTHIC') {
+  const cardValue = evaluateBotCharacter(bot, char, settings);
+  const gradeBase = GRADE_VALUE[char.grade];
+  const reserve = remainingSlots > 1 ? (remainingSlots - 1) * Math.max(2, Math.ceil(scaledStart * 0.45)) : 0;
+  const availableAfterBid = bot.money - nextMinBid;
+  if (availableAfterBid < reserve && char.grade !== 'MYTHIC') {
     return null;
   }
 
-  if (nextMinBid <= maxWillingBid && Math.random() < willingness) {
+  // Difficulty changes both card selectivity and how far a bot will contest.
+  // Legacy personalities remain supported for online rooms.
+  let minValue: number;
+  let bidPremium: number;
+  let willingness: number;
+  switch (personality) {
+    case 'Easy':
+      minValue = 18; bidPremium = 0.10; willingness = 0.55; break;
+    case 'Medium':
+      minValue = 14; bidPremium = 0.28; willingness = 0.72; break;
+    case 'Hard':
+      minValue = 11; bidPremium = 0.48; willingness = auction.timeRemaining <= 4 ? 0.98 : 0.88; break;
+    case 'Extreme':
+      minValue = 10; bidPremium = 0.65; willingness = auction.timeRemaining <= 3 ? 1 : 0.94; break;
+    case 'Cosmic':
+      minValue = char.grade === 'MYTHIC' || char.grade === 'A' ? 12 : 18;
+      bidPremium = 0.5; willingness = 0.9; break;
+    case 'Value':
+      minValue = 16; bidPremium = 0.18; willingness = 0.8; break;
+    case 'Aggressive':
+      minValue = 11; bidPremium = 0.42; willingness = 0.9; break;
+    case 'Balanced':
+    default:
+      minValue = 13; bidPremium = 0.3; willingness = 0.78; break;
+  }
+
+  const maxWillingBid = Math.min(bot.money - reserve, Math.floor(scaledStart * (1 + bidPremium) + Math.max(0, (cardValue - minValue) * 2)));
+  if (cardValue >= minValue && nextMinBid <= maxWillingBid && Math.random() < willingness) {
     return nextMinBid;
   }
 
@@ -206,14 +190,14 @@ export function shouldBotSkip(bot: Player, auction: AuctionState, settings: Game
   const personality = bot.botPersonality || 'Balanced';
   const char = auction.currentCharacter;
 
-  if (personality === 'Easy') {
-    return Math.random() < 0.35;
-  }
-  if (personality === 'Cosmic' && char.grade === 'C') {
-    return Math.random() < 0.60;
-  }
-  if ((personality === 'Hard' || personality === 'Extreme') && char.grade === 'C' && bot.money > 20) {
-    return Math.random() < 0.50; // Skip weak cards to get to high-tier rounds faster
-  }
-  return false;
+  const value = evaluateBotCharacter(bot, char, settings);
+  const thresholds: Record<string, number> = {
+    // Value is a quality-plus-power-per-dollar estimate (typically 10-25).
+    Easy: 18, Medium: 15, Hard: 12, Extreme: 10,
+    Balanced: 14, Aggressive: 12, Value: 16, Cosmic: 15,
+  };
+  const threshold = thresholds[personality] || thresholds.Balanced;
+  // A skip is a deliberate pass, not a random veto. Small uncertainty keeps
+  // easy bots from behaving identically every round.
+  return value < threshold && Math.random() < (personality === 'Hard' || personality === 'Extreme' ? 0.85 : 0.65);
 }

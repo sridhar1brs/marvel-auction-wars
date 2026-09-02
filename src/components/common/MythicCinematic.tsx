@@ -9,7 +9,7 @@ interface Props {
 
 export function MythicCinematic({ character, onDismiss }: Props) {
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-xl p-4 overflow-hidden animate-shake">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 -xl p-4 overflow-hidden animate-shake">
       {/* Background Cosmic Energy Rings */}
       <div className="absolute w-[600px] h-[600px] rounded-full bg-purple-600/20 filter blur-3xl animate-pulse pointer-events-none" />
       <div className="absolute w-[400px] h-[400px] rounded-full bg-pink-600/20 filter blur-2xl animate-cosmic-spin pointer-events-none" />

@@ -6,7 +6,7 @@ import { CharacterPortrait } from '../common/CharacterPortrait';
 import { getCharacterAscensionRarity } from './AscensionShop';
 import { 
   X, Zap, Shield, Flame, ArrowUpCircle, AlertTriangle, 
-  Check, Lock, Sparkles, Heart, Activity
+  Check, Sparkles, Heart, Activity
 } from 'lucide-react';
 
 interface Props {
@@ -19,15 +19,14 @@ export function AscensionUpgradeModal({ character, onClose }: Props) {
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const isMythic = character.grade === 'MYTHIC' || character.alignment === 'Cosmic';
   const currentLevel = (user?.characterLevels || {})[character.id] || 1;
+  const maxLevel = character.grade === 'MYTHIC' ? 25 : 50;
   const boosts = (user?.characterStatsBoosts || {})[character.id] || { power: 0, hp: 0, defense: 0, speed: 0 };
 
   const requiredCoins = currentLevel * 150;
   const canAfford = (user?.astra || 0) >= requiredCoins;
 
   const handleUpgrade = async () => {
-    if (isMythic) return;
     if (!canAfford) {
       soundManager.playAttackHit();
       setStatusMessage({ type: 'error', text: 'Insufficient Astra!' });
@@ -37,7 +36,7 @@ export function AscensionUpgradeModal({ character, onClose }: Props) {
     setIsUpgrading(true);
     setStatusMessage(null);
 
-    const result = await upgradeCharacter(character.id, isMythic);
+    const result = await upgradeCharacter(character.id, character.grade === 'MYTHIC' || character.alignment === 'Cosmic');
     setIsUpgrading(false);
 
     if (result.success) {
@@ -65,7 +64,7 @@ export function AscensionUpgradeModal({ character, onClose }: Props) {
                 CHARACTER UPGRADE STATION
               </h2>
               <span className="text-[10px] text-slate-400 font-mono">
-                Level 1 to Level 50 Progression Matrix
+                Level 1 to Level {maxLevel} Progression Matrix
               </span>
             </div>
           </div>
@@ -88,7 +87,7 @@ export function AscensionUpgradeModal({ character, onClose }: Props) {
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-mono font-black uppercase px-2 py-0.5 rounded bg-cyan-400 text-black">
-                {isMythic ? 'MYTHIC' : `LEVEL ${currentLevel} / 50`}
+                {character.grade === 'MYTHIC' ? `MYTHIC • LEVEL ${currentLevel} / ${maxLevel}` : `LEVEL ${currentLevel} / ${maxLevel}`}
               </span>
               <span className="text-xs font-mono font-bold text-amber-300">
                 {character.overallPower + boosts.power} PWR
@@ -115,21 +114,7 @@ export function AscensionUpgradeModal({ character, onClose }: Props) {
           </div>
         )}
 
-        {/* 🚫 MYTHIC BLOCK NOTICE */}
-        {isMythic ? (
-          <div className="p-4 rounded-2xl bg-red-950/40 border-2 border-red-500/60 text-center space-y-2">
-            <div className="w-10 h-10 mx-auto rounded-xl bg-red-900/60 border border-red-400 flex items-center justify-center text-red-300">
-              <Lock className="w-5 h-5" />
-            </div>
-            <h4 className="font-heading font-black text-white text-sm uppercase tracking-wider">
-              MYTHIC COSMIC SUPREMACY
-            </h4>
-            <p className="text-xs text-red-200 leading-relaxed">
-              Mythic characters already possess maximum omnipotence and <strong>CANNOT BE UPGRADED</strong>. They enter combat with absolute peak power.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
+        <div className="space-y-4">
             
             {/* Stat Gains Grid */}
             <div className="grid grid-cols-2 gap-2.5">
@@ -187,21 +172,20 @@ export function AscensionUpgradeModal({ character, onClose }: Props) {
 
               <button
                 type="button"
-                disabled={isUpgrading || !canAfford || currentLevel >= 50}
+                disabled={isUpgrading || !canAfford || currentLevel >= maxLevel}
                 onClick={handleUpgrade}
                 className={`py-2.5 px-4 rounded-xl font-heading font-black text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-md ${
-                  canAfford && currentLevel < 50
+                  canAfford && currentLevel < maxLevel
                     ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-black shadow-glow-cyan'
                     : 'bg-stone-800 text-slate-500 cursor-not-allowed'
                 }`}
               >
                 <ArrowUpCircle className="w-4 h-4" />
-                <span>{isUpgrading ? 'UPGRADING...' : currentLevel >= 50 ? 'MAX LEVEL' : 'UPGRADE NOW'}</span>
+                <span>{isUpgrading ? 'UPGRADING...' : currentLevel >= maxLevel ? 'MAX LEVEL' : 'UPGRADE NOW'}</span>
               </button>
             </div>
 
-          </div>
-        )}
+        </div>
 
       </div>
     </div>

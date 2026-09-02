@@ -95,12 +95,27 @@ export interface Character {
   usedSkillIds?: string[]; // Authoritative tracking of 1-time signature skills used in combat
   currentHp?: number;    // Default 100
   maxHp?: number;        // Default 100
+  level?: number;        // Progression level
   isFainted?: boolean;
   lastStandActive?: boolean; // Comeback mechanic: activated when HP <= 25%
   bounty?: BountyReward;
 }
 
-export type BotPersonality = 'Aggressive' | 'Value' | 'Cosmic' | 'Balanced' | 'Easy' | 'Medium' | 'Hard' | 'Extreme';
+export type BotPersonality = 
+  | 'Aggressive' 
+  | 'Value' 
+  | 'Cosmic' 
+  | 'Balanced' 
+  | 'Easy' 
+  | 'Medium' 
+  | 'Hard' 
+  | 'Extreme'
+  | 'AGGRESSIVE'
+  | 'VALUE'
+  | 'COSMIC'
+  | 'BALANCED'
+  | 'DEFENSIVE'
+  | 'MYSTIC';
 export type GameMode = 'classic' | 'blind_bidding' | 'boss_raid' | 'blitz' | 'chaos_auction';
 export type ArenaBackgroundId = 'wakanda' | 'asgard' | 'quantum' | 'avengers' | 'knowhere';
 
@@ -134,7 +149,9 @@ export interface ChatMessage {
   senderId: string;
   senderName: string;
   senderAvatar: string;
-  message: string;
+  message?: string;
+  text?: string;
+  type?: string;
   timestamp: number;
   isSpectator?: boolean;
 }
@@ -211,6 +228,8 @@ export interface PlayerProfile {
   totalDamageDealt?: number;
   bossesDefeated?: number;
   dungeonsCompleted?: number;
+  claimedLevelRewards?: number[];
+  lastWheelSpinDate?: string;
   customAvatarUrl?: string;
   bio?: string;
   favoriteGameMode?: string;
@@ -416,9 +435,22 @@ export interface GameState {
   rematchVotes?: string[]; // Player IDs who voted to rematch
 }
 
-/** State exchanged by the Socket.IO Ascension battle service.  Character
+export type AscensionBattlePhase = 'MATCHMAKING' | 'LOBBY' | 'SELECT_HERO' | 'BATTLE' | 'RESULT';
+
+/** State exchanged by the Socket.IO Ascension battle service. Character
  * stats are always populated by the server from ALL_CHARACTERS. */
-export type AscensionBattlePhase = 'LOBBY' | 'MATCHMAKING' | 'BATTLE' | 'RESULT' | 'CANCELLED';
+export interface AscensionCustomSettings {
+  playerCount?: number;
+  maxPlayers: number;
+  teamSize: number;
+  actionTimerSeconds: number;
+  format?: AscensionBattleState['format'];
+  allowBots?: boolean;
+  startingEnergy?: number;
+  powerBudgetCap?: number;
+  allowSynergyBonuses?: boolean;
+  chaosModifiersEnabled?: boolean;
+}
 
 export interface AscensionBattlePlayer {
   id: string;
@@ -430,9 +462,17 @@ export interface AscensionBattlePlayer {
   isHost: boolean;
   isReady: boolean;
   isConnected: boolean;
+  isDisconnected?: boolean;
+  isBot?: boolean;
+  botPersonality?: BotPersonality;
+  level?: number;
+  customAvatarUrl?: string;
+  /** Number of authoritative actions submitted in this battle. */
+  actionsSubmitted?: number;
 }
 
 export interface AscensionBattleState {
+  id?: string;
   roomId: string;
   mode: 'casual' | 'ranked';
   format: '1v1' | '2v2' | '3v3' | '4v4' | '5v5' | 'custom';
@@ -446,6 +486,9 @@ export interface AscensionBattleState {
   pendingActions: Record<string, BattleActionType>;
   rounds: BattleRound[];
   combatLogs: string[];
+  settings?: AscensionCustomSettings;
+  chat?: ChatMessage[];
+  spectatorChat?: ChatMessage[];
   winnerId?: string;
   rewards?: Record<string, {
     isWin: boolean;

@@ -16,6 +16,7 @@ import {
 import { soundManager } from '../../audio/soundManager';
 import { playSound } from '../../audio/soundEffects';
 import { SpectatorChatDrawer } from './SpectatorChatDrawer';
+import { BattlePresentation3D } from './BattlePresentation3D';
 
 function detectHeroCombatEffect(hero?: Character): CombatEffectType {
   if (!hero) return 'melee';
@@ -569,6 +570,23 @@ export function BattlePhase({
         <div className={`relative rounded-3xl p-4 sm:p-8 border-2 border-purple-500/40 bg-gradient-to-b from-purple-950/40 via-black/90 to-indigo-950/40 shadow-glow-cosmic overflow-hidden transition-all duration-300 ${
           isClashing ? 'scale-[0.99] brightness-150 animate-shake' : ''
         }`}>
+          <BattlePresentation3D
+            player={p1SelectedHero}
+            opponent={p2SelectedHero}
+            playerAttacking={p1Attacking}
+            opponentAttacking={p2Attacking}
+            playerTakingHit={p1TakingHit}
+            opponentTakingHit={p2TakingHit}
+            playerSuper={isSuperCutIn && p1Attacking}
+            opponentSuper={isSuperCutIn && p2Attacking}
+            playerDamage={latestRound?.player2DamageDealt || null}
+            opponentDamage={latestRound?.player1DamageDealt || null}
+            effectType={activeEffectType}
+            comicBurst={activeComicBurst}
+            signatureMoveName={activeSignatureMoveName}
+            title=""
+            className="mb-6"
+          />
           
           {/* 2D Combat FX Particle, Laser, Lightning & Slash Overlay */}
           <CombatFXOverlay

@@ -4,6 +4,7 @@ import { ALL_CHARACTERS } from '../../data/characters/index';
 import { CharacterPortrait } from '../common/CharacterPortrait';
 import { CombatFXOverlay, CombatEffectType, ComicBurst } from '../battle/fx/CombatFXOverlay';
 import { Fighter2DSprite } from '../battle/fx/Fighter2DSprite';
+import { BattlePresentation3D } from '../battle/BattlePresentation3D';
 import { getSignatureMoveForCharacter } from '../../data/characterMoves';
 import { findPossibleTagTeamFusions, mergeUltimateCharacter, TagTeamCombo } from '../../engine/synergyEngine';
 import { soundManager } from '../../audio/soundManager';
@@ -768,96 +769,26 @@ export function BattleSandbox({ onBack }: Props) {
         </div>
       </div>
 
-      {/* 4.5. 2D LIVE COMBAT ARENA STAGE DURING SIMULATION */}
+      {/* 4.5. Shared 3D live combat arena during simulation */}
       {activeFighterA && activeFighterB && (
-        <div className={`glass-panel p-5 sm:p-6 rounded-3xl border-2 border-purple-500/50 bg-gradient-to-b from-purple-950/40 via-black/90 to-indigo-950/40 shadow-glow-cosmic relative overflow-hidden transition-all duration-300 ${
-          isClashing ? 'scale-[0.99] brightness-125 animate-shake' : ''
-        }`}>
-          <CombatFXOverlay
-            effectType={activeEffectType}
-            attackerSide={p1Attacking ? 'left' : 'right'}
-            comicBurst={activeComicBurst}
-            isSuperMove={isSuperCutIn}
-            superHeroName={p1Attacking ? activeFighterA?.name : activeFighterB?.name}
-            superHeroImageUrl={`/images/characters/${(p1Attacking ? activeFighterA : activeFighterB)?.id}.jpg`}
-            superAbilityName={(p1Attacking ? activeFighterA : activeFighterB)?.specialAbilities?.[0]?.name || 'COSMIC STRIKE!'}
-            signatureMoveName={activeSignatureMoveName}
-          />
-
-          <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
-            <span className="text-xs font-black uppercase text-amber-300 flex items-center gap-1.5">
-              <Flame className="w-4 h-4 text-amber-400 animate-bounce" />
-              <span>LIVE 2D DUEL CLASH SPOTLIGHT • {activeConfig.label} MATCH {currentMatchNumber}</span>
-            </span>
-            <span className="text-xs font-mono font-bold text-slate-300">
-              {activeFighterA.name} ({activeFighterA.currentHp ?? 100} HP) vs {activeFighterB.name} ({activeFighterB.currentHp ?? 100} HP)
-            </span>
-          </div>
-
-          <div className="grid grid-cols-11 gap-4 items-center">
-            {/* Fighter A */}
-            <div className="col-span-5 flex flex-col items-center space-y-2">
-              <Fighter2DSprite
-                character={activeFighterA}
-                side="p1"
-                isAttacking={p1Attacking}
-                isTakingHit={p1TakingHit}
-                isSuperActive={isSuperCutIn && p1Attacking}
-                isDefeated={(activeFighterA.currentHp ?? 100) <= 0}
-                damageTaken={p1DamageTaken}
-              />
-              <div className="text-center w-full max-w-[200px]">
-                <span className="font-heading font-black text-sm text-white block truncate">{activeFighterA.name}</span>
-                <span className="text-[10px] text-amber-400 font-bold block">PWR: {activeFighterA.overallPower} • Grade {activeFighterA.grade}</span>
-                {/* Health Meter */}
-                <div className="w-full h-2.5 bg-black/60 rounded-full overflow-hidden border border-white/10 mt-1">
-                  <div 
-                    className="h-full bg-gradient-to-r from-red-600 to-emerald-400 transition-all duration-300 rounded-full"
-                    style={{ width: `${Math.max(0, Math.min(100, activeFighterA.currentHp ?? 100))}%` }}
-                  />
-                </div>
-                <span className="text-[9px] font-mono text-emerald-400 block mt-0.5">{Math.max(0, activeFighterA.currentHp ?? 100)} / 100 HP</span>
-              </div>
-            </div>
-
-            {/* VS Emblem */}
-            <div className="col-span-1 flex flex-col items-center justify-center">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-red-600 via-purple-600 to-blue-600 p-0.5 shadow-lg flex items-center justify-center">
-                <div className="w-full h-full rounded-full bg-black/90 flex items-center justify-center">
-                  <Swords className="w-4 h-4 text-amber-400 animate-spin" />
-                </div>
-              </div>
-              <span className="font-heading font-black text-xs text-white mt-1">VS</span>
-            </div>
-
-            {/* Fighter B */}
-            <div className="col-span-5 flex flex-col items-center space-y-2">
-              <Fighter2DSprite
-                character={activeFighterB}
-                side="p2"
-                isAttacking={p2Attacking}
-                isTakingHit={p2TakingHit}
-                isSuperActive={isSuperCutIn && p2Attacking}
-                isDefeated={(activeFighterB.currentHp ?? 100) <= 0}
-                damageTaken={p2DamageTaken}
-              />
-              <div className="text-center w-full max-w-[200px]">
-                <span className="font-heading font-black text-sm text-white block truncate">{activeFighterB.name}</span>
-                <span className="text-[10px] text-cyan-400 font-bold block">PWR: {activeFighterB.overallPower} • Grade {activeFighterB.grade}</span>
-                {/* Health Meter */}
-                <div className="w-full h-2.5 bg-black/60 rounded-full overflow-hidden border border-white/10 mt-1">
-                  <div 
-                    className="h-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-300 rounded-full"
-                    style={{ width: `${Math.max(0, Math.min(100, activeFighterB.currentHp ?? 100))}%` }}
-                  />
-                </div>
-                <span className="text-[9px] font-mono text-cyan-400 block mt-0.5">{Math.max(0, activeFighterB.currentHp ?? 100)} / 100 HP</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <BattlePresentation3D
+          player={activeFighterA}
+          opponent={activeFighterB}
+          playerAttacking={p1Attacking}
+          opponentAttacking={p2Attacking}
+          playerTakingHit={p1TakingHit}
+          opponentTakingHit={p2TakingHit}
+          playerSuper={isSuperCutIn && p1Attacking}
+          opponentSuper={isSuperCutIn && p2Attacking}
+          playerDamage={p1DamageTaken}
+          opponentDamage={p2DamageTaken}
+          effectType={activeEffectType}
+          comicBurst={activeComicBurst}
+          signatureMoveName={activeSignatureMoveName}
+          title={`DUEL SIMULATOR - ${activeConfig.label} MATCH ${currentMatchNumber}`}
+          className={isClashing ? 'scale-[0.99] brightness-125 animate-shake' : ''}
+        />
       )}
-
       {/* 4.8. TACTICAL POST-MATCH DEBRIEF & STRATEGY COACHING */}
       {(selectedHistoryMatch || latestAnalysis) && (
         (() => {

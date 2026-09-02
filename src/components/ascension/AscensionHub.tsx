@@ -13,6 +13,7 @@ import { AscensionAdminPanel } from './AscensionAdminPanel';
 import { RedeemCodeModal } from './RedeemCodeModal';
 import { CharacterDatabase } from '../encyclopedia/CharacterDatabase';
 import { PlayerProfileModal } from '../common/PlayerProfileModal';
+import { AscensionCustomLobby } from './AscensionCustomLobby';
 import { CardForge } from './CardForge';
 import { DailyMissions } from './DailyMissions';
 import { Achievements } from './Achievements';
@@ -22,25 +23,30 @@ import { CharacterMastery } from './CharacterMastery';
 import { CrateOpening } from './CrateOpening';
 import { NewPlayerChooser } from './NewPlayerChooser';
 import { CharacterTokenForge } from './CharacterTokenForge';
+import { DungeonExpeditionHub } from '../dungeon/DungeonExpeditionHub';
+import { PlayerLevelRewards } from './PlayerLevelRewards';
+import { PLAYER_LEVEL_REWARDS } from '../../data/playerLevelRewards';
 import { FriendsModal } from '../social/FriendsModal';
 import { soundManager } from '../../audio/soundManager';
 import { useAuth } from '../../context/AuthContext';
 import {
   Home, Users, ShoppingBag, Shield, Zap, Swords,
   Package, Crown, Trophy, Sparkles, KeyRound, ShieldAlert,
-  Hammer, Target, Star, RotateCcw, BookOpen
+  Hammer, Target, Star, RotateCcw, BookOpen, Globe, Award
 } from 'lucide-react';
 
 export type AscensionTab =
   | 'HOME'
   | 'CHARACTERS'
+  | 'LEVEL_REWARDS'
   | 'SHOP'
   | 'RELICS'
   | 'SKILLS'
   | 'BATTLE'
+  | 'RANKED'
+  | 'CUSTOM'
   | 'INVENTORY'
   | 'BATTLE_PASS'
-  | 'RANKED'
   | 'LEADERBOARDS'
   | 'MISSIONS'
   | 'ACHIEVEMENTS'
@@ -49,6 +55,7 @@ export type AscensionTab =
   | 'TEAM_BUILDER'
   | 'MASTERY'
   | 'TOKEN_FORGE'
+  | 'DUNGEON'
   | 'ADMIN';
 
 interface Props {
@@ -105,24 +112,31 @@ export function AscensionHub({ onBackToHome }: Props) {
     }
   }, []);
 
+  const unclaimedLevelRewardsCount = PLAYER_LEVEL_REWARDS.filter(
+    r => r.level <= (user?.level || 1) && !(user?.claimedLevelRewards || []).includes(r.level)
+  ).length;
+
   const ALL_NAV_TABS: { id: AscensionTab; label: string; icon: React.ReactNode; badge?: number }[] = [
-    { id: 'HOME',         label: 'Home',         icon: <Home className="w-3.5 h-3.5" /> },
-    { id: 'CHARACTERS',   label: 'Characters',   icon: <Users className="w-3.5 h-3.5" /> },
-    { id: 'SHOP',         label: 'Astra Shop',   icon: <ShoppingBag className="w-3.5 h-3.5" /> },
-    { id: 'RELICS',       label: 'Relics',       icon: <Shield className="w-3.5 h-3.5" /> },
-    { id: 'SKILLS',       label: 'Skills',       icon: <Zap className="w-3.5 h-3.5" /> },
-    { id: 'BATTLE',       label: 'Battle',       icon: <Swords className="w-3.5 h-3.5" /> },
-    { id: 'RANKED',       label: 'Ranked',       icon: <Trophy className="w-3.5 h-3.5" /> },
-    { id: 'INVENTORY',    label: 'Inventory',    icon: <Package className="w-3.5 h-3.5" /> },
-    { id: 'BATTLE_PASS',  label: 'Battle Pass',  icon: <Crown className="w-3.5 h-3.5" /> },
-    { id: 'LEADERBOARDS', label: 'Leaderboards', icon: <Sparkles className="w-3.5 h-3.5" /> },
-    { id: 'MISSIONS',     label: 'Missions',     icon: <Target className="w-3.5 h-3.5" />, badge: unclaimedMissions || undefined },
-    { id: 'ACHIEVEMENTS', label: 'Achievements', icon: <Trophy className="w-3.5 h-3.5" /> },
-    { id: 'CARD_FORGE',   label: 'Card Forge',   icon: <Hammer className="w-3.5 h-3.5" /> },
-    { id: 'MYSTERY_WHEEL',label: 'Wheel',        icon: <RotateCcw className="w-3.5 h-3.5" />, badge: (user?.wheelSpins || 0) > 0 ? user!.wheelSpins : undefined },
-    { id: 'TEAM_BUILDER', label: 'Teams',        icon: <Users className="w-3.5 h-3.5" /> },
-    { id: 'MASTERY',      label: 'Mastery',      icon: <Star className="w-3.5 h-3.5" /> },
-    { id: 'TOKEN_FORGE',  label: 'Token Forge',  icon: <Hammer className="w-3.5 h-3.5" /> },
+    { id: 'HOME',          label: 'Home',          icon: <Home className="w-3.5 h-3.5" /> },
+    { id: 'CHARACTERS',    label: 'Characters',    icon: <Users className="w-3.5 h-3.5" /> },
+    { id: 'LEVEL_REWARDS', label: 'Level Rewards', icon: <Award className="w-3.5 h-3.5 text-amber-400" />, badge: unclaimedLevelRewardsCount || undefined },
+    { id: 'SHOP',          label: 'Astra Shop',    icon: <ShoppingBag className="w-3.5 h-3.5" /> },
+    { id: 'RELICS',        label: 'Relics',        icon: <Shield className="w-3.5 h-3.5" /> },
+    { id: 'SKILLS',        label: 'Skills',        icon: <Zap className="w-3.5 h-3.5" /> },
+    { id: 'BATTLE',        label: 'Battle',        icon: <Swords className="w-3.5 h-3.5" /> },
+    { id: 'RANKED',        label: 'Ranked',        icon: <Trophy className="w-3.5 h-3.5" /> },
+    { id: 'CUSTOM',        label: 'Custom Match',  icon: <Globe className="w-3.5 h-3.5 text-cyan-400" /> },
+    { id: 'INVENTORY',     label: 'Inventory',     icon: <Package className="w-3.5 h-3.5" /> },
+    { id: 'BATTLE_PASS',   label: 'Battle Pass',   icon: <Crown className="w-3.5 h-3.5" /> },
+    { id: 'LEADERBOARDS',  label: 'Leaderboards',  icon: <Sparkles className="w-3.5 h-3.5" /> },
+    { id: 'MISSIONS',      label: 'Missions',      icon: <Target className="w-3.5 h-3.5" />, badge: unclaimedMissions || undefined },
+    { id: 'ACHIEVEMENTS',  label: 'Achievements',  icon: <Trophy className="w-3.5 h-3.5" /> },
+    { id: 'CARD_FORGE',    label: 'Card Forge',    icon: <Hammer className="w-3.5 h-3.5" /> },
+    { id: 'MYSTERY_WHEEL', label: 'Wheel',         icon: <RotateCcw className="w-3.5 h-3.5" />, badge: (user?.wheelSpins || 0) > 0 ? user!.wheelSpins : undefined },
+    { id: 'TEAM_BUILDER',  label: 'Teams',         icon: <Users className="w-3.5 h-3.5" /> },
+    { id: 'MASTERY',       label: 'Mastery',       icon: <Star className="w-3.5 h-3.5" /> },
+    { id: 'TOKEN_FORGE',   label: 'Token Forge',   icon: <Hammer className="w-3.5 h-3.5" /> },
+    { id: 'DUNGEON',       label: 'Dungeon (PvE)', icon: <Swords className="w-3.5 h-3.5 text-orange-400" /> },
     ...(isAdmin ? [{ id: 'ADMIN' as AscensionTab, label: 'Admin Panel', icon: <ShieldAlert className="w-3.5 h-3.5" /> }] : [])
   ];
 
@@ -141,7 +155,7 @@ export function AscensionHub({ onBackToHome }: Props) {
         onOpenFriends={() => setIsFriendsOpen(true)}
       />
 
-      {/* 2. Top Navigation Tabs Bar — 18 Buttons Unified */}
+      {/* 2. Top Navigation Tabs Bar — Unified Navbar */}
       <nav className="sticky top-[53px] z-30 bg-[#070A16]/95 backdrop-blur-md border-b border-white/10 shadow-md">
         <div className="w-full max-w-[1750px] mx-auto px-2 sm:px-4 py-2">
           <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
@@ -197,15 +211,17 @@ export function AscensionHub({ onBackToHome }: Props) {
         </div>
       </nav>
 
-      {/* 3. Main Content Views (18 Tabs) */}
+      {/* 3. Main Content Views */}
       <main className="flex-1 max-w-[1700px] w-full mx-auto p-3 sm:p-6">
-        {activeTab === 'HOME'         && <AscensionHome onNavigateTab={handleTabClick} />}
-        {activeTab === 'CHARACTERS'   && <CharacterDatabase />}
-        {activeTab === 'SHOP'         && <AscensionShop />}
+        {activeTab === 'HOME'          && <AscensionHome onNavigateTab={handleTabClick} />}
+        {activeTab === 'CHARACTERS'    && <CharacterDatabase />}
+        {activeTab === 'LEVEL_REWARDS' && <PlayerLevelRewards />}
+        {activeTab === 'SHOP'          && <AscensionShop />}
         {activeTab === 'RELICS'       && <AscensionRelicVault />}
         {activeTab === 'SKILLS'       && <AscensionSkillVault />}
         {activeTab === 'BATTLE'       && <AscensionBattleArena />}
         {activeTab === 'RANKED'       && <AscensionRankedArena />}
+        {activeTab === 'CUSTOM'       && <AscensionCustomLobby onBackToHub={() => setActiveTab('HOME')} />}
         {activeTab === 'INVENTORY'    && <AscensionInventory />}
         {activeTab === 'BATTLE_PASS'  && <AscensionBattlePass />}
         {activeTab === 'LEADERBOARDS' && <AscensionLeaderboards />}
@@ -217,6 +233,7 @@ export function AscensionHub({ onBackToHome }: Props) {
         {activeTab === 'TEAM_BUILDER'  && <TeamBuilder />}
         {activeTab === 'MASTERY'       && <CharacterMastery />}
         {activeTab === 'TOKEN_FORGE'   && <CharacterTokenForge />}
+        {activeTab === 'DUNGEON'       && <DungeonExpeditionHub onExit={() => setActiveTab('HOME')} />}
       </main>
 
       {/* 4. Modals */}

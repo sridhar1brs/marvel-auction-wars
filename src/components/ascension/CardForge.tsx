@@ -48,11 +48,19 @@ export function CardForge() {
   const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [history, setHistory] = useState<any[]>([]);
 
-  const cardShards = user?.cardShards ?? 0;
   const draftShards = (user as any)?.draftShards || {};
+  const categoryShards = (user as any)?.categoryShards || {};
+  const categoryToDraftKey: Record<string, string> = {
+    rare: 'B',
+    epic: 'A',
+    mythic: 'MYTHIC',
+    hero: 'HERO',
+    villain: 'VILLAIN',
+    cosmic: 'MYTHIC',
+  };
 
   const getAvailableShards = (shardKey: string) => {
-    return (draftShards[shardKey] || 0) + cardShards;
+    return (draftShards[shardKey] || 0) + (categoryShards[categoryToDraftKey[shardKey]] || 0);
   };
 
   const showToast = (type: 'success' | 'error', text: string) => {
@@ -79,7 +87,7 @@ export function CardForge() {
         soundManager.playVictoryFanfare();
         setHistory(prev => [{ ...data, category: categoryKey, timestamp: Date.now() }, ...prev.slice(0, 9)]);
         showToast('success', data.isDuplicate
-          ? `Duplicate! +${data.cardShardsAwarded} Card Shards refunded`
+          ? `Duplicate! +${data.cardShardsAwarded} ${FORGE_CATEGORIES[categoryKey].shardKey} shards refunded`
           : `Crafted ${data.character?.name}!`
         );
       } else {
@@ -113,14 +121,6 @@ export function CardForge() {
               <h1 className="text-2xl font-heading font-black text-white uppercase tracking-wider">Card Forge</h1>
             </div>
             <p className="text-slate-400 text-sm">Forge specific character categories with dedicated Draft Shards (Strict Category Enforcement)</p>
-          </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="text-right px-4 py-2 rounded-2xl bg-black/50 border border-white/10">
-              <div className="text-[10px] text-slate-400 uppercase tracking-widest">Universal Shards</div>
-              <div className="text-xl font-black text-indigo-300 flex items-center gap-1.5 justify-end">
-                🔷 {cardShards.toLocaleString()}
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -211,7 +211,7 @@ export function CardForge() {
               </div>
               <div className="text-sm text-slate-400">
                 {result.isDuplicate
-                  ? `Already owned — received +${result.cardShardsAwarded} 🔷 Card Shards instead`
+                  ? `Already owned — received +${result.cardShardsAwarded} 🔷 dedicated shards instead`
                   : `${result.character?.grade} grade • ${result.character?.alignment} • Cost: ${result.cost} shards`
                 }
               </div>
@@ -247,7 +247,7 @@ export function CardForge() {
 
       {/* How to Earn Shards */}
       <div className="rounded-2xl p-5 bg-[#0B0D1E] border border-white/5 space-y-3">
-        <h3 className="text-sm font-heading font-black text-white uppercase tracking-wider">How to Earn Card Shards 🔷</h3>
+        <h3 className="text-sm font-heading font-black text-white uppercase tracking-wider">How to Earn Dedicated Draft Shards 🔷</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-slate-400">
           {[
             ['📦 Level Crates', 'Claim milestone crates'],

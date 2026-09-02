@@ -313,7 +313,7 @@ export function PlayerProfileModal({ player, profile: directProfile, viewOnlyPro
           <div className="bg-slate-950/60 p-2.5 rounded-xl border border-white/10 text-center">
             <Compass className="w-4 h-4 text-emerald-400 mx-auto mb-0.5" />
             <span className="text-[9px] text-slate-400 block font-bold">DUNGEON PEAK</span>
-            <span className="font-heading font-black text-emerald-300 text-sm">Wave {profile.dungeonPeak || profile.dungeonMaxWave || 0}</span>
+            <span className="font-heading font-black text-emerald-300 text-sm">{profile.dungeonPeak || profile.dungeonMaxWave || 0} WAVES</span>
           </div>
 
           <div className="bg-slate-950/60 p-2.5 rounded-xl border border-white/10 text-center">

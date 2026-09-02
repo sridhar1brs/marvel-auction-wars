@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { soundManager } from '../../audio/soundManager';
 import { CharacterPortrait } from '../common/CharacterPortrait';
 import { AscensionUpgradeModal } from './AscensionUpgradeModal';
+import { getApiUrl } from '../../config/api';
 import { 
   Package, Shield, Zap, Sparkles, Filter, Search, 
   ArrowUpCircle, Check, Lock, ChevronRight, Layers, Sliders, Trash2, AlertTriangle, X
@@ -30,7 +31,13 @@ export function AscensionInventory() {
     return ALL_CHARACTERS.filter(c => ownedCharIds.has(c.id)).filter(c => {
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
-      return c.name.toLowerCase().includes(q) || c.powers.toLowerCase().includes(q);
+      return (
+        c.name.toLowerCase().includes(q) ||
+        (c.alias && c.alias.toLowerCase().includes(q)) ||
+        (c.powers && c.powers.toLowerCase().includes(q)) ||
+        (c.alignment && c.alignment.toLowerCase().includes(q)) ||
+        (c.description && c.description.toLowerCase().includes(q))
+      );
     });
   }, [ownedCharIds, searchQuery]);
 
@@ -46,7 +53,7 @@ export function AscensionInventory() {
     if (!discardTarget || !token) return;
     setIsDiscarding(true);
     try {
-      const res = await fetch('/api/inventory/discard-character', {
+      const res = await fetch(getApiUrl('/api/inventory/discard-character'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ characterId: discardTarget.id }),
@@ -207,7 +214,7 @@ export function AscensionInventory() {
                     className="w-full py-1.5 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-400/50 text-cyan-200 font-heading font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1 transition-all cursor-pointer"
                   >
                     <ArrowUpCircle className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>{isMythic ? 'VIEW STATS' : 'UPGRADE HERO'}</span>
+                    <span>UPGRADE HERO</span>
                   </button>
 
                   <button

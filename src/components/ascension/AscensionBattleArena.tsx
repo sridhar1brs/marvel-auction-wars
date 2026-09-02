@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../hooks/useSocket';
 import { soundManager } from '../../audio/soundManager';
 import { CharacterPortrait } from '../common/CharacterPortrait';
+import { BattlePresentation3D } from '../battle/BattlePresentation3D';
 import { getSkillsForCharacter } from '../../data/skills/characterSkills';
 import { 
   Swords, Shield, Zap, Sparkles, Flame, 
@@ -354,6 +355,16 @@ export function AscensionBattleArena() {
       {/* 3. COMBAT STATE */}
       {battleState === 'FIGHTING' && (
         <div className="p-6 rounded-3xl bg-[#090D1E]/95 border border-cyan-500/30 space-y-6">
+          {playerTeam[0] && enemyTeam[0] && (
+            <BattlePresentation3D
+              player={playerTeam[0]}
+              opponent={enemyTeam[0]}
+              playerSuper={isResolving}
+              effectType="cosmic"
+              title={`ASCENSION PVP • ${selectedFormat}`}
+              signatureMoveName={getSkillsForCharacter(playerTeam[0])[0]?.name}
+            />
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
             {/* Player Vanguard */}
             <div className="p-5 rounded-2xl bg-black/60 border border-cyan-500/40 text-center space-y-2">

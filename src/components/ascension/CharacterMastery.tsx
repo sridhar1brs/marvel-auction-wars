@@ -215,9 +215,16 @@ export function CharacterMastery() {
                 }`}
               >
                 <div className="flex items-center gap-3 mb-3">
-                  {/* Grade Badge */}
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br ${gradColor} text-white font-black text-sm flex-shrink-0`}>
-                    {char.grade}
+                  {/* Character artwork with a compact grade badge */}
+                  <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-white/20 bg-black/40 flex-shrink-0">
+                    <img
+                      src={char.imageUrl}
+                      alt={char.name}
+                      className="w-full h-full object-cover"
+                    />
+                    <span className={`absolute bottom-0 left-0 right-0 bg-gradient-to-br ${gradColor} text-white text-[8px] leading-3 text-center font-black`}>
+                      {char.grade}
+                    </span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">

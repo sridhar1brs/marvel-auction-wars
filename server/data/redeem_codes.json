@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-08-30T12:29:59.762Z",
+  "lastUpdated": "2026-09-02T14:44:59.580Z",
   "codes": [
     {
       "code": "2761179709",
@@ -11,37 +11,6 @@
       "expiresAt": "2026-12-31",
       "isActive": true,
       "createdAt": 1788090970853,
-      "redeemedBy": [
-        "usr-1787750647884-b70e8765"
-      ],
-      "creatorUsername": "darksenseify"
-    },
-    {
-      "code": "8753523751",
-      "astraReward": 90006,
-      "rewardType": "ASTRA",
-      "rewardAmount": 90006,
-      "maxUses": 1,
-      "usedCount": 1,
-      "expiresAt": "2026-12-31",
-      "isActive": true,
-      "createdAt": 1788092586892,
-      "redeemedBy": [
-        "usr-1787750647884-b70e8765"
-      ],
-      "creatorUsername": "darksenseify"
-    },
-    {
-      "code": "7313874613",
-      "astraReward": 5000,
-      "rewardType": "CRATE",
-      "rewardAmount": 5000,
-      "crateType": "SHARD_CRATE_MYTHIC",
-      "maxUses": 1,
-      "usedCount": 1,
-      "expiresAt": "2026-12-31",
-      "isActive": true,
-      "createdAt": 1788092989881,
       "redeemedBy": [
         "usr-1787750647884-b70e8765"
       ],

@@ -1,6 +1,20 @@
 {
-  "lastUpdated": "2026-08-30T12:29:49.882Z",
+  "lastUpdated": "2026-09-02T14:44:59.581Z",
   "logs": [
+    {
+      "id": "log-1788360299581-72h8",
+      "action": "OWNER REVOKED CODE",
+      "details": "Permanently deleted code 7313874613",
+      "adminUsername": "darksenseify",
+      "timestamp": 1788360299581
+    },
+    {
+      "id": "log-1788360288774-2fup",
+      "action": "OWNER REVOKED CODE",
+      "details": "Permanently deleted code 8753523751",
+      "adminUsername": "darksenseify",
+      "timestamp": 1788360288774
+    },
     {
       "id": "log-1788092989882-313e",
       "action": "OWNER CREATED CODE",

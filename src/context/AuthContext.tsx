@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { PlayerProfile, RedeemCode, AdminActionLog } from '../types/game';
 import { LevelInfo, getLevelFromXp, formatPlaytime } from '../utils/progression';
+import { API_BASE_URL, getApiUrl } from '../config/api';
+import { authenticateSocket } from '../socket/socket';
 
 export interface UserProfile extends PlayerProfile {
   displayName: string;
@@ -42,6 +44,7 @@ export interface UserProfile extends PlayerProfile {
   battlePassClaimed: number[];
   crateInventory: { shard: number; character: number };
   categoryShards: Record<string, number>;
+  draftShards: Record<string, number>;
   characterTokens: Record<string, number>;
   onboardingCompleted: boolean;
   onboardingChoices: string[];
@@ -59,6 +62,7 @@ export interface UserProfile extends PlayerProfile {
   // v4.0 — New Systems
   cardShards: number;
   claimedLevelCrates: number[];
+  claimedLevelRewards?: number[];
   cratesOpened: number;
   characterMastery: Record<string, { xp: number; level: number }>;
   savedTeams: Array<{ id: string; name: string; characterIds: string[]; createdAt: number; updatedAt: number }>;
@@ -123,6 +127,10 @@ interface AuthContextType {
   updateCustomAvatar: (customAvatarUrl?: string, bio?: string, favoriteGameMode?: string) => Promise<{ success: boolean; error?: string }>;
   recordMatchResult: (params: MatchOutcomeParams, matchToken?: string) => Promise<MatchOutcomeResult | null>;
   recordDungeonResult: (wavesCleared: number, isVictory: boolean, matchToken?: string) => Promise<MatchOutcomeResult | null>;
+  startDungeonExpedition: (characterIds: string[], difficultyMode?: string) => Promise<{ success: boolean; teamData?: any[]; error?: string }>;
+  saveDungeonRun: (runState: any) => Promise<{ success: boolean }>;
+  getActiveDungeonRun: () => Promise<{ success: boolean; runState?: any }>;
+  finalizeDungeonExpedition: (runState: any, isVictory: boolean, matchToken?: string) => Promise<any>;
   refreshProfile: () => Promise<void>;
 
   // 🌌 Ascension Actions (Astra)
@@ -130,6 +138,7 @@ interface AuthContextType {
   buyCharacter: (characterId: string, cost: number) => Promise<{ success: boolean; isDuplicate?: boolean; shardsAwarded?: number; error?: string }>;
   upgradeCharacter: (characterId: string, isMythic: boolean) => Promise<{ success: boolean; newLevel?: number; error?: string }>;
   buyRelic: (relicId: string, cost: number) => Promise<{ success: boolean; error?: string }>;
+  deductAstra: (amount: number, reason?: string) => Promise<{ success: boolean; error?: string }>;
   buySkill: (skillId: string, characterId: string, requiredLevel: number, cost: number) => Promise<{ success: boolean; error?: string }>;
   equipLoadout: (characterId: string, relicIds: string[], skillIds: string[]) => Promise<{ success: boolean; error?: string }>;
   claimBattlePassReward: (level: number, rewardType?: string, rewardAmount?: number, rewardItemId?: string) => Promise<{ success: boolean; rewardAmount?: number; error?: string }>;
@@ -154,24 +163,38 @@ interface AuthContextType {
   claimWeeklyChallenge: (missionId: string) => Promise<{ success: boolean; rewardType?: string; rewardAmount?: number; error?: string }>;
   getAchievements: () => Promise<{ success: boolean; achievements?: any; definitions?: any; error?: string }>;
   claimAchievement: (achievementId: string) => Promise<{ success: boolean; rewardType?: string; rewardAmount?: number; error?: string }>;
+  claimPlayerLevelReward: (level: number) => Promise<{ success: boolean; reward?: any; error?: string }>;
   spinMysteryWheel: () => Promise<{ success: boolean; reward?: any; prizeIndex?: number; remainingSpins?: number; error?: string }>;
   saveTeam: (name: string, characterIds: string[], teamId?: string) => Promise<{ success: boolean; team?: any; error?: string }>;
   deleteTeam: (teamId: string) => Promise<{ success: boolean; error?: string }>;
   getTeams: () => Promise<{ success: boolean; teams?: any[]; error?: string }>;
   adminGrantReward: (targetUsername: string, rewardType: string, amount: number, characterId?: string) => Promise<{ success: boolean; error?: string }>;
-  trackGameMode: (mode: string) => Promise<void>;
-  updateMissionProgress: (eventType: string, amount?: number) => Promise<void>;
-  openCrate: (crateType: 'SHARD_CRATE' | 'CHARACTER_CRATE') => Promise<{ success: boolean; reward?: any; error?: string }>;
+  openCrate: (crateType: string) => Promise<{ success: boolean; reward?: any; error?: string }>;
+  openAllCrates: (crateType: string) => Promise<{
+    success: boolean;
+    countOpened?: number;
+    crateType?: string;
+    rewards?: any[];
+    summary?: {
+      categoryShards: Record<string, number>;
+      newCharacters: any[];
+      duplicateCharacters: { character: any; shardsAwarded: number }[];
+      totalAstra: number;
+    };
+    error?: string;
+  }>;
   craftCharacterToken: (category: string) => Promise<{ success: boolean; error?: string }>;
   redeemCharacterToken: (category: string, characterId: string) => Promise<{ success: boolean; error?: string }>;
   getOnboardingChoices: () => Promise<{ success: boolean; choices?: any[]; completed?: boolean; error?: string }>;
   chooseOnboardingCharacter: (characterId: string) => Promise<{ success: boolean; error?: string }>;
+  trackGameMode?: (gameMode: string) => Promise<void>;
+  updateMissionProgress?: (type: string, amount?: number) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const TOKEN_KEY = 'mcu_auth_token';
-const API_BASE = ''; // Relative path (Vite proxy / same host)
+const API_BASE = API_BASE_URL;
 
 export function normalizeUserProfile(u: any): UserProfile {
   if (!u) return u;
@@ -223,6 +246,7 @@ export function normalizeUserProfile(u: any): UserProfile {
     battlePassClaimed: Array.isArray(u.battlePassClaimed) ? u.battlePassClaimed : [],
     crateInventory: u.crateInventory || { shard: 0, character: 0 },
     categoryShards: u.categoryShards || {},
+    draftShards: u.draftShards || {},
     characterTokens: u.characterTokens || {},
     onboardingCompleted: u.onboardingCompleted !== false,
     onboardingChoices: Array.isArray(u.onboardingChoices) ? u.onboardingChoices : [],
@@ -244,6 +268,7 @@ export function normalizeUserProfile(u: any): UserProfile {
     // v4.0
     cardShards: typeof u.cardShards === 'number' ? u.cardShards : 0,
     claimedLevelCrates: Array.isArray(u.claimedLevelCrates) ? u.claimedLevelCrates : [],
+    claimedLevelRewards: Array.isArray(u.claimedLevelRewards) ? u.claimedLevelRewards : [],
     cratesOpened: typeof u.cratesOpened === 'number' ? u.cratesOpened : 0,
     characterMastery: u.characterMastery || {},
     savedTeams: Array.isArray(u.savedTeams) ? u.savedTeams : [],
@@ -367,13 +392,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ username, password, avatar: avatar || '🦸‍♂️' })
       });
 
-      const data = await res.json();
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        return { success: false, error: `Server communication failed (Status ${res.status}).` };
+      }
+
       if (!res.ok || !data.success) {
         return { success: false, error: data.error || 'Failed to create account.' };
       }
 
       localStorage.setItem(TOKEN_KEY, data.token);
       setToken(data.token);
+      authenticateSocket(data.token);
       setUser(normalizeUserProfile(data.user));
       return { success: true };
     } catch (err: any) {
@@ -390,13 +422,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ username, password })
       });
 
-      const data = await res.json();
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        return { success: false, error: `Server communication failed (Status ${res.status}).` };
+      }
+
       if (!res.ok || !data.success) {
         return { success: false, error: data.error || 'Invalid credentials.' };
       }
 
       localStorage.setItem(TOKEN_KEY, data.token);
       setToken(data.token);
+      authenticateSocket(data.token);
       setUser(normalizeUserProfile(data.user));
       return { success: true };
     } catch (err: any) {
@@ -571,6 +610,186 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   };
 
+  // 🗡️ Start Roguelite Dungeon Expedition
+  const startDungeonExpedition = async (characterIds: string[], difficultyMode: string = 'EXPEDITION') => {
+    if (token) {
+      try {
+        const res = await fetch(`${API_BASE}/api/dungeon/start`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ characterIds, difficultyMode })
+        });
+        const data = await res.json();
+        if (data.success && data.user) {
+          setUser(normalizeUserProfile(data.user));
+          return data;
+        }
+      } catch (err) {
+        console.warn('[Auth] Server start failed, falling back to local expedition:', err);
+      }
+    }
+
+    // Local / Offline fallback to ensure the expedition ALWAYS starts
+    const localTeamData = characterIds.map(charId => {
+      const lvl = user?.characterLevels?.[charId] || 1;
+      const boosts = user?.characterStatsBoosts?.[charId] || { power: 0, hp: 0, defense: 0, speed: 0 };
+      const eqRelics = user?.equippedRelics?.[charId] || [];
+      const eqSkills = user?.equippedSkills?.[charId] || [];
+      return {
+        characterId: charId,
+        ascensionLevel: lvl,
+        boosts,
+        equippedRelics: eqRelics,
+        equippedSkills: eqSkills,
+      };
+    });
+
+    return {
+      success: true,
+      teamData: localTeamData,
+    };
+  };
+
+  // Save Active Dungeon Run
+  const saveDungeonRun = async (runState: any) => {
+    if (typeof window !== 'undefined' && runState) {
+      try {
+        localStorage.setItem('marvel_dungeon_active_run', JSON.stringify(runState));
+      } catch (e) {
+        console.error('[Auth] Failed to cache dungeon run locally:', e);
+      }
+    }
+
+    if (!token) return { success: true };
+    try {
+      const res = await fetch(`${API_BASE}/api/dungeon/save`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ runState })
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('[Auth] Failed to save dungeon run to server:', err);
+      return { success: true }; // Local save succeeded
+    }
+  };
+
+  // Get / Resume Active Dungeon Run
+  const getActiveDungeonRun = async () => {
+    if (token) {
+      try {
+        const res = await fetch(`${API_BASE}/api/dungeon/active`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.runState && !data.runState.isGameOver && !data.runState.isComplete) {
+            return data;
+          }
+        }
+      } catch (err) {
+        console.warn('[Auth] Server active run fetch failed, checking local storage:', err);
+      }
+    }
+
+    // Local storage fallback
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('marvel_dungeon_active_run');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && !parsed.isGameOver && !parsed.isComplete) {
+            return { success: true, runState: parsed };
+          }
+        }
+      } catch (e) {
+        console.error('[Auth] Failed to read local cached dungeon run:', e);
+      }
+    }
+
+    return { success: false };
+  };
+
+  // Finalize Roguelite Dungeon Expedition
+  const finalizeDungeonExpedition = async (runState: any, isVictory: boolean, matchToken?: string) => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('marvel_dungeon_active_run');
+    }
+
+    if (token) {
+      try {
+        const res = await fetch(`${API_BASE}/api/dungeon/complete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            runState,
+            isVictory,
+            matchToken: matchToken || `dungeon-exp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.user) {
+            const normalized = normalizeUserProfile(data.user);
+            setUser(normalized);
+            if (data.leveledUp) {
+              setLevelUpData({ oldLevel: data.oldLevel, newLevel: data.newLevel, user: normalized });
+              setIsLevelUpOpen(true);
+            }
+            return data;
+          }
+        }
+      } catch (err) {
+        console.error('[Auth] Failed to finalize dungeon expedition on server:', err);
+      }
+    }
+
+    // Local fallback reward calculation if offline
+    if (user) {
+      const floorReached = Number(runState?.currentFloor || runState?.maxFloorReached || 1);
+      const elitesDefeated = Number(runState?.runStats?.elitesDefeated || 0);
+      const bossesConquered = Number(runState?.runStats?.bossesConquered || 0);
+      const astraAwarded = Math.max(100, Math.min(100000, floorReached * 120 + elitesDefeated * 250 + bossesConquered * 1000 + (isVictory ? 2500 : 0)));
+      const shardsAwarded = Math.max(10, Math.floor(floorReached * 5 + elitesDefeated * 15 + bossesConquered * 50));
+      const xpTotal = floorReached * 50 + (isVictory ? 500 : 0);
+
+      const updatedUser: UserProfile = {
+        ...user,
+        astra: (user.astra || 0) + astraAwarded,
+        ascensionCoins: (user.astra || 0) + astraAwarded,
+        cardShards: (user.cardShards || 0) + shardsAwarded,
+        xp: (user.xp || 0) + xpTotal,
+        dungeonPeak: Math.max(user.dungeonPeak || 0, floorReached),
+        dungeonMaxWave: Math.max(user.dungeonMaxWave || 0, floorReached),
+        wins: user.wins + (isVictory ? 1 : 0),
+        losses: user.losses + (isVictory ? 0 : 1),
+      };
+
+      setUser(updatedUser);
+      return {
+        success: true,
+        user: updatedUser,
+        astraAwarded,
+        shardsAwarded,
+        cratesAwarded: bossesConquered,
+        xpAwarded: { total: xpTotal, reasons: [] },
+      };
+    }
+
+    return null;
+  };
+
   // ==========================================
   // 🌌 ASCENSION SPECIFIC CALLS (ASTRA)
   // ==========================================
@@ -635,24 +854,88 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const buyRelic = async (relicId: string, cost: number) => {
-    if (!token) return { success: false, error: 'Please sign in to buy relics.' };
-    try {
-      const res = await fetch(`${API_BASE}/api/ascension/buy-relic`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ relicId, cost })
-      });
-      const data = await res.json();
-      if (data.success && data.user) {
-        setUser(normalizeUserProfile(data.user));
-      }
-      return data;
-    } catch (err: any) {
-      return { success: false, error: err?.message || 'Network error.' };
+    const price = Math.max(0, Number(cost) || 1000);
+    const currentAstra = typeof user?.astra === 'number' ? user.astra : 0;
+    if (currentAstra < price) {
+      return { success: false, error: `Insufficient Astra. Required: ✨ ${price.toLocaleString()}, you have ✨ ${currentAstra.toLocaleString()}.` };
     }
+
+    if (token) {
+      try {
+        const res = await fetch(`${API_BASE}/api/ascension/buy-relic`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ relicId, cost: price })
+        });
+        const data = await res.json();
+        if (data.success && data.user) {
+          setUser(normalizeUserProfile(data.user));
+          return data;
+        } else if (!data.success) {
+          return data;
+        }
+      } catch (err: any) {
+        console.warn('[Auth] Server buy-relic request failed, falling back to local update:', err);
+      }
+    }
+
+    // Local / Offline persistent update
+    if (user) {
+      const owned = new Set(user.ownedRelics || []);
+      if (owned.has(relicId)) {
+        return { success: false, error: 'You already own this relic in your vault.' };
+      }
+      owned.add(relicId);
+      const updatedUser: UserProfile = {
+        ...user,
+        astra: currentAstra - price,
+        ascensionCoins: currentAstra - price,
+        ownedRelics: Array.from(owned),
+      };
+      setUser(updatedUser);
+      return { success: true, relicId, cost: price };
+    }
+
+    return { success: false, error: 'Unable to purchase relic.' };
+  };
+
+  const deductAstra = async (amount: number, reason?: string) => {
+    const price = Math.max(0, Number(amount) || 0);
+    const currentAstra = typeof user?.astra === 'number' ? user.astra : 0;
+    if (currentAstra < price) {
+      return { success: false, error: `Insufficient Astra. Required: ✨ ${price.toLocaleString()}, you have ✨ ${currentAstra.toLocaleString()}.` };
+    }
+
+    if (user) {
+      const nextAstra = Math.max(0, currentAstra - price);
+      const updatedUser: UserProfile = {
+        ...user,
+        astra: nextAstra,
+        ascensionCoins: nextAstra,
+      };
+      setUser(updatedUser);
+
+      // Save to server if token available
+      if (token) {
+        try {
+          await fetch(`${API_BASE}/api/ascension/buy-relic`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ relicId: `custom-deduct-${Date.now()}`, cost: price })
+          });
+        } catch (e) {
+          console.warn('[Auth] Astra sync error:', e);
+        }
+      }
+      return { success: true };
+    }
+    return { success: false, error: 'User not available.' };
   };
 
   const buySkill = async (skillId: string, characterId: string, requiredLevel: number, cost: number) => {
@@ -1014,6 +1297,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
   };
 
+  const claimPlayerLevelReward = async (level: number) => {
+    if (!token) return { success: false, error: 'Please sign in.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/player-level/claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ level })
+      });
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        return {
+          success: false,
+          error: res.status === 404
+            ? 'Level rewards are unavailable on the game server. Please restart or redeploy the backend.'
+            : `Unable to claim reward (server returned ${res.status}).`,
+        };
+      }
+      const data = await res.json();
+      if (data.success && data.user) setUser(normalizeUserProfile(data.user));
+      return data;
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
   const spinMysteryWheel = async () => {
     if (!token) return { success: false, error: 'Please sign in.' };
     try {
@@ -1100,10 +1406,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch { /* silent fail */ }
   };
 
-  const openCrate = async (crateType: 'SHARD_CRATE' | 'CHARACTER_CRATE') => {
+  const openCrate = async (crateType: string) => {
     if (!token) return { success: false, error: 'Please sign in.' };
     try {
       const res = await fetch(`${API_BASE}/api/ascension/crates/open`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ crateType })
+      });
+      const data = await res.json();
+      if (data.success && data.user) setUser(normalizeUserProfile(data.user));
+      return data;
+    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
+  };
+
+  const openAllCrates = async (crateType: string) => {
+    if (!token) return { success: false, error: 'Please sign in.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/ascension/crates/open-all`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ crateType })
@@ -1182,11 +1502,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         updateCustomAvatar,
         recordMatchResult,
         recordDungeonResult,
+        startDungeonExpedition,
+        saveDungeonRun,
+        getActiveDungeonRun,
+        finalizeDungeonExpedition,
         refreshProfile,
         claimDailyLogin,
         buyCharacter,
         upgradeCharacter,
         buyRelic,
+        deductAstra,
         buySkill,
         equipLoadout,
         claimBattlePassReward,
@@ -1208,6 +1533,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         claimWeeklyChallenge,
         getAchievements,
         claimAchievement,
+        claimPlayerLevelReward,
         spinMysteryWheel,
         saveTeam,
         deleteTeam,
@@ -1216,6 +1542,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         trackGameMode,
         updateMissionProgress,
         openCrate,
+        openAllCrates,
         craftCharacterToken,
         redeemCharacterToken,
         getOnboardingChoices,
