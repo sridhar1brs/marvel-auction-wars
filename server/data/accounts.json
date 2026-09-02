@@ -1,6 +1,6 @@
 {
   "version": "3.0.0",
-  "lastUpdated": "2026-09-02T15:15:37.145Z",
+  "lastUpdated": "2026-09-02T15:28:18.398Z",
   "users": [
     {
       "id": "usr-1787750128397-96c2dae8",
@@ -429,9 +429,9 @@
       "totalMoneySpent": 0,
       "highestBid": 0,
       "dungeonMaxWave": 1,
-      "playtimeSeconds": 27720,
+      "playtimeSeconds": 28020,
       "createdAt": 1787750647884,
-      "lastActiveAt": 1788362120986,
+      "lastActiveAt": 1788362898398,
       "role": "admin",
       "isAdmin": true,
       "dungeonPeak": 1,
@@ -724,7 +724,9 @@
         "user-1788088156790-d7gyc"
       ],
       "friendRequestsIncoming": [],
-      "friendRequestsOutgoing": [],
+      "friendRequestsOutgoing": [
+        "user-1788010944573-9xq0j"
+      ],
       "draftShards": {
         "rare": 0,
         "epic": 0,
@@ -2185,7 +2187,9 @@
       "starterCharactersGranted": true,
       "claimedRankRewards": [],
       "friends": [],
-      "friendRequestsIncoming": [],
+      "friendRequestsIncoming": [
+        "usr-1787750647884-b70e8765"
+      ],
       "friendRequestsOutgoing": []
     },
     {
@@ -2869,9 +2873,9 @@
       "highestBid": 0,
       "dungeonMaxWave": 0,
       "dungeonPeak": 0,
-      "playtimeSeconds": 2940,
+      "playtimeSeconds": 3600,
       "createdAt": 1788358283783,
-      "lastActiveAt": 1788362137145,
+      "lastActiveAt": 1788362857384,
       "astra": 1000,
       "ascensionCoins": 1000,
       "characterShards": {},

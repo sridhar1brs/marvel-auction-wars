@@ -128,9 +128,6 @@ export function HomeScreen({
                   <span className="text-[10px] font-mono font-black uppercase tracking-widest text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/40">
                     FLAGSHIP RPG & PVP MODE
                   </span>
-                  <span className="text-[10px] bg-amber-500 text-black font-black px-1.5 py-0.2 rounded uppercase">
-                    NEW
-                  </span>
                 </div>
                 <h2 className="text-lg sm:text-2xl font-heading font-black text-white uppercase tracking-wider group-hover:text-cyan-300 transition-colors">
                   ENTER MARVEL ASCENSION
