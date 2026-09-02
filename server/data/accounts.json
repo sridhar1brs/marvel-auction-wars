@@ -1,6 +1,6 @@
 {
   "version": "3.0.0",
-  "lastUpdated": "2026-09-02T15:28:18.398Z",
+  "lastUpdated": "2026-09-02T15:33:17.787Z",
   "users": [
     {
       "id": "usr-1787750128397-96c2dae8",
@@ -429,9 +429,9 @@
       "totalMoneySpent": 0,
       "highestBid": 0,
       "dungeonMaxWave": 1,
-      "playtimeSeconds": 28020,
+      "playtimeSeconds": 28260,
       "createdAt": 1787750647884,
-      "lastActiveAt": 1788362898398,
+      "lastActiveAt": 1788363197787,
       "role": "admin",
       "isAdmin": true,
       "dungeonPeak": 1,
@@ -2873,9 +2873,9 @@
       "highestBid": 0,
       "dungeonMaxWave": 0,
       "dungeonPeak": 0,
-      "playtimeSeconds": 3600,
+      "playtimeSeconds": 3960,
       "createdAt": 1788358283783,
-      "lastActiveAt": 1788362857384,
+      "lastActiveAt": 1788363173126,
       "astra": 1000,
       "ascensionCoins": 1000,
       "characterShards": {},
