@@ -252,8 +252,6 @@ export interface RedeemCode {
   isActive: boolean;
   createdAt: number;
   redeemedBy: string[]; // Array of user IDs
-  oneUsePerAccount?: boolean;
-  redemptions?: Array<{ id: string; userId: string; username: string; redeemedAt: number }>;
   creatorUsername?: string;
 }
 

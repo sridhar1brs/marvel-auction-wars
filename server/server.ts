@@ -10,7 +10,6 @@ import { GameRoom, OnlineBattleRoom, AscensionBattleResult } from './rooms';
 import { ALL_CHARACTERS } from '../src/data/characters/index';
 import { Player, GameSettings, Character, AscensionBattleState, BattleActionType, AscensionCustomSettings, BotPersonality, ChatMessage } from '../src/types/game';
 import { database, UserAccount } from './db/database';
-import { adminConfigStore } from './adminConfig';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -346,30 +345,9 @@ function requireAdmin(req: express.Request, res: express.Response, next: express
 
 app.use('/api/admin', requireAdmin);
 
-function adminFlag(section: Parameters<typeof adminConfigStore.get>[0], key: string, fallback = true): boolean {
-  const value = adminConfigStore.get(section);
-  return value && typeof value === 'object' && !Array.isArray(value) && typeof (value as Record<string, unknown>)[key] === 'boolean'
-    ? (value as Record<string, boolean>)[key]
-    : fallback;
-}
-
-function gameModeEnabled(mode: string): boolean {
-  const config = adminConfigStore.get('game-modes');
-  if (!config || typeof config !== 'object' || Array.isArray(config)) return true;
-  const enabled = (config as Record<string, unknown>).enabled;
-  return !enabled || typeof enabled !== 'object' || Array.isArray(enabled) || (enabled as Record<string, unknown>)[mode] !== false;
-}
-
 // API Endpoints
 app.get('/api/health', (_req, res) => {
-  res.json({
-    status: 'ok',
-    maintenanceMode: adminFlag('server', 'maintenanceMode', false),
-    activeRooms: rooms.size,
-    activeAscensionBattles: ascensionRooms.size,
-    activeDungeonRuns: database.getActiveDungeonRunCount(),
-    charactersTotal: ALL_CHARACTERS.length,
-  });
+  res.json({ status: 'ok', activeRooms: rooms.size, charactersTotal: ALL_CHARACTERS.length });
 });
 
 app.get('/api/characters', (_req, res) => {
@@ -380,9 +358,6 @@ app.get('/api/characters', (_req, res) => {
 // PLAYER ACCOUNTS & AUTHENTICATION APIs
 // ==========================================
 app.post('/api/auth/signup', async (req, res) => {
-  if (!adminFlag('settings', 'registrationEnabled')) {
-    return res.status(403).json({ success: false, error: 'Registration is temporarily disabled by the game operator.' });
-  }
   const { username, password, avatar } = req.body;
   const result = await database.createUser(username, password, avatar);
   if (result.error) {
@@ -501,9 +476,6 @@ app.post('/api/auth/dungeon-result', (req, res) => {
 app.post('/api/dungeon/start', (req, res) => {
   const user = getAuthUser(req);
   if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
-  if (!adminFlag('dungeon', 'enabled') || !gameModeEnabled('dungeon')) {
-    return res.status(423).json({ success: false, error: 'Dungeon expeditions are currently unavailable.' });
-  }
 
   const { characterIds, difficultyMode } = req.body;
   if (!Array.isArray(characterIds) || characterIds.length === 0) {
@@ -564,7 +536,6 @@ app.post('/api/ascension/claim-login', (req, res) => {
 app.post('/api/ascension/buy-character', (req, res) => {
   const user = getAuthUser(req);
   if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
-  if (!adminFlag('shop', 'enabled')) return res.status(423).json({ success: false, error: 'The Astra Shop is currently unavailable.' });
   const { characterId, cost } = req.body;
   if (!characterId || !cost) return res.status(400).json({ success: false, error: 'Invalid character purchase payload.' });
   const result = database.buyAscensionCharacter(user.id, characterId, Number(cost));
@@ -623,9 +594,6 @@ app.post('/api/ascension/equip-loadout', (req, res) => {
 app.post('/api/ascension/battlepass/claim', (req, res) => {
   const user = getAuthUser(req);
   if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
-  if (!adminFlag('battle-pass', 'enabled') || !gameModeEnabled('battlePass')) {
-    return res.status(423).json({ success: false, error: 'The Battle Pass is currently unavailable.' });
-  }
   const { level, rewardType, rewardAmount, rewardItemId } = req.body;
   const result = database.claimBattlePassReward(
     user.id,
@@ -689,9 +657,6 @@ app.post('/api/ascension/match-record', (req, res) => {
   const user = getAuthUser(req);
   if (!user) return res.status(401).json({ success: false, error: 'Unauthorized.' });
   const { isWin, matchFormat, isRanked, isMvp, isComeback, isFlawless, damageDealt, matchToken } = req.body;
-  if (isRanked && (!adminFlag('ranked', 'enabled') || !gameModeEnabled('ranked') || !adminFlag('battles', 'rankedEnabled'))) {
-    return res.status(423).json({ success: false, error: 'Ranked battles are currently unavailable.' });
-  }
   const result = database.recordAscensionMatch(user.id, {
     isWin: !!isWin,
     matchFormat: matchFormat || '1v1',
@@ -753,20 +718,6 @@ app.get('/api/admin/stats', (req, res) => {
   if (!user) return res.status(401).json({ success: false, error: 'ACCESS DENIED: Sign in required.' });
   const result = database.getAdminStats(user.id);
   if (!result.success) return res.status(403).json(result);
-  if (result.stats) {
-    // These values are sourced from the live room/queue maps rather than
-    // estimated analytics, so operators can distinguish current load from
-    // persisted account totals.
-    result.stats.live = {
-      classicRooms: rooms.size,
-      ascensionBattleRooms: ascensionRooms.size,
-      tournamentRooms: tournamentRooms.size,
-      parties: parties.size,
-      ascensionQueue: ascensionQueue.length,
-      tournamentQueue: tournamentQueue.length,
-      activeDungeonRuns: database.getActiveDungeonRunCount(),
-    };
-  }
   res.json(result);
 });
 
@@ -813,17 +764,10 @@ app.post('/api/admin/players/:id/actions', (req, res) => {
   const action = typeof req.body?.action === 'string' ? req.body.action : '';
   const amount = req.body?.amount === undefined ? 0 : Number(req.body.amount);
   const characterId = typeof req.body?.characterId === 'string' ? req.body.characterId : undefined;
-  const options = {
-    resource: typeof req.body?.resource === 'string' ? req.body.resource : undefined,
-    scope: typeof req.body?.scope === 'string' ? req.body.scope : undefined,
-    expiresAt: req.body?.expiresAt === undefined ? undefined : Date.parse(String(req.body.expiresAt)),
-    reason: typeof req.body?.reason === 'string' ? req.body.reason.slice(0, 500) : undefined,
-  };
-  if (req.body?.confirmed !== true || !targetId || targetId.length > 120 || !/^[a-zA-Z0-9_-]+$/.test(action) || !Number.isFinite(amount) ||
-      (req.body?.expiresAt !== undefined && !Number.isFinite(options.expiresAt))) {
+  if (req.body?.confirmed !== true || !targetId || targetId.length > 120 || !/^[a-zA-Z0-9_-]+$/.test(action) || !Number.isFinite(amount)) {
     return res.status(400).json({ success: false, error: 'Invalid action payload.' });
   }
-  const result = database.adminApplyPlayerAction(user.id, targetId, action, amount, characterId, options);
+  const result = database.adminApplyPlayerAction(user.id, targetId, action, amount, characterId);
   if (!result.success) return res.status(400).json(result);
   res.json(result);
 });
@@ -843,71 +787,15 @@ app.get('/api/admin/activity', (req, res) => {
 app.post('/api/admin/codes/create', (req, res) => {
   const user = getAuthUser(req);
   if (!user) return res.status(401).json({ success: false, error: 'ACCESS DENIED: Sign in required.' });
-  const { code, astraReward, rewardType, rewardAmount, characterId, crateType, maxUses, expiresAt, isActive, oneUsePerAccount } = req.body;
+  const { code, astraReward, rewardType, rewardAmount, characterId, crateType, maxUses, expiresAt, isActive } = req.body;
   if ((code !== undefined && (typeof code !== 'string' || !/^\d{10}$/.test(code))) ||
       !Number.isFinite(Number(astraReward)) || !Number.isFinite(Number(maxUses)) ||
-      typeof expiresAt !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(expiresAt) ||
-      (oneUsePerAccount !== undefined && typeof oneUsePerAccount !== 'boolean')) {
+      typeof expiresAt !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(expiresAt)) {
     return res.status(400).json({ success: false, error: 'Invalid redeem code payload.' });
   }
-  const result = database.createRedeemCode(user.id, { code, astraReward, rewardType, rewardAmount, characterId, crateType, maxUses, expiresAt, isActive, oneUsePerAccount });
+  const result = database.createRedeemCode(user.id, { code, astraReward, rewardType, rewardAmount, characterId, crateType, maxUses, expiresAt, isActive });
   if (!result.success) return res.status(400).json(result);
   res.json(result);
-});
-
-app.post('/api/admin/codes/bulk-create', (req, res) => {
-  const user = getAuthUser(req);
-  if (!user) return res.status(401).json({ success: false, error: 'ACCESS DENIED: Sign in required.' });
-  const { count, ...payload } = req.body || {};
-  if (!Number.isInteger(Number(count)) || Number(count) < 1 || Number(count) > 500 ||
-      payload.code !== undefined || typeof payload.astraReward !== 'number' ||
-      typeof payload.maxUses !== 'number' || typeof payload.expiresAt !== 'string' ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(payload.expiresAt) ||
-      (payload.oneUsePerAccount !== undefined && typeof payload.oneUsePerAccount !== 'boolean')) {
-    return res.status(400).json({ success: false, error: 'Invalid bulk redeem code payload.' });
-  }
-  const result = database.bulkCreateRedeemCodes(user.id, Number(count), payload);
-  if (!result.success) return res.status(400).json(result);
-  res.json(result);
-});
-
-// Persistent server configuration. Values are stored outside accounts.json and
-// every mutation records the complete before/after values in the owner audit log.
-app.get('/api/admin/config', (req, res) => {
-  const user = getAuthUser(req);
-  if (!user) return res.status(401).json({ success: false, error: 'ACCESS DENIED: Sign in required.' });
-  res.json({ success: true, config: adminConfigStore.all() });
-});
-
-app.get('/api/admin/config/:section', (req, res) => {
-  const user = getAuthUser(req);
-  if (!user) return res.status(401).json({ success: false, error: 'ACCESS DENIED: Sign in required.' });
-  const section = String(req.params.section);
-  if (!adminConfigStore.isSection(section)) return res.status(404).json({ success: false, error: 'Unknown configuration section.' });
-  res.json({ success: true, section, value: adminConfigStore.get(section) });
-});
-
-app.put('/api/admin/config/:section', (req, res) => {
-  const user = getAuthUser(req);
-  if (!user) return res.status(401).json({ success: false, error: 'ACCESS DENIED: Sign in required.' });
-  const section = String(req.params.section);
-  if (!adminConfigStore.isSection(section)) return res.status(404).json({ success: false, error: 'Unknown configuration section.' });
-  if (!req.body || !Object.prototype.hasOwnProperty.call(req.body, 'value')) return res.status(400).json({ success: false, error: 'PUT requires a value.' });
-  const result = adminConfigStore.replace(section, req.body.value);
-  if (!result.success) return res.status(400).json(result);
-  database.logAdminAction(user.username, 'ADMIN CONFIG UPDATED', JSON.stringify({ section, previous: result.previous, next: result.value }));
-  res.json({ success: true, section, value: result.value });
-});
-
-app.post('/api/admin/config/:section', (req, res) => {
-  const user = getAuthUser(req);
-  if (!user) return res.status(401).json({ success: false, error: 'ACCESS DENIED: Sign in required.' });
-  const section = String(req.params.section);
-  if (!adminConfigStore.isSection(section)) return res.status(404).json({ success: false, error: 'Unknown configuration section.' });
-  const result = adminConfigStore.append(section, req.body);
-  if (!result.success) return res.status(400).json(result);
-  database.logAdminAction(user.username, 'ADMIN CONFIG ITEM ADDED', JSON.stringify({ section, previous: result.previous, next: result.value }));
-  res.status(201).json({ success: true, section, value: result.value });
 });
 
 // A4. Admin Toggle Redeem Code Active/Inactive

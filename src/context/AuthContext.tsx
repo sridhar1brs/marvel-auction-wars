@@ -58,9 +58,6 @@ export interface UserProfile extends PlayerProfile {
   dungeonsCompleted: number;
   giftsSentCount: number;
   giftsReceivedCount: number;
-  status?: 'active' | 'suspended' | 'banned';
-  suspensionExpiresAt?: number;
-  moderationReason?: string;
 
   // v4.0 — New Systems
   cardShards: number;
@@ -153,14 +150,10 @@ interface AuthContextType {
   fetchAdminStats: () => Promise<{ success: boolean; stats?: any; actionLogs?: AdminActionLog[]; error?: string }>;
   fetchAdminPlayers: (params?: { page?: number; pageSize?: number; search?: string }) => Promise<{ success: boolean; players?: any[]; total?: number; page?: number; pageSize?: number; totalPages?: number; error?: string }>;
   fetchAdminPlayerDetail: (playerId: string) => Promise<{ success: boolean; player?: UserProfile; characters?: any[]; error?: string }>;
-  adminApplyPlayerAction: (playerId: string, action: string, amount?: number, characterId?: string, options?: { resource?: string; scope?: string; expiresAt?: number; reason?: string }) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
+  adminApplyPlayerAction: (playerId: string, action: string, amount?: number, characterId?: string) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
   fetchAdminActivity: (limit?: number) => Promise<{ success: boolean; logs?: AdminActionLog[]; error?: string }>;
   fetchAdminCodes: () => Promise<{ success: boolean; codes?: RedeemCode[]; error?: string }>;
-  createAdminCode: (payload: { code?: string; astraReward: number; rewardType?: 'ASTRA' | 'CHARACTER' | 'SHARD' | 'CRATE'; rewardAmount?: number; characterId?: string; crateType?: string; maxUses: number; expiresAt: string; isActive?: boolean; oneUsePerAccount?: boolean }) => Promise<{ success: boolean; code?: RedeemCode; error?: string }>;
-  bulkCreateAdminCodes: (count: number, payload: Omit<Parameters<AuthContextType['createAdminCode']>[0], 'code'>) => Promise<{ success: boolean; codes?: RedeemCode[]; error?: string }>;
-  fetchAdminConfig: (section?: string) => Promise<{ success: boolean; config?: Record<string, any>; section?: string; value?: any; error?: string }>;
-  updateAdminConfig: (section: string, value: any) => Promise<{ success: boolean; value?: any; error?: string }>;
-  postAdminConfig: (section: string, value: any) => Promise<{ success: boolean; value?: any; error?: string }>;
+  createAdminCode: (payload: { code?: string; astraReward: number; rewardType?: 'ASTRA' | 'CHARACTER' | 'SHARD' | 'CRATE'; rewardAmount?: number; characterId?: string; crateType?: string; maxUses: number; expiresAt: string; isActive?: boolean }) => Promise<{ success: boolean; code?: RedeemCode; error?: string }>;
   toggleAdminCode: (code: string, isActive: boolean) => Promise<{ success: boolean; error?: string }>;
   deleteAdminCode: (code: string) => Promise<{ success: boolean; error?: string }>;
 
@@ -271,9 +264,6 @@ export function normalizeUserProfile(u: any): UserProfile {
     dungeonsCompleted: typeof u.dungeonsCompleted === 'number' ? u.dungeonsCompleted : 0,
     giftsSentCount: typeof u.giftsSentCount === 'number' ? u.giftsSentCount : 0,
     giftsReceivedCount: typeof u.giftsReceivedCount === 'number' ? u.giftsReceivedCount : 0,
-    status: u.status || 'active',
-    suspensionExpiresAt: u.suspensionExpiresAt,
-    moderationReason: u.moderationReason,
     progressPercent: typeof u.progressPercent === 'number' ? u.progressPercent : 0,
     currentLevelXp: typeof u.currentLevelXp === 'number' ? u.currentLevelXp : 0,
     xpForNextLevel: typeof u.xpForNextLevel === 'number' ? u.xpForNextLevel : 1000,
@@ -1145,13 +1135,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const adminApplyPlayerAction = async (playerId: string, action: string, amount = 0, characterId?: string, options?: { resource?: string; scope?: string; expiresAt?: number; reason?: string }) => {
+  const adminApplyPlayerAction = async (playerId: string, action: string, amount = 0, characterId?: string) => {
     if (!token) return { success: false, error: 'ACCESS DENIED: Not authenticated.' };
     try {
       const res = await fetch(`${API_BASE}/api/admin/players/${encodeURIComponent(playerId)}/actions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ action, amount, characterId, ...options, confirmed: true })
+        body: JSON.stringify({ action, amount, characterId, confirmed: true })
       });
       return await res.json();
     } catch (err: any) {
@@ -1193,7 +1183,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     maxUses: number;
     expiresAt: string;
     isActive?: boolean;
-    oneUsePerAccount?: boolean;
   }) => {
     if (!token) return { success: false, error: 'ACCESS DENIED: Not authenticated.' };
     try {
@@ -1209,51 +1198,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) {
       return { success: false, error: err?.message || 'Network error.' };
     }
-  };
-
-  const fetchAdminConfig = async (section?: string) => {
-    if (!token) return { success: false, error: 'ACCESS DENIED: Not authenticated.' };
-    try {
-      const suffix = section ? `/${encodeURIComponent(section)}` : '';
-      const res = await fetch(`${API_BASE}/api/admin/config${suffix}`, { headers: { 'Authorization': `Bearer ${token}` } });
-      return await res.json();
-    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
-  };
-
-  const bulkCreateAdminCodes = async (count: number, payload: Omit<Parameters<AuthContextType['createAdminCode']>[0], 'code'>) => {
-    if (!token) return { success: false, error: 'ACCESS DENIED: Not authenticated.' };
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/codes/bulk-create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ count, ...payload }),
-      });
-      return await res.json();
-    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
-  };
-
-  const updateAdminConfig = async (section: string, value: any) => {
-    if (!token) return { success: false, error: 'ACCESS DENIED: Not authenticated.' };
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/config/${encodeURIComponent(section)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ value }),
-      });
-      return await res.json();
-    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
-  };
-
-  const postAdminConfig = async (section: string, value: any) => {
-    if (!token) return { success: false, error: 'ACCESS DENIED: Not authenticated.' };
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/config/${encodeURIComponent(section)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(value),
-      });
-      return await res.json();
-    } catch (err: any) { return { success: false, error: err?.message || 'Network error.' }; }
   };
 
   const toggleAdminCode = async (code: string, isActive: boolean) => {
@@ -1640,10 +1584,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fetchAdminActivity,
         fetchAdminCodes,
         createAdminCode,
-        bulkCreateAdminCodes,
-        fetchAdminConfig,
-        updateAdminConfig,
-        postAdminConfig,
         toggleAdminCode,
         deleteAdminCode,
         // v4.0
