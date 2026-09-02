@@ -1145,7 +1145,11 @@ class DatabaseManager {
     if (!this.isAuthorizedAdmin(admin)) return { success: false, error: 'ACCESS DENIED.' };
     const target = this.getRawUser(targetId);
     if (!target) return { success: false, error: 'Player not found.' };
-    const normalizedAction = String(action || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+    const normalizedAction = String(action || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
     const numericAmount = Number(amount);
     if (!Number.isFinite(numericAmount) || !Number.isInteger(numericAmount)) {
       return { success: false, error: 'Amount must be a whole number.' };
@@ -1185,6 +1189,8 @@ class DatabaseManager {
       }
       case 'ban':
       case 'ban_player':
+      case 'ban_account':
+      case 'block_player':
         oldDetails.isBanned = !!target.isBanned;
         target.isBanned = true;
         break;
