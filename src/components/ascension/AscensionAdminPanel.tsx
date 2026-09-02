@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Activity, BookOpen, Gift, LayoutDashboard, Search, ShieldAlert, Users, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Activity, Gift, LayoutDashboard, Search, ShieldAlert, Users, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { AdminActionLog, RedeemCode } from '../../types/game';
 import { ALL_CHARACTERS } from '../../data/characters/index';
 
-type Section = 'dashboard' | 'players' | 'characters' | 'codes' | 'activity';
+type Section = 'dashboard' | 'players' | 'codes' | 'activity' | 'danger';
 
 const card = 'rounded-2xl border border-white/10 bg-slate-900/80 shadow-xl';
 const input = 'w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-cyan-400';
@@ -14,7 +14,6 @@ export const AscensionAdminPanel: React.FC = () => {
     user, fetchAdminStats, fetchAdminPlayers, fetchAdminPlayerDetail,
     adminApplyPlayerAction, fetchAdminActivity, fetchAdminCodes,
     createAdminCode, toggleAdminCode, deleteAdminCode,
-    fetchAdminCharacters, updateAdminCharacterPrice,
   } = useAuth();
   const [section, setSection] = useState<Section>('dashboard');
   const [stats, setStats] = useState<any>(null);
@@ -26,12 +25,8 @@ export const AscensionAdminPanel: React.FC = () => {
   const [details, setDetails] = useState<any>(null);
   const [logs, setLogs] = useState<AdminActionLog[]>([]);
   const [codes, setCodes] = useState<RedeemCode[]>([]);
-  const [characterCatalog, setCharacterCatalog] = useState<any[]>([]);
-  const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
-  const [characterMessage, setCharacterMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [characterSearch, setCharacterSearch] = useState('');
   const [action, setAction] = useState('grant_astra');
   const [amount, setAmount] = useState(1000);
   const [actionCharacter, setActionCharacter] = useState('');
@@ -48,17 +43,13 @@ export const AscensionAdminPanel: React.FC = () => {
     if (!isAdmin) { setLoading(false); return; }
     setLoading(true);
     setError('');
-    const [statsRes, codeRes, activityRes, characterRes] = await Promise.all([
-      fetchAdminStats(), fetchAdminCodes(), fetchAdminActivity(100), fetchAdminCharacters(),
+    const [statsRes, codeRes, activityRes] = await Promise.all([
+      fetchAdminStats(), fetchAdminCodes(), fetchAdminActivity(100),
     ]);
     if (statsRes.success) setStats(statsRes.stats);
     else setError(statsRes.error || 'Unable to load dashboard.');
     if (codeRes.success) setCodes(codeRes.codes || []);
     if (activityRes.success) setLogs(activityRes.logs || []);
-    if (characterRes.success) {
-      setCharacterCatalog(characterRes.characters || []);
-      setPriceDrafts(Object.fromEntries((characterRes.characters || []).map((character: any) => [character.id, String(character.startingPrice)])));
-    }
     setLoading(false);
   };
 
@@ -114,11 +105,6 @@ export const AscensionAdminPanel: React.FC = () => {
     else { setNewCode({ ...newCode, code: '' }); await refresh(); }
   };
 
-  const visibleCharacters = useMemo(() => {
-    const needle = characterSearch.toLowerCase();
-    return ALL_CHARACTERS.filter(character => !needle || character.name.toLowerCase().includes(needle) || character.id.toLowerCase().includes(needle));
-  }, [characterSearch]);
-
   if (!isAdmin) {
     return <div className={`${card} mx-auto my-12 max-w-xl p-10 text-center`}><ShieldAlert className="mx-auto mb-4 h-12 w-12 text-rose-400" /><h2 className="text-2xl font-black text-rose-300">ACCESS DENIED</h2><p className="mt-2 text-sm text-slate-400">Owner authorization is required.</p></div>;
   }
@@ -126,9 +112,9 @@ export const AscensionAdminPanel: React.FC = () => {
   const nav: Array<{ id: Section; label: string; icon: React.ReactNode }> = [
     { id: 'dashboard', label: 'Command Center', icon: <LayoutDashboard className="h-4 w-4" /> },
     { id: 'players', label: 'Players', icon: <Users className="h-4 w-4" /> },
-    { id: 'characters', label: 'Characters', icon: <BookOpen className="h-4 w-4" /> },
     { id: 'codes', label: 'Redeem Codes', icon: <Gift className="h-4 w-4" /> },
     { id: 'activity', label: 'Activity Log', icon: <Activity className="h-4 w-4" /> },
+    { id: 'danger', label: 'Danger Zone', icon: <ShieldAlert className="h-4 w-4" /> },
   ];
 
   return (
@@ -157,10 +143,8 @@ export const AscensionAdminPanel: React.FC = () => {
           {details && selected && <PlayerDetail details={details} selected={selected} action={action} setAction={setAction} amount={amount} setAmount={setAmount} actionCharacter={actionCharacter} setActionCharacter={setActionCharacter} actionMessage={actionMessage} onApply={applyAction} onClose={() => { setDetails(null); setSelected(null); }} />}
         </div>}
 
-        {section === 'characters' && <div className={`${card} p-5`}><div className="mb-4 flex items-center gap-2"><Search className="h-4 w-4 text-slate-500" /><input className={input} value={characterSearch} onChange={event => setCharacterSearch(event.target.value)} placeholder="Search the live character catalog" /></div>{characterMessage && <div className="mb-3 text-xs text-emerald-300">{characterMessage}</div>}<div className="grid max-h-[620px] grid-cols-1 gap-2 overflow-y-auto md:grid-cols-2 xl:grid-cols-3">{(characterCatalog.length ? characterCatalog : visibleCharacters).filter(character => !characterSearch || character.name.toLowerCase().includes(characterSearch.toLowerCase()) || character.id.toLowerCase().includes(characterSearch.toLowerCase())).map((character: any) => <div key={character.id} className="rounded-xl border border-white/5 bg-slate-950/70 p-3"><div className="font-bold">{character.name}</div><div className="mt-1 text-[10px] uppercase text-cyan-300">{character.grade} · {character.id}</div><div className="text-xs text-slate-500">Base {character.baseStartingPrice ?? character.startingPrice}</div><div className="mt-2 flex gap-2"><input className={input} type="number" min={0} max={1000000} value={priceDrafts[character.id] ?? String(character.startingPrice)} onChange={event => setPriceDrafts({ ...priceDrafts, [character.id]: event.target.value })} /><button onClick={async () => { const value = Number(priceDrafts[character.id]); if (!Number.isInteger(value) || value < 0) { setError('Price must be a whole number from 0 to 1,000,000.'); return; } if (!window.confirm(`Save the starting price for ${character.name}?`)) return; const result = await updateAdminCharacterPrice(character.id, value); if (!result.success) setError(result.error || 'Unable to update price.'); else { setCharacterMessage('Character price updated and recorded.'); await refresh(); } }} className="rounded-xl bg-cyan-500 px-3 text-xs font-black text-slate-950">SAVE</button></div></div>)}</div></div>}
-
         {section === 'codes' && <div className="space-y-5"><form onSubmit={createCode} className={`${card} grid gap-3 p-5 md:grid-cols-4`}><input className={input} value={newCode.code} maxLength={10} onChange={event => setNewCode({ ...newCode, code: event.target.value.replace(/\D/g, '') })} placeholder="Optional 10-digit code" /><select className={input} value={codeRewardType} onChange={event => setCodeRewardType(event.target.value as typeof codeRewardType)}><option value="ASTRA">Astra</option><option value="CHARACTER">Character</option><option value="SHARD">Category shards</option><option value="CRATE">Crate</option></select><input className={input} type="number" min={1} max={1000000} value={newCode.astraReward} onChange={event => setNewCode({ ...newCode, astraReward: Number(event.target.value) })} placeholder="Reward amount" />{codeRewardType === 'CHARACTER' ? <select className={input} required value={codeCharacter} onChange={event => setCodeCharacter(event.target.value)}><option value="">Select character</option>{ALL_CHARACTERS.map(character => <option key={character.id} value={character.id}>{character.name}</option>)}</select> : codeRewardType === 'SHARD' ? <select className={input} value={codeShardCategory} onChange={event => setCodeShardCategory(event.target.value)}><option>RARE</option><option>EPIC</option><option>MYTHIC</option><option>HERO</option><option>VILLAIN</option><option>COSMIC</option></select> : codeRewardType === 'CRATE' ? <select className={input} value={codeCrateType} onChange={event => setCodeCrateType(event.target.value)}><option>SHARD_CRATE_RARE</option><option>SHARD_CRATE_EPIC</option><option>SHARD_CRATE_LEGENDARY</option><option>SHARD_CRATE_MYTHIC</option><option>CHARACTER_CRATE_RARE</option><option>CHARACTER_CRATE_EPIC</option><option>CHARACTER_CRATE_LEGENDARY</option><option>CHARACTER_CRATE_MYTHIC</option></select> : <span /> }<input className={input} type="number" min={1} max={100000} value={newCode.maxUses} onChange={event => setNewCode({ ...newCode, maxUses: Number(event.target.value) })} placeholder="Max uses" /><input className={input} type="date" value={newCode.expiresAt} onChange={event => setNewCode({ ...newCode, expiresAt: event.target.value })} /><button className="rounded-xl bg-amber-500 px-4 text-xs font-black text-slate-950">PUBLISH</button></form><div className={`${card} overflow-x-auto p-4`}><table className="w-full min-w-[620px] text-left text-xs"><thead className="border-b border-white/10 text-[10px] uppercase text-slate-500"><tr><th className="p-3">Code</th><th className="p-3">Reward</th><th className="p-3">Uses</th><th className="p-3">Expiry</th><th className="p-3">Status</th><th /></tr></thead><tbody className="divide-y divide-white/5">{codes.map(code => <tr key={code.code}><td className="p-3 font-mono font-bold text-amber-300">{code.code}</td><td className="p-3">{code.rewardType === 'CHARACTER' ? code.characterId : code.rewardType === 'CRATE' ? code.crateType : code.rewardType === 'SHARD' ? `${code.rewardAmount} shards` : `${code.astraReward.toLocaleString()} ASTRA`}</td><td className="p-3">{code.usedCount} / {code.maxUses}</td><td className="p-3">{code.expiresAt}</td><td className="p-3">{code.isActive ? 'ACTIVE' : 'INACTIVE'}</td><td className="space-x-2 p-3 text-right"><button onClick={() => toggleAdminCode(code.code, !code.isActive).then(refresh)} className="text-cyan-300">{code.isActive ? 'Disable' : 'Enable'}</button><button onClick={() => window.confirm(`Revoke ${code.code}?`) && deleteAdminCode(code.code).then(refresh)} className="text-rose-300">Revoke</button></td></tr>)}</tbody></table></div></div>}
-
+        {section === 'danger' && <div className={`${card} border-rose-500/30 p-5`}><div className="mb-4 flex items-center gap-3"><ShieldAlert className="h-6 w-6 text-rose-400" /><div><h3 className="text-xl font-black text-rose-300">Danger Zone</h3><p className="text-xs text-slate-400">Destructive player actions require confirmation and are recorded in the audit log.</p></div></div>{selected && details ? <PlayerDetail details={details} selected={selected} action={action} setAction={setAction} amount={amount} setAmount={setAmount} actionCharacter={actionCharacter} setActionCharacter={setActionCharacter} actionMessage={actionMessage} onApply={applyAction} onClose={() => { setDetails(null); setSelected(null); }} /> : <div className="rounded-xl border border-rose-500/20 bg-rose-950/20 p-6 text-center text-sm text-slate-300"><p>Select a player from the Players section before using moderation controls.</p><button onClick={() => setSection('players')} className="mt-4 rounded-xl bg-cyan-500 px-4 py-2 text-xs font-black text-slate-950">OPEN PLAYERS</button></div>}</div>}
         {section === 'activity' && <div className={`${card} p-5`}><h3 className="mb-4 font-black">Immutable owner audit stream</h3><ActivityRows logs={logs} /></div>}
       </section>
     </div>
