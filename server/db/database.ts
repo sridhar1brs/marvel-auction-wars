@@ -1145,7 +1145,7 @@ class DatabaseManager {
     if (!this.isAuthorizedAdmin(admin)) return { success: false, error: 'ACCESS DENIED.' };
     const target = this.getRawUser(targetId);
     if (!target) return { success: false, error: 'Player not found.' };
-    const normalizedAction = String(action || '').trim().toLowerCase();
+    const normalizedAction = String(action || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
     const numericAmount = Number(amount);
     if (!Number.isFinite(numericAmount) || !Number.isInteger(numericAmount)) {
       return { success: false, error: 'Amount must be a whole number.' };
