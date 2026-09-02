@@ -193,6 +193,8 @@ export interface RedeemCode {
   isActive: boolean;
   createdAt: number;
   redeemedBy: string[]; // Array of User IDs
+  oneUsePerAccount?: boolean;
+  redemptions?: Array<{ id: string; userId: string; username: string; redeemedAt: number }>;
   creatorUsername?: string;
 }
 
@@ -216,6 +218,9 @@ export interface UserAccount {
   favoriteGameMode?: string;
   role: 'admin' | 'player';
   isAdmin: boolean;
+  status?: 'active' | 'suspended' | 'banned';
+  suspensionExpiresAt?: number;
+  moderationReason?: string;
   level: number;
   xp: number;
   wins: number;
@@ -312,6 +317,9 @@ export interface SanitizedUserProfile {
   favoriteGameMode?: string;
   role: 'admin' | 'player';
   isAdmin: boolean;
+  status?: 'active' | 'suspended' | 'banned';
+  suspensionExpiresAt?: number;
+  moderationReason?: string;
   level: number;
   xp: number;
   currentLevelXp: number;
@@ -465,6 +473,11 @@ class DatabaseManager {
         const codesData = JSON.parse(rawCodes);
         if (Array.isArray(codesData.codes)) {
           for (const c of codesData.codes) {
+            // Older code records did not have per-account metadata. Preserve
+            // their one-redemption behavior while upgrading them in memory.
+            c.oneUsePerAccount = c.oneUsePerAccount !== false;
+            c.redeemedBy = Array.isArray(c.redeemedBy) ? c.redeemedBy : [];
+            c.redemptions = Array.isArray(c.redemptions) ? c.redemptions : [];
             this.redeemCodes.set(c.code.toUpperCase(), c);
           }
         }
@@ -500,6 +513,9 @@ class DatabaseManager {
       // account may hold administrative privileges.
       role: isOwner ? 'admin' : 'player',
       isAdmin: isOwner,
+      status: u.status === 'banned' || u.status === 'suspended' ? u.status : 'active',
+      suspensionExpiresAt: Number.isFinite(Number(u.suspensionExpiresAt)) ? Number(u.suspensionExpiresAt) : undefined,
+      moderationReason: typeof u.moderationReason === 'string' ? u.moderationReason.slice(0, 500) : undefined,
       level: userLevel,
       xp: userXp,
       dungeonPeak: u.dungeonPeak || u.dungeonMaxWave || 0,
@@ -639,6 +655,9 @@ class DatabaseManager {
       favoriteGameMode: u.favoriteGameMode,
       role: u.role || 'player',
       isAdmin: u.isAdmin || u.role === 'admin' || false,
+      status: u.status || 'active',
+      suspensionExpiresAt: u.suspensionExpiresAt,
+      moderationReason: u.moderationReason,
       level: Math.max(u.level || 1, levelInfo.level),
       xp: u.xp,
       currentLevelXp: levelInfo.currentLevelXp,
@@ -764,7 +783,7 @@ class DatabaseManager {
       return { success: false, error: 'This redeem code has reached its maximum global usage limit.' };
     }
 
-    if (codeObj.redeemedBy.includes(user.id)) {
+    if (codeObj.oneUsePerAccount !== false && codeObj.redeemedBy.includes(user.id)) {
       return { success: false, error: 'You have already redeemed this promotional code.' };
     }
 
@@ -797,6 +816,13 @@ class DatabaseManager {
     }
     codeObj.usedCount += 1;
     codeObj.redeemedBy.push(user.id);
+    codeObj.redemptions = Array.isArray(codeObj.redemptions) ? codeObj.redemptions : [];
+    codeObj.redemptions.push({
+      id: `redemption-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`,
+      userId: user.id,
+      username: user.username,
+      redeemedAt: Date.now(),
+    });
 
     this.save();
     this.saveCodes();
@@ -831,6 +857,7 @@ class DatabaseManager {
       maxUses: number;
       expiresAt: string;
       isActive?: boolean;
+      oneUsePerAccount?: boolean;
     }
   ): { success: boolean; code?: RedeemCode; error?: string } {
     const admin = this.getRawUser(adminUserId);
@@ -855,6 +882,11 @@ class DatabaseManager {
 
     if (this.redeemCodes.has(codeStr)) {
       return { success: false, error: `Code "${codeStr}" already exists in the database.` };
+    }
+    if (!Number.isInteger(payload.astraReward) || payload.astraReward < 0 || payload.astraReward > 1000000 ||
+        !Number.isInteger(payload.maxUses) || payload.maxUses < 1 || payload.maxUses > 100000 ||
+        (payload.rewardAmount !== undefined && (!Number.isInteger(payload.rewardAmount) || payload.rewardAmount < 1 || payload.rewardAmount > 1000000))) {
+      return { success: false, error: 'Reward and usage values must be whole numbers within the supported limits.' };
     }
     if (payload.rewardType && !['ASTRA', 'CHARACTER', 'SHARD', 'CRATE'].includes(payload.rewardType)) {
       return { success: false, error: 'Invalid redeem reward type.' };
@@ -884,6 +916,8 @@ class DatabaseManager {
       isActive: payload.isActive ?? true,
       createdAt: Date.now(),
       redeemedBy: [],
+      oneUsePerAccount: payload.oneUsePerAccount !== false,
+      redemptions: [],
       creatorUsername: admin.username
     };
 
@@ -908,6 +942,20 @@ class DatabaseManager {
     this.logAdminAction(admin.username, isActive ? 'OWNER ACTIVATED CODE' : 'OWNER DEACTIVATED CODE', `Code ${code.toUpperCase()} set to ${isActive ? 'ACTIVE' : 'INACTIVE'}`);
 
     return { success: true };
+  }
+
+  public bulkCreateRedeemCodes(adminUserId: string, count: number, payload: Omit<Parameters<DatabaseManager['createRedeemCode']>[1], 'code'>): { success: boolean; codes?: RedeemCode[]; error?: string } {
+    const admin = this.getRawUser(adminUserId);
+    if (!this.isAuthorizedAdmin(admin)) return { success: false, error: 'ACCESS DENIED.' };
+    if (!Number.isInteger(count) || count < 1 || count > 500) return { success: false, error: 'Bulk count must be between 1 and 500.' };
+    const created: RedeemCode[] = [];
+    for (let index = 0; index < count; index += 1) {
+      const result = this.createRedeemCode(adminUserId, payload);
+      if (!result.success || !result.code) return { success: false, error: result.error || 'Unable to create bulk codes.' };
+      created.push(result.code);
+    }
+    this.logAdminAction(admin.username, 'OWNER BULK CREATED CODES', JSON.stringify({ count: created.length, codeIds: created.map(code => code.code) }));
+    return { success: true, codes: created };
   }
 
   public deleteRedeemCode(adminUserId: string, code: string): { success: boolean; error?: string } {
@@ -943,12 +991,18 @@ class DatabaseManager {
     let totalAstra = 0;
     let totalCharactersOwned = 0;
     let totalMatches = 0;
+    let totalDungeonRuns = 0;
+    let totalDungeonWaves = 0;
+    let rankedPlayers = 0;
     const rankDistribution: Record<string, number> = {};
 
     for (const u of this.users.values()) {
       totalAstra += (u.astra || 0);
       totalCharactersOwned += (u.ownedCharacters || []).length;
       totalMatches += (u.matchesPlayed || 0);
+      totalDungeonRuns += (u.dungeonsCompleted || 0);
+      totalDungeonWaves += (u.dungeonPeak || u.dungeonMaxWave || 0);
+      if ((u.rankedTier || 'UNRANKED') !== 'UNRANKED') rankedPlayers += 1;
       const tier = u.rankedTier || 'UNRANKED';
       rankDistribution[tier] = (rankDistribution[tier] || 0) + 1;
     }
@@ -965,6 +1019,9 @@ class DatabaseManager {
         totalPlayers: this.users.size,
         onlinePlayers: Array.from(this.users.values()).filter(u => Date.now() - (u.lastActiveAt || 0) < 300000).length,
         totalMatches,
+        totalDungeonRuns,
+        totalDungeonWaves,
+        rankedPlayers,
         totalAstraInCirculation: totalAstra,
         totalCharactersOwned,
         totalRedeemCodes: totalCodes,
@@ -973,6 +1030,11 @@ class DatabaseManager {
       },
       actionLogs: this.adminLogs.slice(0, 50)
     };
+  }
+
+  /** Number of resumable dungeon runs currently held in memory. */
+  public getActiveDungeonRunCount(): number {
+    return this.activeDungeonRuns.size;
   }
 
   /**
@@ -1003,6 +1065,8 @@ class DatabaseManager {
         displayName: user.displayName || user.username,
         avatar: user.avatar,
         role: user.role,
+        status: user.status || 'active',
+        suspensionExpiresAt: user.suspensionExpiresAt,
         level: user.level || 1,
         xp: user.xp || 0,
         astra: user.astra || 0,
@@ -1060,7 +1124,7 @@ class DatabaseManager {
     return { success: true, logs: this.adminLogs.slice(0, Math.min(500, Math.max(1, Number(limit) || 100))) };
   }
 
-  public adminApplyPlayerAction(adminUserId: string, targetId: string, action: string, amount: number, characterId?: string): {
+  public adminApplyPlayerAction(adminUserId: string, targetId: string, action: string, amount: number, characterId?: string, options: { resource?: string; scope?: string; expiresAt?: number; reason?: string } = {}): {
     success: boolean;
     user?: SanitizedUserProfile;
     error?: string;
@@ -1069,11 +1133,13 @@ class DatabaseManager {
     if (!this.isAuthorizedAdmin(admin)) return { success: false, error: 'ACCESS DENIED.' };
     const target = this.getRawUser(targetId);
     if (!target) return { success: false, error: 'Player not found.' };
+    if (target.username.toLowerCase() === ADMIN_USERNAME) return { success: false, error: 'The owner account cannot be modified by player actions.' };
     const normalizedAction = String(action || '').trim().toLowerCase();
     const numericAmount = Number(amount);
     if (!Number.isFinite(numericAmount) || !Number.isInteger(numericAmount)) {
       return { success: false, error: 'Amount must be a whole number.' };
     }
+    const previous = this.sanitizeUser(target);
 
     switch (normalizedAction) {
       case 'grant_astra':
@@ -1088,6 +1154,55 @@ class DatabaseManager {
       case 'grant_card_shards':
         if (numericAmount < 1 || numericAmount > 1000000) return { success: false, error: 'Card shard amount must be between 1 and 1,000,000.' };
         target.cardShards = (target.cardShards || 0) + numericAmount;
+        break;
+      case 'remove_astra':
+        if (numericAmount < 1 || numericAmount > 1000000 || numericAmount > (target.astra || 0)) return { success: false, error: 'Astra removal must be within the player balance.' };
+        target.astra -= numericAmount;
+        target.ascensionCoins = target.astra;
+        break;
+      case 'grant_crates': {
+        if (numericAmount < 1 || numericAmount > 10000) return { success: false, error: 'Crates must be between 1 and 10,000.' };
+        const crateType = options.resource === 'character' ? 'character' : 'shard';
+        target.crateInventory = target.crateInventory || { shard: 0, character: 0 };
+        target.crateInventory[crateType] += numericAmount;
+        break;
+      }
+      case 'grant_shards': {
+        if (numericAmount < 1 || numericAmount > 1000000) return { success: false, error: 'Shard amount must be between 1 and 1,000,000.' };
+        const category = String(options.resource || 'B').toUpperCase();
+        if (!['C', 'B', 'A', 'MYTHIC'].includes(category)) return { success: false, error: 'Invalid shard category.' };
+        target.categoryShards = target.categoryShards || {};
+        target.categoryShards[category] = (target.categoryShards[category] || 0) + numericAmount;
+        break;
+      }
+      case 'grant_battle_pass_xp':
+        if (numericAmount < 1 || numericAmount > 5000000) return { success: false, error: 'Battle Pass XP must be between 1 and 5,000,000.' };
+        target.battlePassXp = (target.battlePassXp || 0) + numericAmount;
+        target.battlePassLevel = Math.min(BATTLE_PASS_LEVELS, getBattlePassLevelForXp(target.battlePassXp));
+        break;
+      case 'reset_progression': {
+        const scope = options.scope || 'ranked';
+        if (!['ranked', 'battle-pass', 'dungeon', 'characters', 'all'].includes(scope)) return { success: false, error: 'Invalid progression reset scope.' };
+        if (scope === 'ranked' || scope === 'all') {
+          target.rankedRating = 0; target.rankedTier = 'UNRANKED'; target.rankedDivision = 0;
+          target.placementMatchesPlayed = 0; target.placementWins = 0; target.isPlacementsCompleted = false;
+        }
+        if (scope === 'battle-pass' || scope === 'all') { target.battlePassLevel = 1; target.battlePassXp = 0; target.battlePassClaimed = []; }
+        if (scope === 'dungeon' || scope === 'all') { target.dungeonMaxWave = 0; target.dungeonPeak = 0; target.dungeonsCompleted = 0; }
+        if (scope === 'characters' || scope === 'all') { target.characterLevels = {}; target.characterStatsBoosts = {}; target.characterMastery = {}; }
+        break;
+      }
+      case 'suspend':
+      case 'ban': {
+        const expiry = options.expiresAt;
+        if (normalizedAction === 'suspend' && (!expiry || expiry <= Date.now())) return { success: false, error: 'Suspension expiry must be in the future.' };
+        target.status = normalizedAction === 'ban' ? 'banned' : 'suspended';
+        target.suspensionExpiresAt = expiry;
+        target.moderationReason = String(options.reason || '').slice(0, 500) || undefined;
+        break;
+      }
+      case 'unsuspend':
+        target.status = 'active'; target.suspensionExpiresAt = undefined; target.moderationReason = undefined;
         break;
       case 'grant_wheel_spins':
         if (numericAmount < 1 || numericAmount > 1000) return { success: false, error: 'Wheel spins must be between 1 and 1,000.' };
@@ -1104,6 +1219,8 @@ class DatabaseManager {
         if (!target.ownedCharacters) target.ownedCharacters = [];
         if (target.ownedCharacters.includes(characterId)) return { success: false, error: 'Player already owns that character.' };
         target.ownedCharacters.push(characterId);
+        target.characterLevels = target.characterLevels || {};
+        target.characterLevels[characterId] = 1;
         break;
       }
       default:
@@ -1113,7 +1230,10 @@ class DatabaseManager {
     target.adminRewardHistory = Array.isArray(target.adminRewardHistory) ? target.adminRewardHistory : [];
     target.adminRewardHistory.push(`admin-${normalizedAction}-${target.id}-${Date.now()}`);
     target.lastActiveAt = Date.now();
-    this.logAdminAction(admin.username, `ADMIN ${normalizedAction.toUpperCase()}`, `Applied ${normalizedAction} to ${target.username}${characterId ? ` (${characterId})` : ` (+${numericAmount})`}`);
+    this.logAdminAction(admin.username, `ADMIN ${normalizedAction.toUpperCase()}`, JSON.stringify({
+      targetId: target.id, amount: numericAmount, characterId, options,
+      previous, next: this.sanitizeUser(target),
+    }));
     this.save();
     return { success: true, user: this.sanitizeUser(target) };
   }
@@ -1253,6 +1373,9 @@ class DatabaseManager {
     if (!user) {
       return { success: false, error: 'Invalid username or commander credentials.' };
     }
+    if (this.isAccessBlocked(user)) {
+      return { success: false, error: user.status === 'banned' ? 'This account is banned.' : 'This account is temporarily suspended.' };
+    }
 
     const testHash = crypto.pbkdf2Sync(password, user.salt, 1000, 64, 'sha512').toString('hex');
     if (testHash !== user.passwordHash) {
@@ -1294,6 +1417,8 @@ class DatabaseManager {
     try {
       const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
       if (payload.exp && payload.exp < Date.now()) return null;
+      const user = this.getRawUser(payload.id);
+      if (user && this.isAccessBlocked(user)) return null;
       return payload;
     } catch {
       return null;
@@ -1320,6 +1445,18 @@ class DatabaseManager {
       if (u.id === idOrUsername) return u;
     }
     return null;
+  }
+
+  public isAccessBlocked(user: UserAccount | null): boolean {
+    if (!user || (user.status !== 'suspended' && user.status !== 'banned')) return false;
+    if (user.suspensionExpiresAt && user.suspensionExpiresAt <= Date.now()) {
+      user.status = 'active';
+      user.suspensionExpiresAt = undefined;
+      user.moderationReason = undefined;
+      this.save();
+      return false;
+    }
+    return true;
   }
 
   // ==========================================

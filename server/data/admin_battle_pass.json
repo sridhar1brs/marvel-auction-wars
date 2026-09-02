@@ -1,0 +1,10 @@
+{
+  "lastUpdated": "2026-09-02T16:57:39.629Z",
+  "value": {
+    "enabled": true,
+    "season": "Season 1",
+    "levels": 100,
+    "xpPerLevel": 1000,
+    "premiumPrice": 950
+  }
+}

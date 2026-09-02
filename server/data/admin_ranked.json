@@ -1,0 +1,11 @@
+{
+  "lastUpdated": "2026-09-02T16:57:39.628Z",
+  "value": {
+    "season": "Season 1",
+    "enabled": true,
+    "placementMatches": 10,
+    "ratingFloor": 0,
+    "winRating": 25,
+    "lossRating": 20
+  }
+}
