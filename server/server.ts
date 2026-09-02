@@ -332,6 +332,19 @@ function getAuthUser(req: express.Request) {
   return database.getRawUser(tokenPayload.id);
 }
 
+// Apply authorization at the router boundary so newly added admin endpoints
+// cannot accidentally omit their own access check.
+function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'ACCESS DENIED: Sign in required.' });
+  if (user.role !== 'admin' || !user.isAdmin) {
+    return res.status(403).json({ success: false, error: 'ACCESS DENIED: Owner authorization required.' });
+  }
+  next();
+}
+
+app.use('/api/admin', requireAdmin);
+
 // API Endpoints
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', activeRooms: rooms.size, charactersTotal: ALL_CHARACTERS.length });
@@ -717,11 +730,69 @@ app.get('/api/admin/codes', (req, res) => {
   res.json(result);
 });
 
+// A2b. Paginated/searchable player directory
+app.get('/api/admin/players', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'ACCESS DENIED: Sign in required.' });
+  const page = Number(req.query.page);
+  const pageSize = Number(req.query.pageSize);
+  const search = typeof req.query.search === 'string' ? req.query.search.slice(0, 100) : '';
+  if ((req.query.page !== undefined && (!Number.isInteger(page) || page < 1)) ||
+      (req.query.pageSize !== undefined && (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100))) {
+    return res.status(400).json({ success: false, error: 'Invalid pagination.' });
+  }
+  res.json(database.getAdminPlayers(user.id, page || 1, pageSize || 25, search));
+});
+
+// A2c. Player detail (sanitized account + owned character progression)
+app.get('/api/admin/players/:id', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'ACCESS DENIED: Sign in required.' });
+  const targetId = String(req.params.id || '').trim();
+  if (!targetId || targetId.length > 120) return res.status(400).json({ success: false, error: 'Invalid player id.' });
+  const result = database.getAdminPlayerDetail(user.id, targetId);
+  if (!result.success) return res.status(404).json(result);
+  res.json(result);
+});
+
+// A2d. Confirmed admin reward/progression action. The database repeats all
+// authorization and bounds checks so this remains safe outside this handler.
+app.post('/api/admin/players/:id/actions', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'ACCESS DENIED: Sign in required.' });
+  const targetId = String(req.params.id || '').trim();
+  const action = typeof req.body?.action === 'string' ? req.body.action : '';
+  const amount = req.body?.amount === undefined ? 0 : Number(req.body.amount);
+  const characterId = typeof req.body?.characterId === 'string' ? req.body.characterId : undefined;
+  if (req.body?.confirmed !== true || !targetId || targetId.length > 120 || !/^[a-zA-Z0-9_-]+$/.test(action) || !Number.isFinite(amount)) {
+    return res.status(400).json({ success: false, error: 'Invalid action payload.' });
+  }
+  const result = database.adminApplyPlayerAction(user.id, targetId, action, amount, characterId);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+});
+
+// A2e. Dedicated audit stream for the activity view.
+app.get('/api/admin/activity', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return res.status(401).json({ success: false, error: 'ACCESS DENIED: Sign in required.' });
+  const limit = Number(req.query.limit);
+  if (req.query.limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > 500)) {
+    return res.status(400).json({ success: false, error: 'Invalid activity limit.' });
+  }
+  res.json(database.getAdminActivity(user.id, limit || 100));
+});
+
 // A3. Admin Create Redeem Code
 app.post('/api/admin/codes/create', (req, res) => {
   const user = getAuthUser(req);
   if (!user) return res.status(401).json({ success: false, error: 'ACCESS DENIED: Sign in required.' });
   const { code, astraReward, rewardType, rewardAmount, characterId, crateType, maxUses, expiresAt, isActive } = req.body;
+  if ((code !== undefined && (typeof code !== 'string' || !/^\d{10}$/.test(code))) ||
+      !Number.isFinite(Number(astraReward)) || !Number.isFinite(Number(maxUses)) ||
+      typeof expiresAt !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(expiresAt)) {
+    return res.status(400).json({ success: false, error: 'Invalid redeem code payload.' });
+  }
   const result = database.createRedeemCode(user.id, { code, astraReward, rewardType, rewardAmount, characterId, crateType, maxUses, expiresAt, isActive });
   if (!result.success) return res.status(400).json(result);
   res.json(result);
@@ -732,6 +803,9 @@ app.post('/api/admin/codes/toggle', (req, res) => {
   const user = getAuthUser(req);
   if (!user) return res.status(401).json({ success: false, error: 'ACCESS DENIED: Sign in required.' });
   const { code, isActive } = req.body;
+  if (typeof code !== 'string' || !/^\d{10}$/.test(code) || typeof isActive !== 'boolean') {
+    return res.status(400).json({ success: false, error: 'Invalid code status payload.' });
+  }
   const result = database.toggleRedeemCode(user.id, code, !!isActive);
   if (!result.success) return res.status(400).json(result);
   res.json(result);
@@ -742,6 +816,7 @@ app.delete('/api/admin/codes/:code', (req, res) => {
   const user = getAuthUser(req);
   if (!user) return res.status(401).json({ success: false, error: 'ACCESS DENIED: Sign in required.' });
   const { code } = req.params;
+  if (!/^\d{10}$/.test(code)) return res.status(400).json({ success: false, error: 'Invalid redeem code.' });
   const result = database.deleteRedeemCode(user.id, code);
   if (!result.success) return res.status(400).json(result);
   res.json(result);

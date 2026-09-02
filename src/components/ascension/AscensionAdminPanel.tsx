@@ -1,546 +1,167 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Activity, BookOpen, Gift, LayoutDashboard, Search, ShieldAlert, Users, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { RedeemCode, AdminActionLog } from '../../types/game';
+import { AdminActionLog, RedeemCode } from '../../types/game';
 import { ALL_CHARACTERS } from '../../data/characters/index';
 
-export const AscensionAdminPanel: React.FC = () => {
-  const { user, fetchAdminStats, fetchAdminCodes, createAdminCode, toggleAdminCode, deleteAdminCode } = useAuth();
+type Section = 'dashboard' | 'players' | 'characters' | 'codes' | 'activity';
 
+const card = 'rounded-2xl border border-white/10 bg-slate-900/80 shadow-xl';
+const input = 'w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-cyan-400';
+
+export const AscensionAdminPanel: React.FC = () => {
+  const {
+    user, fetchAdminStats, fetchAdminPlayers, fetchAdminPlayerDetail,
+    adminApplyPlayerAction, fetchAdminActivity, fetchAdminCodes,
+    createAdminCode, toggleAdminCode, deleteAdminCode,
+  } = useAuth();
+  const [section, setSection] = useState<Section>('dashboard');
   const [stats, setStats] = useState<any>(null);
-  const [actionLogs, setActionLogs] = useState<AdminActionLog[]>([]);
+  const [players, setPlayers] = useState<any[]>([]);
+  const [playerPage, setPlayerPage] = useState(1);
+  const [playerTotalPages, setPlayerTotalPages] = useState(1);
+  const [playerSearch, setPlayerSearch] = useState('');
+  const [selected, setSelected] = useState<any>(null);
+  const [details, setDetails] = useState<any>(null);
+  const [logs, setLogs] = useState<AdminActionLog[]>([]);
   const [codes, setCodes] = useState<RedeemCode[]>([]);
   const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [characterSearch, setCharacterSearch] = useState('');
+  const [action, setAction] = useState('grant_astra');
+  const [amount, setAmount] = useState(1000);
+  const [actionCharacter, setActionCharacter] = useState('');
+  const [actionMessage, setActionMessage] = useState('');
+  const [newCode, setNewCode] = useState({ astraReward: 5000, maxUses: 100, expiresAt: '2026-12-31', code: '' });
+  const [codeRewardType, setCodeRewardType] = useState<'ASTRA' | 'CHARACTER' | 'SHARD' | 'CRATE'>('ASTRA');
+  const [codeCharacter, setCodeCharacter] = useState('');
+  const [codeShardCategory, setCodeShardCategory] = useState('RARE');
+  const [codeCrateType, setCodeCrateType] = useState('SHARD_CRATE_RARE');
 
-  // Form State
-  const [newCodeInput, setNewCodeInput] = useState('');
-  const [astraReward, setAstraReward] = useState<number>(5000);
-  const [rewardType, setRewardType] = useState<'ASTRA' | 'CHARACTER' | 'SHARD' | 'CRATE'>('ASTRA');
-  const [characterId, setCharacterId] = useState('');
-  const [crateType, setCrateType] = useState<'SHARD_CRATE' | 'CHARACTER_CRATE'>('SHARD_CRATE');
-  const [crateTier, setCrateTier] = useState<'RARE' | 'EPIC' | 'LEGENDARY' | 'MYTHIC'>('RARE');
-  const [shardCategory, setShardCategory] = useState<'RARE' | 'EPIC' | 'MYTHIC' | 'HERO' | 'VILLAIN' | 'COSMIC'>('RARE');
-  const [maxUses, setMaxUses] = useState<number>(1000);
-  const [expiresAt, setExpiresAt] = useState('2026-12-31');
-  const [isActive, setIsActive] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
-  const [createFeedback, setCreateFeedback] = useState<{ success: boolean; msg: string } | null>(null);
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const isAdmin = user?.role === 'admin' && user.isAdmin;
 
-  const isAdmin = user?.role === 'admin' || user?.isAdmin;
-
-  // Load Data
-  const loadAdminData = async () => {
-    if (!isAdmin) {
-      setLoading(false);
-      return;
-    }
+  const refresh = async () => {
+    if (!isAdmin) { setLoading(false); return; }
     setLoading(true);
-    setErrorMsg(null);
-
-    try {
-      const [statsRes, codesRes] = await Promise.all([
-        fetchAdminStats(),
-        fetchAdminCodes()
-      ]);
-
-      if (statsRes.success) {
-        setStats(statsRes.stats);
-        setActionLogs(statsRes.actionLogs || []);
-      } else {
-        setErrorMsg(statsRes.error || 'Failed to load admin statistics.');
-      }
-
-      if (codesRes.success) {
-        setCodes(codesRes.codes || []);
-      }
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'Error communicating with admin server.');
-    } finally {
-      setLoading(false);
-    }
+    setError('');
+    const [statsRes, codeRes, activityRes] = await Promise.all([
+      fetchAdminStats(), fetchAdminCodes(), fetchAdminActivity(100),
+    ]);
+    if (statsRes.success) setStats(statsRes.stats);
+    else setError(statsRes.error || 'Unable to load dashboard.');
+    if (codeRes.success) setCodes(codeRes.codes || []);
+    if (activityRes.success) setLogs(activityRes.logs || []);
+    setLoading(false);
   };
 
-  useEffect(() => {
-    loadAdminData();
-  }, [isAdmin]);
-
-  // Let the server generate the authoritative secure 10-digit code.
-  const generateRandomCode = () => {
-    setNewCodeInput('');
-    setCreateFeedback({ success: true, msg: 'A secure unique 10-digit code will be generated when you publish.' });
+  const loadPlayers = async (page = playerPage, search = playerSearch) => {
+    const result = await fetchAdminPlayers({ page, pageSize: 25, search });
+    if (!result.success) { setError(result.error || 'Unable to load players.'); return; }
+    setPlayers(result.players || []);
+    setPlayerPage(result.page || page);
+    setPlayerTotalPages(result.totalPages || 1);
   };
 
-  // Handle Create Code
-  const handleCreateCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsCreating(true);
-    setCreateFeedback(null);
+  useEffect(() => { refresh(); }, [isAdmin]);
+  useEffect(() => { if (isAdmin && section === 'players') loadPlayers(playerPage, playerSearch); }, [isAdmin, section, playerPage]);
 
-    const res = await createAdminCode({
-      code: newCodeInput ? newCodeInput.toUpperCase() : undefined,
-      astraReward: Number(astraReward) || 5000,
-      rewardType,
-      rewardAmount: Number(astraReward) || 0,
-      characterId: rewardType === 'CHARACTER' ? characterId : rewardType === 'SHARD' ? shardCategory : undefined,
-      crateType: rewardType === 'CRATE' ? `${crateType}_${crateTier}` : undefined,
-      maxUses: Number(maxUses) || 1000,
-      expiresAt: expiresAt || '2026-12-31',
-      isActive
+  const openPlayer = async (player: any) => {
+    setSelected(player);
+    const result = await fetchAdminPlayerDetail(player.id);
+    if (result.success) { setDetails(result); setSection('players'); }
+    else setError(result.error || 'Unable to load player.');
+  };
+
+  const applyAction = async () => {
+    if (!selected) return;
+    const label = action.replace(/_/g, ' ');
+    if (!window.confirm(`Confirm ${label} for ${selected.username}? This action is recorded in the audit log.`)) return;
+    const result = await adminApplyPlayerAction(selected.id, action, Number(amount), actionCharacter || undefined);
+    if (!result.success) { setActionMessage(result.error || 'Action failed.'); return; }
+    setActionMessage('Action applied and recorded.');
+    const detail = await fetchAdminPlayerDetail(selected.id);
+    if (detail.success) setDetails(detail);
+    await Promise.all([refresh(), loadPlayers(playerPage, playerSearch)]);
+  };
+
+  const createCode = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const result = await createAdminCode({
+      code: newCode.code || undefined,
+      astraReward: Number(newCode.astraReward),
+      rewardType: codeRewardType,
+      rewardAmount: Number(newCode.astraReward),
+      characterId: codeRewardType === 'CHARACTER' ? codeCharacter : codeRewardType === 'SHARD' ? codeShardCategory : undefined,
+      crateType: codeRewardType === 'CRATE' ? codeCrateType : undefined,
+      maxUses: Number(newCode.maxUses),
+      expiresAt: newCode.expiresAt,
+      isActive: true,
     });
-
-    setIsCreating(false);
-
-    if (res.success && res.code) {
-      setCreateFeedback({
-        success: true,
-        msg: `🎉 Code ${res.code.code} successfully created and live in database!`
-      });
-      setNewCodeInput('');
-      loadAdminData();
-    } else {
-      setCreateFeedback({
-        success: false,
-        msg: res.error || 'Failed to create code.'
-      });
-    }
+    if (!result.success) setError(result.error || 'Unable to create code.');
+    else { setNewCode({ ...newCode, code: '' }); await refresh(); }
   };
 
-  // Handle Toggle Active/Inactive
-  const handleToggleCode = async (code: string, currentStatus: boolean) => {
-    const res = await toggleAdminCode(code, !currentStatus);
-    if (res.success) {
-      loadAdminData();
-    } else {
-      alert(res.error || 'Failed to toggle status.');
-    }
-  };
+  const visibleCharacters = useMemo(() => {
+    const needle = characterSearch.toLowerCase();
+    return ALL_CHARACTERS.filter(character => !needle || character.name.toLowerCase().includes(needle) || character.id.toLowerCase().includes(needle));
+  }, [characterSearch]);
 
-  // Handle Delete Code
-  const handleDeleteCode = async (code: string) => {
-    if (!window.confirm(`Are you sure you want to permanently revoke & delete code ${code}?`)) {
-      return;
-    }
-    const res = await deleteAdminCode(code);
-    if (res.success) {
-      loadAdminData();
-    } else {
-      alert(res.error || 'Failed to delete code.');
-    }
-  };
-
-  // Handle Copy
-  const handleCopyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedCode(code);
-    setTimeout(() => setCopiedCode(null), 2000);
-  };
-
-  // If unauthorized
   if (!isAdmin) {
-    return (
-      <div className="max-w-2xl mx-auto my-12 p-8 bg-rose-950/40 border border-rose-500/50 rounded-2xl text-center">
-        <div className="text-5xl mb-4">⛔</div>
-        <h2 className="text-2xl font-black text-rose-400 uppercase tracking-widest">
-          ACCESS DENIED
-        </h2>
-        <p className="text-sm text-slate-300 mt-2">
-          This portal is strictly reserved for the website owner. Normal player accounts do not possess administrative clearance.
-        </p>
-      </div>
-    );
+    return <div className={`${card} mx-auto my-12 max-w-xl p-10 text-center`}><ShieldAlert className="mx-auto mb-4 h-12 w-12 text-rose-400" /><h2 className="text-2xl font-black text-rose-300">ACCESS DENIED</h2><p className="mt-2 text-sm text-slate-400">Owner authorization is required.</p></div>;
   }
 
+  const nav: Array<{ id: Section; label: string; icon: React.ReactNode }> = [
+    { id: 'dashboard', label: 'Command Center', icon: <LayoutDashboard className="h-4 w-4" /> },
+    { id: 'players', label: 'Players', icon: <Users className="h-4 w-4" /> },
+    { id: 'characters', label: 'Characters', icon: <BookOpen className="h-4 w-4" /> },
+    { id: 'codes', label: 'Redeem Codes', icon: <Gift className="h-4 w-4" /> },
+    { id: 'activity', label: 'Activity Log', icon: <Activity className="h-4 w-4" /> },
+  ];
+
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-fade-in pb-16">
-      {/* Admin Header */}
-      <div className="p-6 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-amber-500/30 rounded-2xl shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 bg-amber-500/20 border border-amber-400 text-amber-300 text-xs font-mono font-bold rounded uppercase">
-              👑 Owner Clearance
-            </span>
-            <span className="text-xs text-slate-400 font-mono">Live Database Auth</span>
-          </div>
-          <h2 className="text-2xl md:text-3xl font-black text-white tracking-wide mt-1">
-            MARVEL ASCENSION ADMIN PORTAL
-          </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Real-time live economy monitor, database statistics, and dynamic promotional redeem code engine.
-          </p>
-        </div>
+    <div className="flex min-h-[720px] flex-col gap-5 text-slate-100 lg:flex-row">
+      <aside className={`${card} h-fit w-full shrink-0 p-3 lg:w-60`}>
+        <div className="mb-4 border-b border-white/10 px-3 pb-4"><div className="text-[10px] font-bold uppercase tracking-[.25em] text-amber-400">Owner clearance</div><h2 className="mt-1 text-lg font-black">ASCENSION OPS</h2></div>
+        <nav className="space-y-1">{nav.map(item => <button key={item.id} onClick={() => setSection(item.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-xs font-bold uppercase tracking-wide transition ${section === item.id ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>{item.icon}{item.label}</button>)}</nav>
+        <button onClick={refresh} className="mt-4 w-full rounded-xl border border-slate-700 px-3 py-2 text-xs font-bold text-cyan-300 hover:bg-slate-800">{loading ? 'SYNCING…' : 'SYNC LIVE DATA'}</button>
+      </aside>
 
-        <button
-          onClick={loadAdminData}
-          disabled={loading}
-          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold rounded-xl border border-slate-700 flex items-center gap-2 transition-all"
-        >
-          <span>🔄</span>
-          <span>{loading ? 'Syncing...' : 'Sync Live DB'}</span>
-        </button>
-      </div>
+      <section className="min-w-0 flex-1 space-y-5">
+        <header className={`${card} flex flex-wrap items-center justify-between gap-3 p-5`}><div><div className="text-xs font-bold uppercase tracking-[.25em] text-cyan-400">Marvel Ascension / Admin</div><h1 className="mt-1 text-2xl font-black">Massive Admin Panel 2.0</h1></div><div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">Signed in as {user?.username}</div></header>
+        {error && <div className="rounded-xl border border-rose-500/40 bg-rose-950/50 p-3 text-sm text-rose-300">{error}<button className="float-right" onClick={() => setError('')}><X className="h-4 w-4" /></button></div>}
 
-      {errorMsg && (
-        <div className="p-4 bg-rose-950/70 border border-rose-500/50 rounded-xl text-rose-300 text-xs">
-          ⚠️ {errorMsg}
-        </div>
-      )}
+        {section === 'dashboard' && <div className="space-y-5">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">{[
+            ['Players', stats?.totalPlayers, 'text-cyan-300'], ['Astra circulation', stats?.totalAstraInCirculation?.toLocaleString(), 'text-amber-300'],
+            ['Matches', stats?.totalMatches?.toLocaleString(), 'text-violet-300'], ['Active codes', stats?.totalRedeemCodes, 'text-emerald-300'],
+          ].map(([label, value, color]) => <div key={String(label)} className={`${card} p-4`}><div className="text-xs uppercase text-slate-500">{label}</div><div className={`mt-2 text-2xl font-black ${color}`}>{value ?? '—'}</div></div>)}</div>
+          <div className={`${card} p-5`}><div className="mb-3 flex items-center justify-between"><h3 className="font-black">Recent operations</h3><button onClick={() => setSection('activity')} className="text-xs text-cyan-300">View all</button></div><ActivityRows logs={logs.slice(0, 8)} /></div>
+        </div>}
 
-      {/* Metrics Row */}
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-4 bg-slate-900/80 border border-purple-500/20 rounded-xl">
-            <div className="text-xs text-slate-400 font-bold uppercase">Total Players</div>
-            <div className="text-2xl font-extrabold text-white mt-1">
-              👥 {stats.totalPlayers?.toLocaleString() || 0}
-            </div>
-            <div className="text-[11px] text-emerald-400 mt-1 font-mono">
-              ● {stats.onlinePlayers || 1} Online Now
-            </div>
-          </div>
+        {section === 'players' && <div className="space-y-5">
+          <div className={`${card} flex flex-wrap gap-2 p-4`}><div className="relative min-w-[220px] flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" /><input className={`${input} pl-9`} value={playerSearch} onChange={event => setPlayerSearch(event.target.value)} onKeyDown={event => event.key === 'Enter' && loadPlayers(1, playerSearch)} placeholder="Search username or display name" /></div><button onClick={() => loadPlayers(1, playerSearch)} className="rounded-xl bg-cyan-500 px-5 text-xs font-black text-slate-950">SEARCH</button></div>
+          <div className={`${card} overflow-x-auto p-4`}><table className="w-full min-w-[650px] text-left text-xs"><thead className="border-b border-white/10 text-[10px] uppercase text-slate-500"><tr><th className="p-3">Player</th><th className="p-3">Level</th><th className="p-3">Astra</th><th className="p-3">Matches</th><th className="p-3">Rank</th><th className="p-3" /></tr></thead><tbody className="divide-y divide-white/5">{players.map(player => <tr key={player.id} className="hover:bg-slate-800/40"><td className="p-3"><span className="mr-2 text-lg">{player.avatar}</span><b>{player.displayName}</b><span className="ml-2 text-slate-500">@{player.username}</span></td><td className="p-3">{player.level}</td><td className="p-3 text-amber-300">{player.astra?.toLocaleString()}</td><td className="p-3">{player.matchesPlayed}</td><td className="p-3">{player.rankedTier} {player.rankedRating ? `(${player.rankedRating})` : ''}</td><td className="p-3 text-right"><button onClick={() => openPlayer(player)} className="rounded-lg border border-cyan-500/40 px-3 py-1 text-cyan-300">Inspect</button></td></tr>)}</tbody></table><div className="mt-4 flex items-center justify-between text-xs text-slate-400"><span>Page {playerPage} / {playerTotalPages}</span><div className="space-x-2"><button disabled={playerPage <= 1} onClick={() => setPlayerPage(playerPage - 1)} className="rounded border border-slate-700 px-3 py-1 disabled:opacity-40">Prev</button><button disabled={playerPage >= playerTotalPages} onClick={() => setPlayerPage(playerPage + 1)} className="rounded border border-slate-700 px-3 py-1 disabled:opacity-40">Next</button></div></div></div>
+          {details && selected && <PlayerDetail details={details} selected={selected} action={action} setAction={setAction} amount={amount} setAmount={setAmount} actionCharacter={actionCharacter} setActionCharacter={setActionCharacter} actionMessage={actionMessage} onApply={applyAction} onClose={() => { setDetails(null); setSelected(null); }} />}
+        </div>}
 
-          <div className="p-4 bg-slate-900/80 border border-amber-500/20 rounded-xl">
-            <div className="text-xs text-slate-400 font-bold uppercase">Astra In Circulation</div>
-            <div className="text-2xl font-extrabold text-amber-400 mt-1">
-              ✨ {(stats.totalAstraInCirculation || 0).toLocaleString()}
-            </div>
-            <div className="text-[11px] text-slate-400 mt-1">Across all player accounts</div>
-          </div>
+        {section === 'characters' && <div className={`${card} p-5`}><div className="mb-4 flex items-center gap-2"><Search className="h-4 w-4 text-slate-500" /><input className={input} value={characterSearch} onChange={event => setCharacterSearch(event.target.value)} placeholder="Search the live character catalog" /></div><div className="grid max-h-[620px] grid-cols-2 gap-2 overflow-y-auto md:grid-cols-3 xl:grid-cols-4">{visibleCharacters.map(character => <div key={character.id} className="rounded-xl border border-white/5 bg-slate-950/70 p-3"><div className="font-bold">{character.name}</div><div className="mt-1 text-[10px] uppercase text-cyan-300">{character.grade} · {character.id}</div><div className="text-xs text-slate-500">Power {character.overallPower}</div></div>)}</div></div>}
 
-          <div className="p-4 bg-slate-900/80 border border-cyan-500/20 rounded-xl">
-            <div className="text-xs text-slate-400 font-bold uppercase">Total Matches</div>
-            <div className="text-2xl font-extrabold text-cyan-400 mt-1">
-              ⚔️ {(stats.totalMatches || 0).toLocaleString()}
-            </div>
-            <div className="text-[11px] text-slate-400 mt-1">PvP, Ranked & Dungeon runs</div>
-          </div>
+        {section === 'codes' && <div className="space-y-5"><form onSubmit={createCode} className={`${card} grid gap-3 p-5 md:grid-cols-4`}><input className={input} value={newCode.code} maxLength={10} onChange={event => setNewCode({ ...newCode, code: event.target.value.replace(/\D/g, '') })} placeholder="Optional 10-digit code" /><select className={input} value={codeRewardType} onChange={event => setCodeRewardType(event.target.value as typeof codeRewardType)}><option value="ASTRA">Astra</option><option value="CHARACTER">Character</option><option value="SHARD">Category shards</option><option value="CRATE">Crate</option></select><input className={input} type="number" min={1} max={1000000} value={newCode.astraReward} onChange={event => setNewCode({ ...newCode, astraReward: Number(event.target.value) })} placeholder="Reward amount" />{codeRewardType === 'CHARACTER' ? <select className={input} required value={codeCharacter} onChange={event => setCodeCharacter(event.target.value)}><option value="">Select character</option>{ALL_CHARACTERS.map(character => <option key={character.id} value={character.id}>{character.name}</option>)}</select> : codeRewardType === 'SHARD' ? <select className={input} value={codeShardCategory} onChange={event => setCodeShardCategory(event.target.value)}><option>RARE</option><option>EPIC</option><option>MYTHIC</option><option>HERO</option><option>VILLAIN</option><option>COSMIC</option></select> : codeRewardType === 'CRATE' ? <select className={input} value={codeCrateType} onChange={event => setCodeCrateType(event.target.value)}><option>SHARD_CRATE_RARE</option><option>SHARD_CRATE_EPIC</option><option>SHARD_CRATE_LEGENDARY</option><option>SHARD_CRATE_MYTHIC</option><option>CHARACTER_CRATE_RARE</option><option>CHARACTER_CRATE_EPIC</option><option>CHARACTER_CRATE_LEGENDARY</option><option>CHARACTER_CRATE_MYTHIC</option></select> : <span /> }<input className={input} type="number" min={1} max={100000} value={newCode.maxUses} onChange={event => setNewCode({ ...newCode, maxUses: Number(event.target.value) })} placeholder="Max uses" /><input className={input} type="date" value={newCode.expiresAt} onChange={event => setNewCode({ ...newCode, expiresAt: event.target.value })} /><button className="rounded-xl bg-amber-500 px-4 text-xs font-black text-slate-950">PUBLISH</button></form><div className={`${card} overflow-x-auto p-4`}><table className="w-full min-w-[620px] text-left text-xs"><thead className="border-b border-white/10 text-[10px] uppercase text-slate-500"><tr><th className="p-3">Code</th><th className="p-3">Reward</th><th className="p-3">Uses</th><th className="p-3">Expiry</th><th className="p-3">Status</th><th /></tr></thead><tbody className="divide-y divide-white/5">{codes.map(code => <tr key={code.code}><td className="p-3 font-mono font-bold text-amber-300">{code.code}</td><td className="p-3">{code.rewardType === 'CHARACTER' ? code.characterId : code.rewardType === 'CRATE' ? code.crateType : code.rewardType === 'SHARD' ? `${code.rewardAmount} shards` : `${code.astraReward.toLocaleString()} ASTRA`}</td><td className="p-3">{code.usedCount} / {code.maxUses}</td><td className="p-3">{code.expiresAt}</td><td className="p-3">{code.isActive ? 'ACTIVE' : 'INACTIVE'}</td><td className="space-x-2 p-3 text-right"><button onClick={() => toggleAdminCode(code.code, !code.isActive).then(refresh)} className="text-cyan-300">{code.isActive ? 'Disable' : 'Enable'}</button><button onClick={() => window.confirm(`Revoke ${code.code}?`) && deleteAdminCode(code.code).then(refresh)} className="text-rose-300">Revoke</button></td></tr>)}</tbody></table></div></div>}
 
-          <div className="p-4 bg-slate-900/80 border border-emerald-500/20 rounded-xl">
-            <div className="text-xs text-slate-400 font-bold uppercase">Active Promo Codes</div>
-            <div className="text-2xl font-extrabold text-emerald-400 mt-1">
-              🎟️ {stats.totalRedeemCodes || 0}
-            </div>
-            <div className="text-[11px] text-slate-400 mt-1">
-              {stats.totalCodeRedemptions || 0} Total Claims
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Split: Code Generator + Codes List */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left: Code Generator Form */}
-        <div className="p-6 bg-slate-900/90 border border-purple-500/30 rounded-2xl shadow-xl space-y-5">
-          <div className="border-b border-slate-800 pb-3">
-            <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
-              <span>🛠️</span>
-              <span>Generate Live Redeem Code</span>
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Newly created codes are saved to the live database immediately without redeployment.
-            </p>
-          </div>
-
-          <form onSubmit={handleCreateCode} className="space-y-4">
-            {/* Code string */}
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <label className="text-xs font-bold text-slate-300 uppercase">
-                  10-Digit Code
-                </label>
-                <button
-                  type="button"
-                  onClick={generateRandomCode}
-                  className="text-xs text-amber-400 hover:text-amber-300 underline font-mono"
-                >
-                  ⚡ Auto-Generate
-                </button>
-              </div>
-              <input
-                type="text"
-                maxLength={10}
-                value={newCodeInput}
-                onChange={(e) => setNewCodeInput(e.target.value.toUpperCase())}
-                inputMode="numeric"
-                placeholder="Leave blank for a secure random code"
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-mono font-bold text-amber-300 uppercase tracking-widest placeholder-slate-600 focus:outline-none focus:border-amber-400"
-              />
-            </div>
-
-            {/* Astra Reward */}
-            <div>
-              <label className="block text-xs font-bold text-slate-300 uppercase mb-1">
-                Astra Reward Amount
-              </label>
-              <input
-                type="number"
-                min={0}
-                max={1000000000}
-                step={1}
-                value={astraReward}
-                onChange={(e) => setAstraReward(Number(e.target.value))}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-purple-400"
-              />
-              <div className="flex gap-2 mt-1.5">
-                {[1000, 2500, 5000, 10000, 25000].map((val) => (
-                  <button
-                    key={val}
-                    type="button"
-                    onClick={() => setAstraReward(val)}
-                    className={`text-[10px] font-mono px-2 py-0.5 rounded border transition-colors ${
-                      astraReward === val
-                        ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-bold'
-                        : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-700'
-                    }`}
-                  >
-                    +{val >= 1000 ? `${val / 1000}k` : val}
-                  </button>
-                ))}
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Reward Type</label>
-                <select value={rewardType} onChange={e => setRewardType(e.target.value as typeof rewardType)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-purple-400">
-                  <option value="ASTRA">Coins / Astra</option>
-                  <option value="CHARACTER">Specific Character</option>
-                  <option value="SHARD">Category Shards</option>
-                  <option value="CRATE">Crate</option>
-                </select>
-              </div>
-              {rewardType === 'CHARACTER' && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Character (350-character database)</label>
-                  <select required value={characterId} onChange={e => setCharacterId(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-purple-400">
-                    <option value="">Select character…</option>
-                    {ALL_CHARACTERS.map(character => <option key={character.id} value={character.id}>{character.name} ({character.grade})</option>)}
-                  </select>
-                </div>
-              )}
-              {rewardType === 'CRATE' && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Crate Type</label>
-                  <select value={crateType} onChange={e => setCrateType(e.target.value as typeof crateType)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-purple-400">
-                    <option value="CHARACTER_CRATE">Character Card Crate</option>
-                    <option value="SHARD_CRATE">Shard Crate</option>
-                  </select>
-                  <select value={crateTier} onChange={e => setCrateTier(e.target.value as typeof crateTier)}
-                    className="w-full mt-2 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-purple-400">
-                    <option value="RARE">Rare Crate</option>
-                    <option value="EPIC">Epic Crate</option>
-                    <option value="LEGENDARY">Legendary Crate</option>
-                    <option value="MYTHIC">Mythic Crate</option>
-                  </select>
-                </div>
-              )}
-              {rewardType === 'SHARD' && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Shard Category</label>
-                  <select value={shardCategory} onChange={e => setShardCategory(e.target.value as typeof shardCategory)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-purple-400">
-                    <option value="RARE">Rare</option>
-                    <option value="EPIC">Epic</option>
-                    <option value="MYTHIC">Mythic</option>
-                    <option value="HERO">Hero</option>
-                    <option value="VILLAIN">Villain</option>
-                    <option value="COSMIC">Cosmic Draft</option>
-                  </select>
-                </div>
-              )}
-            </div>
-
-            {/* Max Uses */}
-            <div>
-              <label className="block text-xs font-bold text-slate-300 uppercase mb-1">
-                Maximum Redemptions
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={100000}
-                value={maxUses}
-                onChange={(e) => setMaxUses(Number(e.target.value))}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-purple-400"
-              />
-            </div>
-
-            {/* Expiration Date */}
-            <div>
-              <label className="block text-xs font-bold text-slate-300 uppercase mb-1">
-                Expiration Date
-              </label>
-              <input
-                type="date"
-                value={expiresAt}
-                onChange={(e) => setExpiresAt(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-purple-400"
-              />
-            </div>
-
-            {/* Active Toggle */}
-            <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
-              <div>
-                <div className="text-xs font-bold text-white">Initial Status</div>
-                <div className="text-[11px] text-slate-400">
-                  {isActive ? 'Available immediately' : 'Created as inactive'}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsActive(!isActive)}
-                className={`px-3 py-1 text-xs font-bold rounded-lg border transition-colors ${
-                  isActive
-                    ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
-                    : 'bg-slate-800 border-slate-700 text-slate-400'
-                }`}
-              >
-                {isActive ? 'ACTIVE' : 'INACTIVE'}
-              </button>
-            </div>
-
-            {/* Feedback */}
-            {createFeedback && (
-              <div
-                className={`p-3 rounded-xl text-xs font-medium border ${
-                  createFeedback.success
-                    ? 'bg-emerald-950/70 border-emerald-500/50 text-emerald-300'
-                    : 'bg-rose-950/70 border-rose-500/50 text-rose-300'
-                }`}
-              >
-                {createFeedback.msg}
-              </div>
-            )}
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isCreating}
-              className="w-full py-3 bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-extrabold text-sm uppercase tracking-wider rounded-xl shadow-lg shadow-purple-950/50 transition-all disabled:opacity-50"
-            >
-              {isCreating ? 'Saving to Database...' : '🚀 Publish Live Code'}
-            </button>
-          </form>
-        </div>
-
-        {/* Right: Codes Table & Action Logs */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Table Card */}
-          <div className="p-6 bg-slate-900/90 border border-slate-800 rounded-2xl shadow-xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
-                <span>🎟️</span>
-                <span>Active Redeem Codes ({codes.length})</span>
-              </h3>
-              <span className="text-xs text-slate-400">Live Database Sync</span>
-            </div>
-
-            {codes.length === 0 ? (
-              <div className="py-8 text-center text-slate-500 text-sm">
-                No redeem codes currently in database. Generate one on the left!
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-slate-300">
-                  <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
-                    <tr>
-                      <th className="p-3">Code</th>
-                      <th className="p-3">Reward</th>
-                      <th className="p-3">Uses / Max</th>
-                      <th className="p-3">Expiry</th>
-                      <th className="p-3">Status</th>
-                      <th className="p-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60 font-mono">
-                    {codes.map((c) => (
-                      <tr key={c.code} className="hover:bg-slate-800/30 transition-colors">
-                        <td className="p-3 font-bold text-amber-300 flex items-center gap-2">
-                          <span>{c.code}</span>
-                          <button
-                            onClick={() => handleCopyCode(c.code)}
-                            title="Copy code"
-                            className="text-slate-500 hover:text-white text-xs"
-                          >
-                            {copiedCode === c.code ? '✓' : '📋'}
-                          </button>
-                        </td>
-                        <td className="p-3 font-bold text-purple-300">
-                          {c.rewardType === 'CHARACTER' ? `🦸 ${c.characterId}` : c.rewardType === 'CRATE' ? `📦 ${c.crateType}` : c.rewardType === 'SHARD' ? `🔷 ${c.rewardAmount} shards` : `✨ ${c.astraReward?.toLocaleString()} ASTRA`}
-                        </td>
-                        <td className="p-3 text-slate-400">
-                          <span className={c.usedCount >= c.maxUses ? 'text-rose-400 font-bold' : ''}>
-                            {c.usedCount}
-                          </span>{' '}
-                          / {c.maxUses}
-                        </td>
-                        <td className="p-3 text-slate-400">{c.expiresAt}</td>
-                        <td className="p-3">
-                          <span
-                            className={`px-2 py-0.5 text-[10px] rounded font-bold ${
-                              c.isActive
-                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                                : 'bg-slate-800 text-slate-400 border border-slate-700'
-                            }`}
-                          >
-                            {c.isActive ? 'ACTIVE' : 'INACTIVE'}
-                          </span>
-                        </td>
-                        <td className="p-3 text-right space-x-2">
-                          <button
-                            onClick={() => handleToggleCode(c.code, c.isActive)}
-                            className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] font-sans font-semibold border border-slate-700"
-                          >
-                            {c.isActive ? 'Deactivate' : 'Activate'}
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCode(c.code)}
-                            className="px-2 py-1 bg-rose-950/60 hover:bg-rose-900 text-rose-300 rounded text-[10px] font-sans font-semibold border border-rose-800"
-                          >
-                            Revoke
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Action Log Card */}
-          <div className="p-6 bg-slate-900/90 border border-slate-800 rounded-2xl shadow-xl space-y-4">
-            <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-              <span>📜</span>
-              <span>Owner Audit Log</span>
-            </h3>
-
-            <div className="max-h-56 overflow-y-auto space-y-2 pr-2">
-              {actionLogs.length === 0 ? (
-                <div className="text-slate-500 text-xs py-4 text-center">
-                  No recorded admin actions yet.
-                </div>
-              ) : (
-                actionLogs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="p-2.5 bg-slate-950 rounded-xl border border-slate-800/80 flex items-center justify-between text-xs font-mono"
-                  >
-                    <div>
-                      <span className="text-amber-400 font-bold">[{log.action}]</span>{' '}
-                      <span className="text-slate-300 font-sans">{log.details}</span>
-                    </div>
-                    <span className="text-[10px] text-slate-500 shrink-0">
-                      {new Date(log.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+        {section === 'activity' && <div className={`${card} p-5`}><h3 className="mb-4 font-black">Immutable owner audit stream</h3><ActivityRows logs={logs} /></div>}
+      </section>
     </div>
   );
 };
+
+const ActivityRows = ({ logs }: { logs: AdminActionLog[] }) => logs.length ? <div className="space-y-2">{logs.map(log => <div key={log.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/5 bg-slate-950/70 p-3 text-xs"><span><b className="text-amber-300">{log.action}</b><span className="ml-2 text-slate-300">{log.details}</span></span><time className="text-slate-500">{new Date(log.timestamp).toLocaleString()}</time></div>)}</div> : <div className="py-8 text-center text-sm text-slate-500">No admin operations recorded.</div>;
+
+const PlayerDetail = ({ details, selected, action, setAction, amount, setAmount, actionCharacter, setActionCharacter, actionMessage, onApply, onClose }: any) => (
+  <div className={`${card} relative p-5`}>
+    <button onClick={onClose} className="absolute right-4 top-4 text-slate-500 hover:text-white"><X className="h-4 w-4" /></button>
+    <h3 className="text-lg font-black">{details.player.displayName} <span className="text-sm font-normal text-slate-500">@{details.player.username}</span></h3>
+    <div className="mt-4 grid grid-cols-2 gap-3 text-xs md:grid-cols-5">{[['Level', details.player.level], ['XP', details.player.xp], ['Astra', details.player.astra], ['Wins', details.player.wins], ['Owned', details.characters?.length || 0]].map(([label, value]) => <div key={String(label)} className="rounded-xl bg-slate-950 p-3"><div className="text-slate-500">{label}</div><b className="text-base">{value}</b></div>)}</div>
+    <div className="mt-5 border-t border-white/10 pt-4"><div className="mb-2 text-xs font-bold uppercase text-rose-300">Confirmed operator action</div><div className="grid gap-2 md:grid-cols-4"><select className={input} value={action} onChange={event => setAction(event.target.value)}><option value="grant_astra">Grant Astra</option><option value="grant_xp">Grant XP</option><option value="grant_card_shards">Grant Card Shards</option><option value="grant_wheel_spins">Grant Wheel Spins</option><option value="set_level">Set Level</option><option value="grant_character">Grant Character</option></select><input className={input} type="number" min={0} value={amount} onChange={event => setAmount(Number(event.target.value))} /><select className={input} value={actionCharacter} onChange={event => setActionCharacter(event.target.value)} disabled={action !== 'grant_character'}><option value="">Select character</option>{ALL_CHARACTERS.map(character => <option key={character.id} value={character.id}>{character.name}</option>)}</select><button onClick={onApply} className="rounded-xl bg-rose-500 px-4 text-xs font-black text-white">APPLY</button></div>{actionMessage && <div className="mt-2 text-xs text-emerald-300">{actionMessage}</div>}</div>
+    <div className="mt-5"><div className="mb-2 text-xs font-bold uppercase text-slate-500">Owned characters</div><div className="flex max-h-28 flex-wrap gap-2 overflow-y-auto">{(details.characters || []).map((character: any) => <span key={character.id} className="rounded-lg border border-white/10 px-2 py-1 text-xs">{character.name} <span className="text-cyan-300">L{character.level}</span></span>)}</div></div>
+  </div>
+);

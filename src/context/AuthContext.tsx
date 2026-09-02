@@ -148,6 +148,10 @@ interface AuthContextType {
 
   // 🔐 Owner Admin Actions
   fetchAdminStats: () => Promise<{ success: boolean; stats?: any; actionLogs?: AdminActionLog[]; error?: string }>;
+  fetchAdminPlayers: (params?: { page?: number; pageSize?: number; search?: string }) => Promise<{ success: boolean; players?: any[]; total?: number; page?: number; pageSize?: number; totalPages?: number; error?: string }>;
+  fetchAdminPlayerDetail: (playerId: string) => Promise<{ success: boolean; player?: UserProfile; characters?: any[]; error?: string }>;
+  adminApplyPlayerAction: (playerId: string, action: string, amount?: number, characterId?: string) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
+  fetchAdminActivity: (limit?: number) => Promise<{ success: boolean; logs?: AdminActionLog[]; error?: string }>;
   fetchAdminCodes: () => Promise<{ success: boolean; codes?: RedeemCode[]; error?: string }>;
   createAdminCode: (payload: { code?: string; astraReward: number; rewardType?: 'ASTRA' | 'CHARACTER' | 'SHARD' | 'CRATE'; rewardAmount?: number; characterId?: string; crateType?: string; maxUses: number; expiresAt: string; isActive?: boolean }) => Promise<{ success: boolean; code?: RedeemCode; error?: string }>;
   toggleAdminCode: (code: string, isActive: boolean) => Promise<{ success: boolean; error?: string }>;
@@ -1102,6 +1106,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const fetchAdminPlayers = async (params: { page?: number; pageSize?: number; search?: string } = {}) => {
+    if (!token) return { success: false, error: 'ACCESS DENIED: Not authenticated.' };
+    try {
+      const query = new URLSearchParams();
+      if (params.page) query.set('page', String(params.page));
+      if (params.pageSize) query.set('pageSize', String(params.pageSize));
+      if (params.search) query.set('search', params.search);
+      const suffix = query.toString() ? `?${query.toString()}` : '';
+      const res = await fetch(`${API_BASE}/api/admin/players${suffix}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Network error.' };
+    }
+  };
+
+  const fetchAdminPlayerDetail = async (playerId: string) => {
+    if (!token) return { success: false, error: 'ACCESS DENIED: Not authenticated.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/players/${encodeURIComponent(playerId)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Network error.' };
+    }
+  };
+
+  const adminApplyPlayerAction = async (playerId: string, action: string, amount = 0, characterId?: string) => {
+    if (!token) return { success: false, error: 'ACCESS DENIED: Not authenticated.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/players/${encodeURIComponent(playerId)}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action, amount, characterId, confirmed: true })
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Network error.' };
+    }
+  };
+
+  const fetchAdminActivity = async (limit = 100) => {
+    if (!token) return { success: false, error: 'ACCESS DENIED: Not authenticated.' };
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/activity?limit=${Math.min(500, Math.max(1, limit))}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Network error.' };
+    }
+  };
+
   const fetchAdminCodes = async () => {
     if (!token) return { success: false, error: 'ACCESS DENIED: Not authenticated.' };
     try {
@@ -1519,6 +1578,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         sendGift,
         redeemCode,
         fetchAdminStats,
+        fetchAdminPlayers,
+        fetchAdminPlayerDetail,
+        adminApplyPlayerAction,
+        fetchAdminActivity,
         fetchAdminCodes,
         createAdminCode,
         toggleAdminCode,

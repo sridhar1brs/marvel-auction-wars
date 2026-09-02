@@ -963,7 +963,7 @@ class DatabaseManager {
       success: true,
       stats: {
         totalPlayers: this.users.size,
-        onlinePlayers: Math.max(1, Array.from(this.users.values()).filter(u => Date.now() - (u.lastActiveAt || 0) < 300000).length),
+        onlinePlayers: Array.from(this.users.values()).filter(u => Date.now() - (u.lastActiveAt || 0) < 300000).length,
         totalMatches,
         totalAstraInCirculation: totalAstra,
         totalCharactersOwned,
@@ -973,6 +973,149 @@ class DatabaseManager {
       },
       actionLogs: this.adminLogs.slice(0, 50)
     };
+  }
+
+  /**
+   * Returns a deliberately small, searchable player projection for the admin
+   * console. Never return the raw account object from an admin endpoint.
+   */
+  public getAdminPlayers(adminUserId: string, page = 1, pageSize = 25, search = ''): {
+    success: boolean;
+    players?: Array<Record<string, unknown>>;
+    total?: number;
+    page?: number;
+    pageSize?: number;
+    totalPages?: number;
+    error?: string;
+  } {
+    const admin = this.getRawUser(adminUserId);
+    if (!this.isAuthorizedAdmin(admin)) return { success: false, error: 'ACCESS DENIED.' };
+
+    const safePage = Math.max(1, Math.floor(Number(page) || 1));
+    const safePageSize = Math.min(100, Math.max(1, Math.floor(Number(pageSize) || 25)));
+    const needle = String(search || '').trim().toLowerCase();
+    const players = Array.from(this.users.values())
+      .filter(user => !needle || user.username.toLowerCase().includes(needle) || (user.displayName || '').toLowerCase().includes(needle))
+      .sort((a, b) => (b.lastActiveAt || 0) - (a.lastActiveAt || 0))
+      .map(user => ({
+        id: user.id,
+        username: user.username,
+        displayName: user.displayName || user.username,
+        avatar: user.avatar,
+        role: user.role,
+        level: user.level || 1,
+        xp: user.xp || 0,
+        astra: user.astra || 0,
+        matchesPlayed: user.matchesPlayed || 0,
+        wins: user.wins || 0,
+        losses: user.losses || 0,
+        rankedTier: user.rankedTier || 'UNRANKED',
+        rankedRating: user.rankedRating || 0,
+        ownedCharactersCount: (user.ownedCharacters || []).length,
+        lastActiveAt: user.lastActiveAt || 0,
+        createdAt: user.createdAt || 0,
+      }));
+    const start = (safePage - 1) * safePageSize;
+    return {
+      success: true,
+      players: players.slice(start, start + safePageSize),
+      total: players.length,
+      page: safePage,
+      pageSize: safePageSize,
+      totalPages: Math.max(1, Math.ceil(players.length / safePageSize)),
+    };
+  }
+
+  public getAdminPlayerDetail(adminUserId: string, targetId: string): {
+    success: boolean;
+    player?: SanitizedUserProfile;
+    characters?: Array<Record<string, unknown>>;
+    error?: string;
+  } {
+    const admin = this.getRawUser(adminUserId);
+    if (!this.isAuthorizedAdmin(admin)) return { success: false, error: 'ACCESS DENIED.' };
+    const target = this.getRawUser(targetId);
+    if (!target) return { success: false, error: 'Player not found.' };
+    const owned = new Set(target.ownedCharacters || []);
+    const characters = Array.from(owned).map(id => {
+      const character = ALL_CHARACTERS.find(candidate => candidate.id === id);
+      return {
+        id,
+        name: character?.name || id,
+        grade: character?.grade || 'UNKNOWN',
+        level: target.characterLevels?.[id] || 1,
+        mastery: target.characterMastery?.[id] || { xp: 0, level: 1 },
+      };
+    });
+    return { success: true, player: this.sanitizeUser(target), characters };
+  }
+
+  public getAdminActivity(adminUserId: string, limit = 100): {
+    success: boolean;
+    logs?: AdminActionLog[];
+    error?: string;
+  } {
+    const admin = this.getRawUser(adminUserId);
+    if (!this.isAuthorizedAdmin(admin)) return { success: false, error: 'ACCESS DENIED.' };
+    return { success: true, logs: this.adminLogs.slice(0, Math.min(500, Math.max(1, Number(limit) || 100))) };
+  }
+
+  public adminApplyPlayerAction(adminUserId: string, targetId: string, action: string, amount: number, characterId?: string): {
+    success: boolean;
+    user?: SanitizedUserProfile;
+    error?: string;
+  } {
+    const admin = this.getRawUser(adminUserId);
+    if (!this.isAuthorizedAdmin(admin)) return { success: false, error: 'ACCESS DENIED.' };
+    const target = this.getRawUser(targetId);
+    if (!target) return { success: false, error: 'Player not found.' };
+    const normalizedAction = String(action || '').trim().toLowerCase();
+    const numericAmount = Number(amount);
+    if (!Number.isFinite(numericAmount) || !Number.isInteger(numericAmount)) {
+      return { success: false, error: 'Amount must be a whole number.' };
+    }
+
+    switch (normalizedAction) {
+      case 'grant_astra':
+        if (numericAmount < 1 || numericAmount > 1000000) return { success: false, error: 'Astra amount must be between 1 and 1,000,000.' };
+        target.astra = (target.astra || 0) + numericAmount;
+        target.ascensionCoins = target.astra;
+        break;
+      case 'grant_xp':
+        if (numericAmount < 1 || numericAmount > 5000000) return { success: false, error: 'XP amount must be between 1 and 5,000,000.' };
+        target.xp = (target.xp || 0) + numericAmount;
+        break;
+      case 'grant_card_shards':
+        if (numericAmount < 1 || numericAmount > 1000000) return { success: false, error: 'Card shard amount must be between 1 and 1,000,000.' };
+        target.cardShards = (target.cardShards || 0) + numericAmount;
+        break;
+      case 'grant_wheel_spins':
+        if (numericAmount < 1 || numericAmount > 1000) return { success: false, error: 'Wheel spins must be between 1 and 1,000.' };
+        target.wheelSpins = (target.wheelSpins || 0) + numericAmount;
+        break;
+      case 'set_level':
+        if (numericAmount < 1 || numericAmount > 100) return { success: false, error: 'Level must be between 1 and 100.' };
+        target.level = numericAmount;
+        break;
+      case 'grant_character': {
+        if (!characterId || !ALL_CHARACTERS.some(character => character.id === characterId)) {
+          return { success: false, error: 'Select a valid character.' };
+        }
+        if (!target.ownedCharacters) target.ownedCharacters = [];
+        if (target.ownedCharacters.includes(characterId)) return { success: false, error: 'Player already owns that character.' };
+        target.ownedCharacters.push(characterId);
+        break;
+      }
+      default:
+        return { success: false, error: 'Unsupported admin action.' };
+    }
+
+    target.adminRewardHistory = Array.isArray(target.adminRewardHistory) ? target.adminRewardHistory : [];
+    target.adminRewardHistory.push(`admin-${normalizedAction}-${target.id}-${Date.now()}`);
+    target.lastActiveAt = Date.now();
+    this.logAdminAction(admin.username, `ADMIN ${normalizedAction.toUpperCase()}`, `Applied ${normalizedAction} to ${target.username}${characterId ? ` (${characterId})` : ` (+${numericAmount})`}`);
+    this.save();
+    return { success: true, user: this.sanitizeUser(target) };
   }
 
   // ==========================================
@@ -2927,40 +3070,18 @@ class DatabaseManager {
   public adminGrantReward(adminUserId: string, targetUsername: string, rewardType: string, amount: number, characterId?: string): {
     success: boolean;
     error?: string;
+    user?: SanitizedUserProfile;
   } {
-    const admin = this.getRawUser(adminUserId);
-    if (!this.isAuthorizedAdmin(admin)) {
-      return { success: false, error: 'ACCESS DENIED.' };
-    }
-    const target = this.getRawUser(targetUsername);
-    if (!target) return { success: false, error: `User "${targetUsername}" not found.` };
-
-    const rewardId = `admin-${rewardType}-${targetUsername}-${Date.now()}`;
-    if (!target.adminRewardHistory) target.adminRewardHistory = [];
-
-    if (rewardType === 'astra') {
-      target.astra = (target.astra || 0) + amount;
-      target.ascensionCoins = target.astra;
-    } else if (rewardType === 'cardShards') {
-      this.awardCategoryShards(target, amount);
-    } else if (rewardType === 'xp') {
-      target.xp = (target.xp || 0) + amount;
-    } else if (rewardType === 'character' && characterId) {
-      if (!(target.ownedCharacters || []).includes(characterId)) {
-        target.ownedCharacters = target.ownedCharacters || [];
-        target.ownedCharacters.push(characterId);
-      }
-    } else if (rewardType === 'wheelSpins') {
-      target.wheelSpins = (target.wheelSpins || 0) + amount;
-    } else {
-      return { success: false, error: 'Unknown reward type.' };
-    }
-
-    target.adminRewardHistory.push(rewardId);
-    target.lastActiveAt = Date.now();
-    this.logAdminAction(admin.username, `ADMIN GRANTED ${rewardType.toUpperCase()}`, `Granted ${amount} ${rewardType} to ${target.username}${characterId ? ` (${characterId})` : ''}`);
-    this.save();
-    return { success: true };
+    const normalized = String(rewardType || '').trim().toLowerCase();
+    const actionMap: Record<string, string> = {
+      astra: 'grant_astra',
+      cardshards: 'grant_card_shards',
+      xp: 'grant_xp',
+      character: 'grant_character',
+      wheelspins: 'grant_wheel_spins',
+    };
+    const result = this.adminApplyPlayerAction(adminUserId, targetUsername, actionMap[normalized] || normalized, amount, characterId);
+    return result;
   }
 
   // ============================================================
